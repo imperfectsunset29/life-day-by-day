@@ -1,5 +1,32 @@
 const API = '/api';
 
+// Auth
+let adminPassword = localStorage.getItem('adminPassword') || null;
+function isAdmin() { return adminPassword !== null; }
+function authHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (adminPassword) h['X-Admin-Password'] = adminPassword;
+  return h;
+}
+async function apiFetch(url, options = {}) {
+  options.headers = authHeaders();
+  const res = await fetch(url, options);
+  if (res.status === 401) { lock(); alert('Wrong password — locked.'); throw new Error('Unauthorized'); }
+  return res;
+}
+function applyAuthUI() {
+  const btn = document.getElementById('lock-btn');
+  if (isAdmin()) {
+    document.body.classList.add('admin-mode');
+    btn.textContent = '🔓'; btn.title = 'Click to lock';
+  } else {
+    document.body.classList.remove('admin-mode');
+    btn.textContent = '🔒'; btn.title = 'Click to unlock';
+  }
+}
+function unlock(pw) { adminPassword = pw; localStorage.setItem('adminPassword', pw); applyAuthUI(); }
+function lock() { adminPassword = null; localStorage.removeItem('adminPassword'); applyAuthUI(); }
+
 const categoryLabels = {
   oneOff: 'One-off',
   habits: 'Habit',
@@ -104,9 +131,8 @@ async function updateProgress(id, delta) {
   const task = tasks.projects.find(t => t.id === id);
   if (!task) return;
   const newProgress = Math.max(0, Math.min(100, task.progress + delta));
-  await fetch(`${API}/tasks/projects/${id}`, {
+  await apiFetch(`${API}/tasks/projects/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ progress: newProgress })
   });
   await loadTasks();
@@ -192,9 +218,8 @@ async function toggleTask(category, id) {
     ? { doneToday: !task.doneToday }
     : { done: !task.done };
 
-  await fetch(`${API}/tasks/${category}/${id}`, {
+  await apiFetch(`${API}/tasks/${category}/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
 
@@ -228,9 +253,8 @@ function startEdit(category, id) {
       const save = async () => {
         const newText = input.value.trim();
         if (newText && newText !== currentText) {
-          await fetch(`${API}/tasks/${category}/${id}`, {
+          await apiFetch(`${API}/tasks/${category}/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: newText })
           });
         }
@@ -250,7 +274,7 @@ function startEdit(category, id) {
 
 // Delete task
 async function deleteTask(category, id) {
-  await fetch(`${API}/tasks/${category}/${id}`, { method: 'DELETE' });
+  await apiFetch(`${API}/tasks/${category}/${id}`, { method: 'DELETE' });
   await loadTasks();
   if (category === 'treats') renderTreats();
 }
@@ -276,9 +300,8 @@ async function addTask(category) {
   const save = async () => {
     const text = input.value.trim();
     if (text) {
-      await fetch(`${API}/tasks/${category}`, {
+      await apiFetch(`${API}/tasks/${category}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
       });
     }
@@ -318,7 +341,7 @@ async function surprise() {
 
 // Restore a done/olympus task
 async function restoreTask(category, id) {
-  await fetch(`${API}/restore/${category}/${id}`, { method: 'POST' });
+  await apiFetch(`${API}/restore/${category}/${id}`, { method: 'POST' });
   await loadTasks();
   if (category === 'olympus') renderOlympus();
 }
@@ -379,6 +402,7 @@ function showMain() {
 
 // Double-click to edit one-off or treat task text
 document.addEventListener('dblclick', (e) => {
+  if (!isAdmin()) return;
   const li = e.target.closest('.task-item');
   if (!li) return;
   e.preventDefault();
@@ -433,6 +457,12 @@ document.addEventListener('keydown', (e) => {
     overlay.classList.add('hidden');
   }
 });
+
+document.getElementById('lock-btn').addEventListener('click', () => {
+  if (isAdmin()) { lock(); }
+  else { const pw = prompt('Password:'); if (pw) unlock(pw); }
+});
+applyAuthUI();
 
 // Init
 loadTasks();

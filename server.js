@@ -10,6 +10,16 @@ const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+if (!process.env.ADMIN_PASSWORD) console.warn('WARNING: ADMIN_PASSWORD not set — all writes will fail.');
+
+function requireAdmin(req, res, next) {
+  const pw = req.headers['x-admin-password'];
+  if (!pw || pw !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
 const DONE_RETENTION_DAYS = 7;
 
 const pynchonQuotes = [
@@ -135,7 +145,7 @@ app.get('/api/tasks', (req, res) => {
 });
 
 // Add a task
-app.post('/api/tasks/:category', (req, res) => {
+app.post('/api/tasks/:category', requireAdmin, (req, res) => {
   const data = readTasks();
   const { category } = req.params;
   const { text } = req.body;
@@ -156,7 +166,7 @@ app.post('/api/tasks/:category', (req, res) => {
 });
 
 // Update a task
-app.put('/api/tasks/:category/:id', (req, res) => {
+app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
   const data = readTasks();
   const { category, id } = req.params;
   if (!['oneOff', 'habits', 'projects', 'treats'].includes(category)) {
@@ -207,7 +217,7 @@ app.put('/api/tasks/:category/:id', (req, res) => {
 });
 
 // Delete a task
-app.delete('/api/tasks/:category/:id', (req, res) => {
+app.delete('/api/tasks/:category/:id', requireAdmin, (req, res) => {
   const data = readTasks();
   const { category, id } = req.params;
   if (!['oneOff', 'habits', 'projects', 'treats', 'done', 'olympus'].includes(category)) {
@@ -219,7 +229,7 @@ app.delete('/api/tasks/:category/:id', (req, res) => {
 });
 
 // Restore a done/olympus task back to its original category
-app.post('/api/restore/:category/:id', (req, res) => {
+app.post('/api/restore/:category/:id', requireAdmin, (req, res) => {
   const data = readTasks();
   const { category, id } = req.params;
   const numId = Number(id);
