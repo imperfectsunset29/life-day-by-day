@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIFE (day by day)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1 id="home-title">LIFE <span class="subtle">(day by day)</span></h1>
+    <div class="header-actions">
+      <button id="olympus-btn" class="olympus-btn">Mount Olympus</button>
+      <button id="surprise-btn" class="surprise-btn">Surprise me</button>
+    </div>
+  </header>
+
+  <!-- Randomizer overlay -->
+  <div id="randomizer-overlay" class="overlay hidden">
+    <div class="overlay-content">
+      <p class="overlay-label" id="overlay-label"></p>
+      <h2 class="overlay-task" id="overlay-task"></h2>
+      <div class="overlay-actions">
+        <button id="respin-btn" class="btn-secondary">Re-spin</button>
+        <button id="close-overlay-btn" class="btn-primary">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main view -->
+  <main id="main-view">
+    <!-- One-off tasks -->
+    <section class="category" data-category="oneOff">
+      <div class="category-header">
+        <h2>One-off</h2>
+        <button class="add-btn" data-category="oneOff">+</button>
+      </div>
+      <ul id="list-oneOff" class="task-list"></ul>
+    </section>
+
+    <!-- Habits -->
+    <section class="category" data-category="habits">
+      <div class="category-header">
+        <h2>Habits</h2>
+        <button class="add-btn" data-category="habits">+</button>
+      </div>
+      <ul id="list-habits" class="task-list"></ul>
+    </section>
+
+    <!-- Projects -->
+    <section class="category" data-category="projects">
+      <div class="category-header">
+        <h2>Projects</h2>
+        <button class="add-btn" data-category="projects">+</button>
+      </div>
+      <ul id="list-projects" class="task-list"></ul>
+    </section>
+
+    <!-- Done (fading mini-list) -->
+    <section class="category done-section" id="done-section">
+      <div class="category-header">
+        <h2>Done</h2>
+      </div>
+      <ul id="list-done" class="task-list"></ul>
+    </section>
+
+    <!-- Tertiary nav -->
+    <nav class="tertiary-nav">
+      <button id="treats-btn" class="tertiary-link">Treats</button>
+    </nav>
+  </main>
+
+  <!-- Olympus view -->
+  <main id="olympus-view" class="hidden">
+    <div class="olympus-header">
+      <button id="olympus-back" class="btn-secondary">Back</button>
+      <h2 class="olympus-title">Mount Olympus</h2>
+    </div>
+    <p class="olympus-subtitle">Where completed projects ascend</p>
+    <div id="olympus-list" class="olympus-list"></div>
+    <div id="olympus-empty" class="empty-state olympus-empty">
+      No projects have ascended yet
+    </div>
+  </main>
+
+  <!-- Treats view -->
+  <main id="treats-view" class="hidden">
+    <div class="olympus-header">
+      <button id="treats-back" class="btn-secondary">Back</button>
+      <h2 class="olympus-title">Treats</h2>
+    </div>
+    <p class="olympus-subtitle">Pleasurable things — 20% chance in Surprise me</p>
+    <section class="category">
+      <div class="category-header">
+        <h2>Your treats</h2>
+        <button class="add-btn" data-category="treats">+</button>
+      </div>
+      <ul id="list-treats" class="task-list"></ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

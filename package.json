@@ -1,0 +1,12 @@
+{
+  "name": "life-day-by-day",
+  "version": "1.0.0",
+  "description": "A minimal task manager with one-off tasks, habits, and projects",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
