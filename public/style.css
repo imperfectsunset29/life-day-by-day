@@ -618,11 +618,17 @@ h1 {
   background: none;
   color: rgba(240, 232, 224, 0.35);
   border: 1px solid rgba(240, 232, 224, 0.1);
-  padding: 10px 14px;
-  font-size: 0.9rem;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.15s ease;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .lock-btn:hover { color: rgba(240, 232, 224, 0.7); border-color: rgba(240, 232, 224, 0.3); }
 body.admin-mode .lock-btn { color: #b5c99a; border-color: rgba(181, 201, 154, 0.3); }
