@@ -27,7 +27,9 @@ tasks.json           → All persistent data (auto-created on first run)
 
 **View switching:** Three `<main>` elements toggled via `.hidden` class. `hideAllViews()` hides all, then the target view is shown.
 
-**Event handling:** Single `document.addEventListener('click', ...)` with delegation based on CSS classes (`task-checkbox`, `edit`, `delete`, `restore`, `add-btn`, `progress-btn`). A separate `dblclick` listener on `document` handles inline editing for one-offs and treats — finds the closest `.task-item`, looks up the edit button's `data-id`/`data-category`, and calls `startEdit()`. `.task-text` has `user-select: none` to prevent text selection highlight on double-click.
+**Event handling:** Single `document.addEventListener('click', ...)` with delegation based on CSS classes (`task-checkbox`, `edit`, `delete`, `restore`, `add-btn`, `progress-btn`). A separate `dblclick` listener on `document` handles inline editing for one-offs and treats — finds the closest `.task-item`, calls `e.preventDefault()` on any double-click within a `.task-item` (prevents browser text selection), then calls `startEdit()` only if the target is `.task-text`. `.task-text` also has `user-select: none` as a belt-and-suspenders measure. The dblclick listener early-returns if `!isAdmin()`.
+
+**Auth:** App is read-only by default. All mutating API routes require `X-Admin-Password` header matching `process.env.ADMIN_PASSWORD` (set in Railway). Frontend stores password in `localStorage` under `adminPassword`. `body.admin-mode` CSS class gates all write UI (add buttons, checkboxes, edit/delete/restore, progress buttons). `Surprise me` stays visible in both modes. Key functions: `isAdmin()`, `authHeaders()`, `apiFetch()` (wraps all mutating fetches, auto-locks on 401), `unlock(pw)`, `lock()`, `applyAuthUI()`. Lock button (`#lock-btn`) in header — 🔒 locked / 🔓 unlocked (sage green).
 
 ## Task Categories & Logic
 
@@ -71,28 +73,36 @@ ID ranges in defaults: oneOff 1–10, habits 101–205, projects 201–206, trea
 - **No inline styles.** All styling in `style.css`.
 - **Keep server.js for API/logic, app.js for DOM/UI.** Don't mix concerns.
 
+## Deployment
+
+- **Live app:** https://life-day-by-day-production.up.railway.app (Railway, $1/month hobby plan)
+- **GitHub:** https://github.com/imperfectsunset29/life-day-by-day
+- **Persistence:** `tasks.json` saved to Railway volume mounted at `/app/data`. `server.js` checks `fs.existsSync('/app/data')` and falls back to `__dirname` for local dev.
+- **Deploy workflow:** push to `main` → Railway auto-redeploys.
+
 ## Current State — April 4, 2026
 
 **Data snapshot:**
-- 11 one-off tasks active, none completed
-- 11 habits tracked; `foam roll` last done 2026-04-03
-- 6 projects active, all at 0% progress: Job search, Interaction design foundation courses, Personal webpage, Personal website re-do, Accent practice, Read for RS
+- 8 one-off tasks active; 4 in done (Send mom eye prescription, Go to eye exam, Put on overgrip, Send Patrick response)
+- 12 habits tracked; `foam roll` and `hang from bar` last done 2026-04-03; Gym added (id 501)
+- 5 projects active: Job search (70%), Interaction design foundation courses (20%), Voice app practice (0%), Read for RS (20%), AI Lab project on portfolio (0%)
 - 8 treats defined (all analog: tea, walks, cooking, music)
-- `done: []` — no one-offs completed yet
-- `olympus: []` — no projects have ascended
-- `nextId: 500` — IDs 300–304 added beyond defaults (Nails, Read for fun, Put on overgrip, Wrist exercises)
+- `olympus: 1` — Personal website re-do ascended 2026-04-03
+- `nextId: 503`
+
+**Auth:** Password-based write protection live. `ADMIN_PASSWORD` set in Railway env vars. Enter password once per device via lock button — stored in `localStorage`.
 
 **Notion integration:**
 - MCP configured at project level (`~/.claude.json` → `mcpServers.notion`)
-- Portfolio page live: `LIFE: The Ascension Logic` → https://www.notion.so/3374ee47dcf581d0bba8fb5ca73f4a70
+- Portfolio page: `LIFE — Personal productivity app, built from scratch with Claude Code` → https://www.notion.so/3374ee47dcf581d0bba8fb5ca73f4a70
 - Page lives inside `My latest (and bestest :) projects` database on `iamvalentina.notion.site`
 - Update workflow: FETCH → DIFF → UPDATE (surgical `update_content` patches, never full rewrites)
-- THE CHRONICLE section on the page is the canonical decision log — 3 entries max, newest first
+- THE CHRONICLE: 3 entries max, newest first. Full log in memory: `project_chronicle_log.md`
+- Chronicle V&T: plain English, proof of output, no literary flourishes. See `feedback_chronicle_vt.md`
 
 ## Next Steps
 
-- [ ] **Start progressing projects.** Job search and Personal website re-do are the highest-stakes. Use `+` to log any forward movement, however small.
-- [ ] **First ascension.** Get one project to 100% to trigger the Pynchon-voice reflection and populate Olympus for the first time.
 - [ ] **Habit streak integrity.** Several habits have `lastDoneDate: null` — never completed. Stretching, gua sha, dry brushing, plank are untouched.
-- [ ] **Update Live Status on Notion page** each session. Format: `X projects active. Y ascensions. Olympus [waits / holds N].`
-- [ ] **Append to THE CHRONICLE** when a meaningful design or content decision is made. Keep it to 3 entries. Prune on every update.
+- [ ] **Progress projects.** Job search at 70% — push to ascension. AI Lab project on portfolio is meta and worth showing.
+- [ ] **Update Live Status on Notion page** each session. Format: `X projects active. Y ascensions. Olympus holds N.`
+- [ ] **Append to THE CHRONICLE** when a meaningful decision is made. Prune Notion to 3, append full log to `project_chronicle_log.md`.
