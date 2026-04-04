@@ -639,7 +639,6 @@ body.admin-mode .lock-btn:hover { color: #cdddb3; }
 .task-action-btn.delete,
 .task-action-btn.restore,
 .progress-btn { display: none; }
-#surprise-btn { display: none; }
 
 /* Restore in admin mode */
 body.admin-mode .add-btn { display: flex; }
@@ -648,4 +647,3 @@ body.admin-mode .task-action-btn.edit,
 body.admin-mode .task-action-btn.delete,
 body.admin-mode .task-action-btn.restore,
 body.admin-mode .progress-btn { display: inline-block; }
-body.admin-mode #surprise-btn { display: inline-block; }
