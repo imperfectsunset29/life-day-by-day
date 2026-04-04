@@ -4,7 +4,8 @@ const path = require('path');
 
 const app = express();
 const PORT = 3000;
-const TASKS_FILE = path.join(__dirname, 'tasks.json');
+const DATA_DIR = fs.existsSync('/app/data') ? '/app/data' : __dirname;
+const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
