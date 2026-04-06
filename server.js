@@ -232,6 +232,20 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
   res.json(task);
 });
 
+// Reorder tasks within a category
+app.put('/api/tasks/:category/reorder', requireAdmin, (req, res) => {
+  const data = readTasks();
+  const { category } = req.params;
+  const { ids } = req.body;
+  if (!['oneOff', 'habits', 'projects', 'treats'].includes(category)) {
+    return res.status(400).json({ error: 'Invalid category' });
+  }
+  const items = data[category];
+  data[category] = ids.map(id => items.find(t => t.id === Number(id))).filter(Boolean);
+  writeTasks(data);
+  res.json({ success: true });
+});
+
 // Update a task
 app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
   const data = readTasks();

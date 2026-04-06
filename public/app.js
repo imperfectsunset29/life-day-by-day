@@ -76,6 +76,9 @@ function renderCategory(category, items) {
     const isDone = category === 'habits' ? task.doneToday : task.done;
     const li = document.createElement('li');
     li.className = `task-item${isDone ? ' done' : ''}`;
+    li.dataset.id = task.id;
+    li.dataset.category = category;
+    if (isAdmin()) li.draggable = true;
 
     li.innerHTML = `
       <button class="task-checkbox${isDone ? ' checked' : ''}" data-id="${task.id}" data-category="${category}"></button>
@@ -127,6 +130,9 @@ function renderProjects() {
   for (const task of tasks.projects) {
     const li = document.createElement('li');
     li.className = 'task-item project-item';
+    li.dataset.id = task.id;
+    li.dataset.category = 'projects';
+    if (isAdmin()) li.draggable = true;
     const hasSteps = task.steps && task.steps.length > 0;
     const isExpanded = expandedProjects.has(task.id);
     li.innerHTML = `
@@ -433,6 +439,9 @@ function renderTreats() {
   for (const treat of tasks.treats) {
     const li = document.createElement('li');
     li.className = 'task-item';
+    li.dataset.id = treat.id;
+    li.dataset.category = 'treats';
+    if (isAdmin()) li.draggable = true;
     li.innerHTML = `
       <span class="task-text">${escapeHtml(treat.text)}</span>
       <div class="task-actions" style="opacity:1">
@@ -554,6 +563,62 @@ document.getElementById('lock-btn').addEventListener('click', () => {
   else { const pw = prompt('Password:'); if (pw) unlock(pw); }
 });
 applyAuthUI();
+
+// Drag to reorder
+let dragSrcId = null;
+let dragSrcCategory = null;
+let dragTargetId = null;
+
+async function reorderTasks(category, srcId, targetId) {
+  const list = tasks[category] || [];
+  const ids = list.map(t => t.id);
+  const fromIdx = ids.indexOf(srcId);
+  const toIdx = ids.indexOf(targetId);
+  if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+  ids.splice(fromIdx, 1);
+  ids.splice(toIdx, 0, srcId);
+  await apiFetch(`${API}/tasks/${category}/reorder`, {
+    method: 'PUT',
+    body: JSON.stringify({ ids })
+  });
+  await loadTasks();
+  if (category === 'treats') renderTreats();
+}
+
+document.addEventListener('dragstart', (e) => {
+  const li = e.target.closest('.task-item[draggable]');
+  if (!li) return;
+  dragSrcId = Number(li.dataset.id);
+  dragSrcCategory = li.dataset.category;
+  dragTargetId = null;
+  li.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+});
+
+document.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  const li = e.target.closest('.task-item');
+  if (!li || Number(li.dataset.id) === dragSrcId || li.dataset.category !== dragSrcCategory) return;
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  li.classList.add('drag-over');
+  dragTargetId = Number(li.dataset.id);
+});
+
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  if (dragSrcId && dragTargetId && dragSrcId !== dragTargetId) {
+    reorderTasks(dragSrcCategory, dragSrcId, dragTargetId);
+  }
+});
+
+document.addEventListener('dragend', () => {
+  document.querySelectorAll('.dragging, .drag-over').forEach(el => {
+    el.classList.remove('dragging', 'drag-over');
+  });
+  dragSrcId = null;
+  dragSrcCategory = null;
+  dragTargetId = null;
+});
 
 // Init
 loadTasks();

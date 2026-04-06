@@ -645,6 +645,24 @@ body.admin-mode .task-action-btn.delete,
 body.admin-mode .task-action-btn.restore { display: inline-block; }
 body.admin-mode .progress-btn { pointer-events: auto; cursor: pointer; opacity: 1; }
 
+/* ============ Drag to reorder ============ */
+
+.task-item[draggable="true"] {
+  cursor: grab;
+}
+
+.task-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.task-item.dragging {
+  opacity: 0.35;
+}
+
+.task-item.drag-over {
+  border-top: 2px solid rgba(181, 201, 154, 0.55);
+}
+
 /* ============ Project Steps ============ */
 
 .step-toggle {
