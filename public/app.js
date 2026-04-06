@@ -36,6 +36,7 @@ const categoryLabels = {
 
 // State
 let tasks = { oneOff: [], habits: [], projects: [], treats: [], done: [], olympus: [] };
+const expandedProjects = new Set();
 
 // DOM refs
 const overlay = document.getElementById('randomizer-overlay');
@@ -89,6 +90,28 @@ function renderCategory(category, items) {
   }
 }
 
+function renderStepsHTML(task) {
+  const steps = task.steps || [];
+  let html = `<div class="steps-section">`;
+
+  for (const step of steps) {
+    html += `
+      <div class="step-item">
+        <button class="step-checkbox${step.done ? ' checked' : ''}" data-project-id="${task.id}" data-step-id="${step.id}"></button>
+        <span class="step-text${step.done ? ' done' : ''}">${escapeHtml(step.text)}</span>
+        <button class="step-delete" data-project-id="${task.id}" data-step-id="${step.id}" title="Delete step">&times;</button>
+      </div>`;
+  }
+
+  html += `
+    <div class="step-add-row">
+      <button class="step-add-btn" data-project-id="${task.id}">+ step</button>
+    </div>
+  </div>`;
+
+  return html;
+}
+
 function renderProjects() {
   const list = document.getElementById('list-projects');
   list.innerHTML = '';
@@ -104,9 +127,11 @@ function renderProjects() {
   for (const task of tasks.projects) {
     const li = document.createElement('li');
     li.className = 'task-item project-item';
-
+    const hasSteps = task.steps && task.steps.length > 0;
+    const isExpanded = expandedProjects.has(task.id);
     li.innerHTML = `
       <div class="project-top">
+        <button class="step-toggle" data-id="${task.id}" title="${isExpanded ? 'Collapse steps' : 'Expand steps'}">${isExpanded ? '▾' : '▸'}</button>
         <span class="task-text">${escapeHtml(task.text)}</span>
         <div class="task-actions">
           <button class="task-action-btn edit" data-id="${task.id}" data-category="projects" title="Edit">edit</button>
@@ -114,17 +139,63 @@ function renderProjects() {
         </div>
       </div>
       <div class="progress-row">
-        <button class="progress-btn" data-id="${task.id}" data-delta="-10">&minus;</button>
+        <button class="progress-btn" data-id="${task.id}" data-delta="-10"${hasSteps ? ' disabled' : ''}>&minus;</button>
         <div class="progress-track">
           <div class="progress-fill" style="width: ${task.progress}%"></div>
         </div>
         <span class="progress-label">${task.progress}%</span>
-        <button class="progress-btn" data-id="${task.id}" data-delta="10">+</button>
+        <button class="progress-btn" data-id="${task.id}" data-delta="10"${hasSteps ? ' disabled' : ''}>+</button>
       </div>
+      ${isExpanded ? renderStepsHTML(task) : ''}
     `;
 
     list.appendChild(li);
   }
+}
+
+async function toggleStep(projectId, stepId, done) {
+  await apiFetch(`${API}/tasks/projects/${projectId}/steps/${stepId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ done })
+  });
+  await loadTasks();
+}
+
+async function deleteStep(projectId, stepId) {
+  await apiFetch(`${API}/tasks/projects/${projectId}/steps/${stepId}`, { method: 'DELETE' });
+  await loadTasks();
+}
+
+async function addStep(projectId) {
+  const btn = document.querySelector(`.step-add-btn[data-project-id="${projectId}"]`);
+  if (!btn) return;
+  const addRow = btn.closest('.step-add-row');
+  if (!addRow || addRow.querySelector('.step-text-input')) return;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'step-text-input';
+  input.placeholder = 'New step...';
+  addRow.insertBefore(input, btn);
+  input.focus();
+
+  const save = async () => {
+    const text = input.value.trim();
+    if (text) {
+      expandedProjects.add(projectId);
+      await apiFetch(`${API}/tasks/projects/${projectId}/steps`, {
+        method: 'POST',
+        body: JSON.stringify({ text })
+      });
+    }
+    await loadTasks();
+  };
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { input.value = ''; input.blur(); }
+  });
 }
 
 async function updateProgress(id, delta) {
@@ -427,11 +498,31 @@ document.addEventListener('click', (e) => {
   else if (target.classList.contains('restore')) {
     restoreTask(target.dataset.category, Number(target.dataset.id));
   }
-  else if (target.classList.contains('progress-btn')) {
+  else if (target.classList.contains('progress-btn') && !target.disabled) {
     updateProgress(Number(target.dataset.id), Number(target.dataset.delta));
   }
   else if (target.classList.contains('add-btn')) {
     addTask(target.dataset.category);
+  }
+  else if (target.classList.contains('step-toggle')) {
+    const id = Number(target.dataset.id);
+    if (expandedProjects.has(id)) expandedProjects.delete(id);
+    else expandedProjects.add(id);
+    renderProjects();
+  }
+  else if (target.classList.contains('step-checkbox')) {
+    if (!isAdmin()) return;
+    const projectId = Number(target.dataset.projectId);
+    const stepId = Number(target.dataset.stepId);
+    const project = tasks.projects.find(p => p.id === projectId);
+    const step = project && project.steps && project.steps.find(s => s.id === stepId);
+    if (step) toggleStep(projectId, stepId, !step.done);
+  }
+  else if (target.classList.contains('step-delete')) {
+    deleteStep(Number(target.dataset.projectId), Number(target.dataset.stepId));
+  }
+  else if (target.classList.contains('step-add-btn')) {
+    addStep(Number(target.dataset.projectId));
   }
 });
 

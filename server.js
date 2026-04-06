@@ -107,6 +107,9 @@ function readTasks() {
   if (!data.done) data.done = [];
   if (!data.olympus) data.olympus = [];
   if (!data.treats) data.treats = [];
+  for (const project of data.projects) {
+    if (!project.steps) project.steps = [];
+  }
 
   let changed = false;
 
@@ -138,6 +141,70 @@ function writeTasks(data) {
 function getRandomPynchon() {
   return pynchonQuotes[Math.floor(Math.random() * pynchonQuotes.length)];
 }
+
+// Add a step to a project
+app.post('/api/tasks/projects/:id/steps', requireAdmin, (req, res) => {
+  const data = readTasks();
+  const { id } = req.params;
+  const { text } = req.body;
+  const project = data.projects.find(t => t.id === Number(id));
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!project.steps) project.steps = [];
+  const stepId = data.nextId++;
+  project.steps.push({ id: stepId, text, done: false });
+  writeTasks(data);
+  res.json(project);
+});
+
+// Update a step (toggle done or rename)
+app.put('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => {
+  const data = readTasks();
+  const { id, stepId } = req.params;
+  const project = data.projects.find(t => t.id === Number(id));
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  const step = project.steps && project.steps.find(s => s.id === Number(stepId));
+  if (!step) return res.status(404).json({ error: 'Step not found' });
+
+  if (req.body.text !== undefined) step.text = req.body.text;
+  if (req.body.done !== undefined) step.done = req.body.done;
+
+  // Recalculate progress from steps
+  const doneCnt = project.steps.filter(s => s.done).length;
+  project.progress = Math.round((doneCnt / project.steps.length) * 100);
+
+  // Auto-ascend at 100%
+  if (project.progress >= 100) {
+    data.olympus.push({
+      id: project.id,
+      text: project.text,
+      completedAt: new Date().toISOString(),
+      reflection: getRandomPynchon()
+    });
+    data.projects = data.projects.filter(t => t.id !== project.id);
+  }
+
+  writeTasks(data);
+  res.json(project);
+});
+
+// Delete a step
+app.delete('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => {
+  const data = readTasks();
+  const { id, stepId } = req.params;
+  const project = data.projects.find(t => t.id === Number(id));
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!project.steps) return res.status(404).json({ error: 'Step not found' });
+  project.steps = project.steps.filter(s => s.id !== Number(stepId));
+
+  // Recalculate progress from remaining steps
+  if (project.steps.length > 0) {
+    const doneCnt = project.steps.filter(s => s.done).length;
+    project.progress = Math.round((doneCnt / project.steps.length) * 100);
+  }
+
+  writeTasks(data);
+  res.json({ success: true });
+});
 
 // Get all tasks
 app.get('/api/tasks', (req, res) => {
