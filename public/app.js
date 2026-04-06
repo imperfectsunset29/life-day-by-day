@@ -359,10 +359,9 @@ async function addTask(category) {
 
   const li = document.createElement('li');
   li.className = 'task-item';
-  li.innerHTML = `
-    <span class="task-checkbox"></span>
-    <input type="text" class="task-text-input" placeholder="New task...">
-  `;
+  li.innerHTML = category === 'treats'
+    ? `<input type="text" class="task-text-input" placeholder="New treat...">`
+    : `<span class="task-checkbox"></span><input type="text" class="task-text-input" placeholder="New task...">`;
   list.appendChild(li);
 
   const input = li.querySelector('input');
@@ -377,6 +376,7 @@ async function addTask(category) {
       });
     }
     await loadTasks();
+    if (category === 'treats') renderTreats();
   };
 
   input.addEventListener('blur', save);
