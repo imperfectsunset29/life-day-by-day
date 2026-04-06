@@ -345,6 +345,15 @@ app.get('/api/random', (req, res) => {
   res.json(pick);
 });
 
+// Backup — download tasks.json as a file (admin only)
+app.get('/api/backup', requireAdmin, (req, res) => {
+  const data = readTasks();
+  const date = new Date().toISOString().split('T')[0];
+  res.setHeader('Content-Disposition', `attachment; filename="tasks-backup-${date}.json"`);
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(data, null, 2));
+});
+
 app.listen(PORT, () => {
   console.log(`LIFE (day by day) running at http://localhost:${PORT}`);
 });
