@@ -75,7 +75,7 @@ ID ranges in defaults: oneOff 1–10, habits 101–205, projects 201–206, trea
 
 ## Deployment
 
-- **Live app:** https://life-day-by-day-production.up.railway.app (Railway, $1/month hobby plan)
+- **Live app:** https://life-day-by-day-production.up.railway.app (Railway, Hobby plan)
 - **GitHub:** https://github.com/imperfectsunset29/life-day-by-day
 - **Persistence:** `tasks.json` saved to Railway volume mounted at `/app/data`. `server.js` checks `fs.existsSync('/app/data')` and falls back to `__dirname` for local dev.
 - **Deploy workflow:** push to `main` → Railway auto-redeploys.
