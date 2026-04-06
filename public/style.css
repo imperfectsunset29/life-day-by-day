@@ -30,7 +30,7 @@ header {
 
 h1 {
   font-family: 'Instrument Serif', Georgia, serif;
-  font-size: 4rem;
+  font-size: clamp(2.8rem, 10vw, 6.5rem);
   font-weight: 400;
   letter-spacing: -0.02em;
   color: #f0e8e0;
@@ -583,9 +583,6 @@ h1 {
     margin-bottom: 48px;
   }
 
-  h1 {
-    font-size: 1.8rem;
-  }
 
   .header-actions {
     gap: 6px;
