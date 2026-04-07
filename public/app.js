@@ -58,6 +58,9 @@ function render() {
   renderCategory('habits', tasks.habits);
   renderProjects();
   renderDone();
+  initSortable('list-oneOff', 'oneOff');
+  initSortable('list-habits', 'habits');
+  initSortable('list-projects', 'projects');
 }
 
 function renderCategory(category, items) {
@@ -78,7 +81,6 @@ function renderCategory(category, items) {
     li.className = `task-item${isDone ? ' done' : ''}`;
     li.dataset.id = task.id;
     li.dataset.category = category;
-    if (isAdmin()) li.draggable = true;
 
     li.innerHTML = `
       <button class="task-checkbox${isDone ? ' checked' : ''}" data-id="${task.id}" data-category="${category}"></button>
@@ -132,7 +134,6 @@ function renderProjects() {
     li.className = 'task-item project-item';
     li.dataset.id = task.id;
     li.dataset.category = 'projects';
-    if (isAdmin()) li.draggable = true;
     const hasSteps = task.steps && task.steps.length > 0;
     const isExpanded = expandedProjects.has(task.id);
     li.innerHTML = `
@@ -441,7 +442,6 @@ function renderTreats() {
     li.className = 'task-item';
     li.dataset.id = treat.id;
     li.dataset.category = 'treats';
-    if (isAdmin()) li.draggable = true;
     li.innerHTML = `
       <span class="task-text">${escapeHtml(treat.text)}</span>
       <div class="task-actions" style="opacity:1">
@@ -451,6 +451,7 @@ function renderTreats() {
     `;
     list.appendChild(li);
   }
+  initSortable('list-treats', 'treats');
 }
 
 // View switching
@@ -564,61 +565,31 @@ document.getElementById('lock-btn').addEventListener('click', () => {
 });
 applyAuthUI();
 
-// Drag to reorder
-let dragSrcId = null;
-let dragSrcCategory = null;
-let dragTargetId = null;
-
-async function reorderTasks(category, srcId, targetId) {
-  const list = tasks[category] || [];
-  const ids = list.map(t => t.id);
-  const fromIdx = ids.indexOf(srcId);
-  const toIdx = ids.indexOf(targetId);
-  if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
-  ids.splice(fromIdx, 1);
-  ids.splice(toIdx, 0, srcId);
-  await apiFetch(`${API}/tasks/${category}/reorder`, {
-    method: 'PUT',
-    body: JSON.stringify({ ids })
+// Drag to reorder (SortableJS — works on touch and desktop)
+function initSortable(listId, category) {
+  const el = document.getElementById(listId);
+  if (!el || typeof Sortable === 'undefined') return;
+  const existing = Sortable.get(el);
+  if (existing) existing.destroy();
+  new Sortable(el, {
+    animation: 150,
+    delay: 300,
+    delayOnTouchOnly: true,
+    disabled: !isAdmin(),
+    ghostClass: 'sortable-ghost',
+    onEnd: async () => {
+      const ids = Array.from(el.querySelectorAll('.task-item'))
+        .map(li => Number(li.dataset.id))
+        .filter(id => id > 0);
+      if (!ids.length) return;
+      tasks[category] = ids.map(id => (tasks[category] || []).find(t => t.id === id)).filter(Boolean);
+      await apiFetch(`${API}/tasks/${category}/reorder`, {
+        method: 'PUT',
+        body: JSON.stringify({ ids })
+      });
+    }
   });
-  await loadTasks();
-  if (category === 'treats') renderTreats();
 }
-
-document.addEventListener('dragstart', (e) => {
-  const li = e.target.closest('.task-item[draggable]');
-  if (!li) return;
-  dragSrcId = Number(li.dataset.id);
-  dragSrcCategory = li.dataset.category;
-  dragTargetId = null;
-  li.classList.add('dragging');
-  e.dataTransfer.effectAllowed = 'move';
-});
-
-document.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  const li = e.target.closest('.task-item');
-  if (!li || Number(li.dataset.id) === dragSrcId || li.dataset.category !== dragSrcCategory) return;
-  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-  li.classList.add('drag-over');
-  dragTargetId = Number(li.dataset.id);
-});
-
-document.addEventListener('drop', (e) => {
-  e.preventDefault();
-  if (dragSrcId && dragTargetId && dragSrcId !== dragTargetId) {
-    reorderTasks(dragSrcCategory, dragSrcId, dragTargetId);
-  }
-});
-
-document.addEventListener('dragend', () => {
-  document.querySelectorAll('.dragging, .drag-over').forEach(el => {
-    el.classList.remove('dragging', 'drag-over');
-  });
-  dragSrcId = null;
-  dragSrcCategory = null;
-  dragTargetId = null;
-});
 
 // Init
 loadTasks();
