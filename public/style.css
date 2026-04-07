@@ -188,7 +188,7 @@ h1 {
 
 .task-item.done .task-text {
   text-decoration: line-through;
-  color: rgba(240, 232, 224, 0.2);
+  color: rgba(240, 232, 224, 0.55);
 }
 
 .task-checkbox {
@@ -350,12 +350,12 @@ h1 {
 
 /* Done section */
 .done-section .task-item {
-  opacity: 0.3;
+  opacity: 0.6;
 }
 
 .done-section .task-text {
   text-decoration: line-through;
-  color: rgba(240, 232, 224, 0.25);
+  color: rgba(240, 232, 224, 0.55);
 }
 
 .done-date {
@@ -758,7 +758,7 @@ body.admin-mode .step-checkbox:hover {
 
 .step-text.done {
   text-decoration: line-through;
-  color: rgba(240, 232, 224, 0.22);
+  color: rgba(240, 232, 224, 0.5);
 }
 
 .step-delete {
