@@ -31,11 +31,12 @@ const categoryLabels = {
   oneOff: 'One-off',
   habits: 'Habit',
   projects: 'Project',
-  treats: 'Treat'
+  treats: 'Treat',
+  hardThings: 'Hard thing'
 };
 
 // State
-let tasks = { oneOff: [], habits: [], projects: [], treats: [], done: [], olympus: [] };
+let tasks = { oneOff: [], habits: [], projects: [], treats: [], hardThings: [], done: [], olympus: [] };
 const expandedProjects = new Set();
 let oneOffExpanded = false;
 const ONEOFF_LIMIT = 5;
@@ -47,6 +48,7 @@ const overlayLabel = document.getElementById('overlay-label');
 const mainView = document.getElementById('main-view');
 const olympusView = document.getElementById('olympus-view');
 const treatsView = document.getElementById('treats-view');
+const hardThingsView = document.getElementById('hard-things-view');
 
 // Fetch and render
 async function loadTasks() {
@@ -341,7 +343,7 @@ async function toggleTask(category, id) {
 
 // Edit task
 function startEdit(category, id) {
-  const taskList = category === 'treats' ? tasks.treats : tasks[category];
+  const taskList = (category === 'treats' || category === 'hardThings') ? tasks[category] : tasks[category];
   const task = taskList.find(t => t.id === id);
   if (!task) return;
 
@@ -390,6 +392,7 @@ async function deleteTask(category, id) {
   await apiFetch(`${API}/tasks/${category}/${id}`, { method: 'DELETE' });
   await loadTasks();
   if (category === 'treats') renderTreats();
+  if (category === 'hardThings') renderHardThings();
 }
 
 // Add task
@@ -403,6 +406,8 @@ async function addTask(category) {
   li.className = 'task-item';
   li.innerHTML = category === 'treats'
     ? `<input type="text" class="task-text-input" placeholder="New treat...">`
+    : category === 'hardThings'
+    ? `<input type="text" class="task-text-input" placeholder="New hard thing...">`
     : `<span class="task-checkbox"></span><input type="text" class="task-text-input" placeholder="New task...">`;
   list.appendChild(li);
 
@@ -419,6 +424,7 @@ async function addTask(category) {
     }
     await loadTasks();
     if (category === 'treats') renderTreats();
+    if (category === 'hardThings') renderHardThings();
   };
 
   input.addEventListener('blur', save);
@@ -445,6 +451,7 @@ async function surprise() {
 
   overlayLabel.textContent = categoryLabels[task.category] || '';
   overlayLabel.classList.toggle('treat-label', task.category === 'treats');
+  overlayLabel.classList.toggle('hardthing-label', task.category === 'hardThings');
   overlayTask.textContent = task.text;
   overlayTask.classList.remove('spinning');
   void overlayTask.offsetWidth; // force reflow
@@ -489,11 +496,42 @@ function renderTreats() {
   initSortable('list-treats', 'treats');
 }
 
+// Render hard things
+function renderHardThings() {
+  const list = document.getElementById('list-hardThings');
+  list.innerHTML = '';
+
+  if (!tasks.hardThings || tasks.hardThings.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty-state';
+    li.textContent = "Nothing here yet — add something you've been avoiding";
+    list.appendChild(li);
+    return;
+  }
+
+  for (const item of tasks.hardThings) {
+    const li = document.createElement('li');
+    li.className = 'task-item';
+    li.dataset.id = item.id;
+    li.dataset.category = 'hardThings';
+    li.innerHTML = `
+      <span class="task-text">${escapeHtml(item.text)}</span>
+      <div class="task-actions" style="opacity:1">
+        <button class="task-action-btn edit" data-id="${item.id}" data-category="hardThings" title="Edit">edit</button>
+        <button class="task-action-btn delete" data-id="${item.id}" data-category="hardThings" title="Delete">&times;</button>
+      </div>
+    `;
+    list.appendChild(li);
+  }
+  initSortable('list-hardThings', 'hardThings');
+}
+
 // View switching
 function hideAllViews() {
   mainView.classList.add('hidden');
   olympusView.classList.add('hidden');
   treatsView.classList.add('hidden');
+  hardThingsView.classList.add('hidden');
 }
 
 function showOlympus() {
@@ -510,6 +548,13 @@ function showTreats() {
   window.scrollTo(0, 0);
 }
 
+function showHardThings() {
+  renderHardThings();
+  hideAllViews();
+  hardThingsView.classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
 function showMain() {
   hideAllViews();
   mainView.classList.remove('hidden');
@@ -523,7 +568,7 @@ document.addEventListener('dblclick', (e) => {
   if (!li) return;
   e.preventDefault();
   if (!e.target.classList.contains('task-text')) return;
-  const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"]');
+  const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"], .edit[data-category="hardThings"]');
   if (editBtn) startEdit(editBtn.dataset.category, Number(editBtn.dataset.id));
 });
 
@@ -581,6 +626,8 @@ document.getElementById('olympus-btn').addEventListener('click', showOlympus);
 document.getElementById('olympus-back').addEventListener('click', showMain);
 document.getElementById('treats-btn').addEventListener('click', showTreats);
 document.getElementById('treats-back').addEventListener('click', showMain);
+document.getElementById('hard-things-btn').addEventListener('click', showHardThings);
+document.getElementById('hard-things-back').addEventListener('click', showMain);
 
 // Close overlay on backdrop click
 overlay.addEventListener('click', (e) => {

@@ -91,6 +91,7 @@ const defaultTasks = {
     { id: 409, text: "Rearrange a shelf" },
     { id: 410, text: "Listen to a full album start to finish" }
   ],
+  hardThings: [],
   done: [],
   olympus: [],
   nextId: 500
@@ -129,6 +130,7 @@ function readTasks() {
   if (!data.done) data.done = [];
   if (!data.olympus) data.olympus = [];
   if (!data.treats) data.treats = [];
+  if (!data.hardThings) data.hardThings = [];
   for (const project of data.projects) {
     if (!project.steps) project.steps = [];
   }
@@ -217,13 +219,13 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
   const data = readTasks();
   const { category } = req.params;
   const { text } = req.body;
-  if (!['oneOff', 'habits', 'projects', 'treats'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const id = data.nextId++;
   const task = category === 'habits'
     ? { id, text, doneToday: false, lastDoneDate: null }
-    : category === 'treats'
+    : category === 'treats' || category === 'hardThings'
     ? { id, text }
     : category === 'projects'
     ? { id, text, progress: 0 }
@@ -238,7 +240,7 @@ app.put('/api/tasks/:category/reorder', requireAdmin, (req, res) => {
   const data = readTasks();
   const { category } = req.params;
   const { ids } = req.body;
-  if (!['oneOff', 'habits', 'projects', 'treats'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const items = data[category];
@@ -251,7 +253,7 @@ app.put('/api/tasks/:category/reorder', requireAdmin, (req, res) => {
 app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
   const data = readTasks();
   const { category, id } = req.params;
-  if (!['oneOff', 'habits', 'projects', 'treats'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const task = data[category].find(t => t.id === Number(id));
@@ -302,7 +304,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
 app.delete('/api/tasks/:category/:id', requireAdmin, (req, res) => {
   const data = readTasks();
   const { category, id } = req.params;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'done', 'olympus'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'done', 'olympus'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   data[category] = data[category].filter(t => t.id !== Number(id));
@@ -334,15 +336,18 @@ app.post('/api/restore/:category/:id', requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
-// Get a random uncompleted task (20% chance of a treat instead)
+// Get a random uncompleted task (20% treat, 20% hard thing, 60% regular pool)
 app.get('/api/random', (req, res) => {
   const data = readTasks();
   const treats = (data.treats || []).map(t => ({ ...t, category: 'treats' }));
-  const isTreat = treats.length > 0 && Math.random() < 0.2;
+  const hardThings = (data.hardThings || []).map(t => ({ ...t, category: 'hardThings' }));
 
-  if (isTreat) {
-    const pick = treats[Math.floor(Math.random() * treats.length)];
-    return res.json(pick);
+  const roll = Math.random();
+  if (roll < 0.2 && treats.length > 0) {
+    return res.json(treats[Math.floor(Math.random() * treats.length)]);
+  }
+  if (roll < 0.4 && hardThings.length > 0) {
+    return res.json(hardThings[Math.floor(Math.random() * hardThings.length)]);
   }
 
   const pool = [
@@ -350,9 +355,10 @@ app.get('/api/random', (req, res) => {
     ...data.habits.filter(t => !t.doneToday).map(t => ({ ...t, category: 'habits' }))
   ];
   if (pool.length === 0) {
-    // If no tasks left, give a treat
-    if (treats.length > 0) {
-      return res.json(treats[Math.floor(Math.random() * treats.length)]);
+    // If no tasks left, surface a treat or hard thing
+    const specials = [...treats, ...hardThings];
+    if (specials.length > 0) {
+      return res.json(specials[Math.floor(Math.random() * specials.length)]);
     }
     return res.json(null);
   }
