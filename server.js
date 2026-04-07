@@ -168,21 +168,6 @@ app.put('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => {
   if (req.body.text !== undefined) step.text = req.body.text;
   if (req.body.done !== undefined) step.done = req.body.done;
 
-  // Recalculate progress from steps
-  const doneCnt = project.steps.filter(s => s.done).length;
-  project.progress = Math.round((doneCnt / project.steps.length) * 100);
-
-  // Auto-ascend at 100%
-  if (project.progress >= 100) {
-    data.olympus.push({
-      id: project.id,
-      text: project.text,
-      completedAt: new Date().toISOString(),
-      reflection: getRandomPynchon()
-    });
-    data.projects = data.projects.filter(t => t.id !== project.id);
-  }
-
   writeTasks(data);
   res.json(project);
 });
@@ -195,12 +180,6 @@ app.delete('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => 
   if (!project) return res.status(404).json({ error: 'Project not found' });
   if (!project.steps) return res.status(404).json({ error: 'Step not found' });
   project.steps = project.steps.filter(s => s.id !== Number(stepId));
-
-  // Recalculate progress from remaining steps
-  if (project.steps.length > 0) {
-    const doneCnt = project.steps.filter(s => s.done).length;
-    project.progress = Math.round((doneCnt / project.steps.length) * 100);
-  }
 
   writeTasks(data);
   res.json({ success: true });

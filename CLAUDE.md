@@ -29,15 +29,20 @@ tasks.json           → All persistent data (auto-created on first run)
 
 **Event handling:** Single `document.addEventListener('click', ...)` with delegation based on CSS classes (`task-checkbox`, `edit`, `delete`, `restore`, `add-btn`, `progress-btn`, `step-toggle`, `step-checkbox`, `step-delete`, `step-add-btn`). A separate `dblclick` listener on `document` handles inline editing for one-offs and treats. Drag-to-reorder uses SortableJS (loaded from CDN in `index.html`) — initialized via `initSortable(listId, category)` after each list render; `disabled: !isAdmin()` gates it to admin mode only. Touch: 300ms hold to drag (`delayOnTouchOnly: true`).
 
-**Auth:** App is read-only by default. All mutating API routes require `X-Admin-Password` header matching `process.env.ADMIN_PASSWORD` (set in Railway). Frontend stores password in `localStorage` under `adminPassword`. `body.admin-mode` CSS class gates all write UI. Progress buttons (−/+) are visible in locked mode but `pointer-events: none` — locked view shows full UI structure, blocks writes. `Surprise me` stays visible in both modes. Key functions: `isAdmin()`, `authHeaders()`, `apiFetch()` (wraps all mutating fetches, auto-locks on 401), `unlock(pw)`, `lock()`, `applyAuthUI()`. Lock button (`#lock-btn`) in header — 🔒 locked / 🔓 unlocked (sage green).
-
-**Auth:** App is read-only by default. All mutating API routes require `X-Admin-Password` header matching `process.env.ADMIN_PASSWORD` (set in Railway). Frontend stores password in `localStorage` under `adminPassword`. `body.admin-mode` CSS class gates all write UI (add buttons, checkboxes, edit/delete/restore, progress buttons). `Surprise me` stays visible in both modes. Key functions: `isAdmin()`, `authHeaders()`, `apiFetch()` (wraps all mutating fetches, auto-locks on 401), `unlock(pw)`, `lock()`, `applyAuthUI()`. Lock button (`#lock-btn`) in header — 🔒 locked / 🔓 unlocked (sage green).
+**Auth:** App is read-only by default. All mutating API routes require `X-Admin-Password` header matching `process.env.ADMIN_PASSWORD` (set in Railway). Frontend stores password in `localStorage` under `adminPassword`. `body.admin-mode` CSS class gates all write UI (add buttons, checkboxes, edit/delete/restore, progress buttons). Progress buttons (−/+) are visible in locked mode but `pointer-events: none`. `Surprise me` stays visible in both modes. Key functions: `isAdmin()`, `authHeaders()`, `apiFetch()` (wraps all mutating fetches, auto-locks on 401), `unlock(pw)`, `lock()`, `applyAuthUI()`. Lock button (`#lock-btn`) in header — 🔒 locked / 🔓 unlocked (sage green).
 
 ## Task Categories & Logic
 
 - **One-offs:** Boolean done. Completing moves to "Done" section; auto-clears after 7 days.
 - **Habits:** Daily recurring. `doneToday` resets when date changes (checked on every `readTasks()`).
-- **Projects:** Progress 0–100 via +/- buttons. Each project can have expandable **sub-steps** (`steps[]`). When steps exist, progress auto-calculates from steps done/total — +/- buttons are disabled. Expand/collapse via ▸/▾ toggle (visible to all; write actions admin-only). Auto-ascends to Mount Olympus at 100% with a Pynchon-voice reflection.
+- **Projects:** Progress 0–100 via +/- buttons. Each project can have expandable **sub-steps** (`steps[]`).
+  - Steps are a pure checklist — checking/deleting a step does **not** affect progress. +/− buttons are always enabled regardless of whether steps exist.
+  - Expand/collapse via ▸/▾ toggle (visible to all users). Step write actions (checkbox, delete, add) are admin-only.
+  - `expandedProjects` is a module-level `Set` — survives re-renders within a session, resets on page refresh.
+  - Auto-ascension fires at `progress >= 100` on `PUT /api/tasks/projects/:id` (manual +/−). Ascended project is moved to `olympus[]` with a random Pynchon quote.
+  - Restoring from Olympus resets progress to 0; steps are **not** restored.
+  - `renderProjects()` is separate from `renderCategory()` — different DOM structure (`.project-top` + `.progress-row` + `.steps-section`).
+  - Route ordering in `server.js` matters: step routes (`/api/tasks/projects/:id/steps`) must be registered before the generic `/:category/:id` route.
 - **Treats:** Reward repository. 20% chance of appearing in "Surprise me" randomizer; guaranteed if all tasks are done.
 - **Done:** Recently completed one-offs. 7-day retention.
 - **Olympus:** Completed projects with date and reflection quote. Can be restored.

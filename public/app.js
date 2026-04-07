@@ -168,12 +168,12 @@ function renderProjects() {
         </div>
       </div>
       <div class="progress-row">
-        <button class="progress-btn" data-id="${task.id}" data-delta="-10"${hasSteps ? ' disabled' : ''}>&minus;</button>
+        <button class="progress-btn" data-id="${task.id}" data-delta="-10">&minus;</button>
         <div class="progress-track">
           <div class="progress-fill" style="width: ${task.progress}%"></div>
         </div>
         <span class="progress-label">${task.progress}%</span>
-        <button class="progress-btn" data-id="${task.id}" data-delta="10"${hasSteps ? ' disabled' : ''}>+</button>
+        <button class="progress-btn" data-id="${task.id}" data-delta="10">+</button>
       </div>
       ${isExpanded ? renderStepsHTML(task) : ''}
     `;
