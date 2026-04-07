@@ -97,10 +97,13 @@ h1 {
   border-color: #f0e8e0;
 }
 
-/* Tertiary nav (Treats link at bottom of main view) */
+/* Tertiary nav (Treats / Hard Things links at bottom of main view) */
 .tertiary-nav {
   margin-top: 40px;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
 }
 
 .tertiary-link {
@@ -112,8 +115,15 @@ h1 {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
-  padding: 0;
+  padding: 0 12px;
   transition: color 0.15s ease;
+}
+
+.tertiary-link + .tertiary-link::before {
+  content: '·';
+  margin-right: 12px;
+  color: rgba(240, 232, 224, 0.2);
+  pointer-events: none;
 }
 
 .tertiary-link:hover {
