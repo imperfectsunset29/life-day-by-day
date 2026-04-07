@@ -231,11 +231,24 @@ async function updateProgress(id, delta) {
   const task = tasks.projects.find(t => t.id === id);
   if (!task) return;
   const newProgress = Math.max(0, Math.min(100, task.progress + delta));
+
+  // Optimistic DOM update — avoids full re-render blip
+  task.progress = newProgress;
+  const li = document.querySelector(`#list-projects li[data-id="${id}"]`);
+  if (li) {
+    li.querySelector('.progress-fill').style.width = `${newProgress}%`;
+    li.querySelector('.progress-label').textContent = `${newProgress}%`;
+  }
+
   await apiFetch(`${API}/tasks/projects/${id}`, {
     method: 'PUT',
     body: JSON.stringify({ progress: newProgress })
   });
-  await loadTasks();
+
+  // Full reload only needed if ascension may have fired
+  if (newProgress >= 100) {
+    await loadTasks();
+  }
 }
 
 function renderDone() {
