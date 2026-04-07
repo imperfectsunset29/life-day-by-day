@@ -96,6 +96,28 @@ const defaultTasks = {
   nextId: 500
 };
 
+// Returns the current "habit day" in PT, with the day rolling over at 5 AM PT.
+// Between midnight and 4:59 AM PT, it's still considered the previous habit-day.
+function getHabitDay() {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false
+  }).formatToParts(now);
+  const year  = parts.find(p => p.type === 'year').value;
+  const month = parts.find(p => p.type === 'month').value;
+  const day   = parts.find(p => p.type === 'day').value;
+  const hour  = parseInt(parts.find(p => p.type === 'hour').value, 10);
+
+  // Before 5 AM PT still belongs to the previous habit-day
+  if (hour < 5) {
+    const d = new Date(`${year}-${month}-${day}T12:00:00`); // noon to avoid any DST edge
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split('T')[0];
+  }
+  return `${year}-${month}-${day}`;
+}
+
 function readTasks() {
   if (!fs.existsSync(TASKS_FILE)) {
     fs.writeFileSync(TASKS_FILE, JSON.stringify(defaultTasks, null, 2));
@@ -113,8 +135,8 @@ function readTasks() {
 
   let changed = false;
 
-  // Reset habits if the date has changed
-  const today = new Date().toISOString().split('T')[0];
+  // Reset habits if the habit-day has changed (rolls over at 5 AM PT)
+  const today = getHabitDay();
   for (const habit of data.habits) {
     if (habit.lastDoneDate !== today && habit.doneToday) {
       habit.doneToday = false;
@@ -241,7 +263,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
     if (req.body.doneToday !== undefined) {
       task.doneToday = req.body.doneToday;
       task.lastDoneDate = req.body.doneToday
-        ? new Date().toISOString().split('T')[0]
+        ? getHabitDay()
         : task.lastDoneDate;
     }
   } else if (category === 'projects' && req.body.progress !== undefined) {
