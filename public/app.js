@@ -37,6 +37,8 @@ const categoryLabels = {
 // State
 let tasks = { oneOff: [], habits: [], projects: [], treats: [], done: [], olympus: [] };
 const expandedProjects = new Set();
+let oneOffExpanded = false;
+const ONEOFF_LIMIT = 5;
 
 // DOM refs
 const overlay = document.getElementById('randomizer-overlay');
@@ -75,12 +77,17 @@ function renderCategory(category, items) {
     return;
   }
 
-  for (const task of items) {
+  for (let i = 0; i < items.length; i++) {
+    const task = items[i];
     const isDone = category === 'habits' ? task.doneToday : task.done;
     const li = document.createElement('li');
     li.className = `task-item${isDone ? ' done' : ''}`;
     li.dataset.id = task.id;
     li.dataset.category = category;
+
+    if (category === 'oneOff' && i >= ONEOFF_LIMIT && !oneOffExpanded) {
+      li.classList.add('list-hidden');
+    }
 
     li.innerHTML = `
       <button class="task-checkbox${isDone ? ' checked' : ''}" data-id="${task.id}" data-category="${category}"></button>
@@ -92,6 +99,21 @@ function renderCategory(category, items) {
     `;
 
     list.appendChild(li);
+  }
+
+  if (category === 'oneOff' && items.length > ONEOFF_LIMIT) {
+    const hidden = items.length - ONEOFF_LIMIT;
+    const section = list.parentElement;
+    const existing = section.querySelector('.show-more-btn');
+    if (existing) existing.remove();
+
+    if (!oneOffExpanded) {
+      const btn = document.createElement('button');
+      btn.className = 'show-more-btn';
+      btn.textContent = `— ${hidden} more`;
+      btn.addEventListener('click', () => { oneOffExpanded = true; render(); });
+      section.appendChild(btn);
+    }
   }
 }
 
