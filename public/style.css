@@ -179,6 +179,7 @@ h1 {
   padding: 14px 0;
   border-bottom: 1px solid rgba(240, 232, 224, 0.06);
   animation: fadeIn 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 @keyframes fadeIn {
@@ -675,8 +676,15 @@ body.admin-mode .progress-btn { pointer-events: auto; cursor: pointer; opacity: 
 /* ============ Drag to reorder ============ */
 
 .sortable-ghost {
-  opacity: 0.3;
-  background: rgba(181, 201, 154, 0.06);
+  opacity: 0.25;
+  background: rgba(181, 201, 154, 0.08);
+}
+
+.sortable-chosen {
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  opacity: 0.95;
+  z-index: 100;
 }
 
 /* ============ Project Steps ============ */

@@ -599,6 +599,10 @@ function initSortable(listId, category) {
     delayOnTouchOnly: true,
     disabled: !isAdmin(),
     ghostClass: 'sortable-ghost',
+    chosenClass: 'sortable-chosen',
+    onChoose: () => {
+      if (navigator.vibrate) navigator.vibrate(10);
+    },
     onEnd: async () => {
       const ids = Array.from(el.querySelectorAll('.task-item'))
         .map(li => Number(li.dataset.id))
