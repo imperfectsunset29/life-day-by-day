@@ -73,22 +73,39 @@ function renderOracle() {
   const block = document.getElementById('oracle-block');
   const oracle = tasks.oracle;
   if (!oracle || !oracle.text) {
-    block.classList.add('hidden');
+    if (isAdmin()) {
+      block.classList.remove('hidden');
+      document.getElementById('oracle-source-display').textContent = '';
+      document.getElementById('oracle-preview-text').textContent = '';
+      document.getElementById('oracle-expand-btn').textContent = 'add oracle';
+    } else {
+      block.classList.add('hidden');
+    }
     return;
   }
   block.classList.remove('hidden');
   document.getElementById('oracle-source-display').textContent = oracle.source || '';
   const preview = oracle.text.length > 120 ? oracle.text.slice(0, 120) + '…' : oracle.text;
   document.getElementById('oracle-preview-text').textContent = preview;
+  document.getElementById('oracle-expand-btn').textContent = 'read more';
 }
 
 function openOracleOverlay() {
   const oracle = tasks.oracle;
-  document.getElementById('oracle-overlay-source').textContent = oracle.source || '';
-  document.getElementById('oracle-full-text').textContent = oracle.text;
-  document.getElementById('oracle-read-mode').classList.remove('hidden');
-  document.getElementById('oracle-edit-mode').classList.add('hidden');
-  document.getElementById('oracle-edit-btn').classList.toggle('hidden', !isAdmin());
+  const isEmpty = !oracle || !oracle.text;
+  if (isEmpty && isAdmin()) {
+    // No content yet — go straight to edit mode
+    document.getElementById('oracle-source-input').value = '';
+    document.getElementById('oracle-text-input').value = '';
+    document.getElementById('oracle-read-mode').classList.add('hidden');
+    document.getElementById('oracle-edit-mode').classList.remove('hidden');
+  } else {
+    document.getElementById('oracle-overlay-source').textContent = oracle.source || '';
+    document.getElementById('oracle-full-text').textContent = oracle.text;
+    document.getElementById('oracle-read-mode').classList.remove('hidden');
+    document.getElementById('oracle-edit-mode').classList.add('hidden');
+    document.getElementById('oracle-edit-btn').classList.toggle('hidden', !isAdmin());
+  }
   document.getElementById('oracle-overlay').classList.remove('hidden');
 }
 
