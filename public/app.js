@@ -140,8 +140,9 @@ function openOracleOverlay() {
     document.getElementById('oracle-read-mode').classList.remove('hidden');
     document.getElementById('oracle-edit-mode').classList.add('hidden');
     document.getElementById('oracle-edit-btn').classList.toggle('hidden', !isAdmin());
-    document.getElementById('oracle-save-preview-btn').classList.toggle('hidden', !isAdmin());
+    document.getElementById('oracle-save-preview-btn').classList.toggle('hidden', false);
     document.getElementById('oracle-select-hint').classList.toggle('hidden', !isAdmin());
+    updateOracleActionBtn();
   }
   document.getElementById('oracle-overlay').classList.remove('hidden');
 }
@@ -746,8 +747,13 @@ function renderEditSentences() {
   );
 }
 
+function updateOracleActionBtn() {
+  const anySelected = document.querySelectorAll('#oracle-full-text .oracle-sentence.selected').length > 0;
+  document.getElementById('oracle-save-preview-btn').textContent = anySelected ? 'Save preview' : 'Close';
+}
+
 document.getElementById('oracle-expand-btn').addEventListener('click', openOracleOverlay);
-document.getElementById('oracle-close-btn').addEventListener('click', () => {
+document.getElementById('oracle-x-btn').addEventListener('click', () => {
   document.getElementById('oracle-overlay').classList.add('hidden');
 });
 document.getElementById('oracle-edit-btn').addEventListener('click', () => {
@@ -788,17 +794,21 @@ document.getElementById('oracle-edit-sentence-list').addEventListener('click', (
 document.getElementById('oracle-full-text').addEventListener('click', (e) => {
   if (!isAdmin()) return;
   const sentence = e.target.closest('.oracle-sentence');
-  if (sentence) sentence.classList.toggle('selected');
+  if (sentence) {
+    sentence.classList.toggle('selected');
+    updateOracleActionBtn();
+  }
 });
 document.getElementById('oracle-save-preview-btn').addEventListener('click', async () => {
   const selected = [...document.querySelectorAll('#oracle-full-text .oracle-sentence.selected')]
-    .map(s => s.textContent.trim())
-    .join(' ');
-  await apiFetch(`${API}/oracle`, {
-    method: 'PUT',
-    body: JSON.stringify({ preview: selected })
-  });
-  await loadTasks();
+    .map(s => s.textContent.trim()).join(' ');
+  if (selected) {
+    await apiFetch(`${API}/oracle`, {
+      method: 'PUT',
+      body: JSON.stringify({ preview: selected })
+    });
+    await loadTasks();
+  }
   document.getElementById('oracle-overlay').classList.add('hidden');
 });
 document.getElementById('oracle-overlay').addEventListener('click', (e) => {

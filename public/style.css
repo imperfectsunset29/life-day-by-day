@@ -853,6 +853,41 @@ body.admin-mode .step-delete {
 .oracle-overlay-content {
   max-width: 560px;
   text-align: left;
+  position: relative;
+}
+
+.oracle-x-btn {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: rgba(240, 232, 224, 0.4);
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+  transition: color 0.15s ease;
+}
+
+.oracle-x-btn:hover {
+  color: rgba(240, 232, 224, 0.8);
+}
+
+.oracle-text-link {
+  background: none;
+  border: none;
+  color: rgba(240, 232, 224, 0.35);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.oracle-text-link:hover {
+  color: rgba(240, 232, 224, 0.65);
 }
 
 .oracle-para {
