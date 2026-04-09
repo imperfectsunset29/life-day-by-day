@@ -85,8 +85,7 @@ function renderOracle() {
   }
   block.classList.remove('hidden');
   document.getElementById('oracle-source-display').textContent = oracle.source || '';
-  const preview = oracle.text.length > 120 ? oracle.text.slice(0, 120) + '…' : oracle.text;
-  document.getElementById('oracle-preview-text').textContent = preview;
+  document.getElementById('oracle-preview-text').textContent = oracle.text;
   document.getElementById('oracle-expand-btn').textContent = 'read more';
 }
 

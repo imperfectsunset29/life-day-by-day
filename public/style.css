@@ -828,6 +828,10 @@ body.admin-mode .step-delete {
   color: #f0e8e0;
   line-height: 1.6;
   margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .oracle-expand-btn {
