@@ -75,6 +75,27 @@ function splitSentences(text) {
   );
 }
 
+function buildSentenceSpans(container, text, isSelected) {
+  container.innerHTML = '';
+  const paragraphs = text.split(/\n\n+/);
+  paragraphs.forEach(para => {
+    const paraDiv = document.createElement('div');
+    paraDiv.className = 'oracle-para';
+    para.split(/\n/).forEach((line, li, lines) => {
+      splitSentences(line.trim()).forEach(sentence => {
+        if (!sentence.trim()) return;
+        const span = document.createElement('span');
+        span.className = 'oracle-sentence';
+        span.textContent = sentence;
+        if (isSelected(sentence)) span.classList.add('selected');
+        paraDiv.appendChild(span);
+      });
+      if (li < lines.length - 1) paraDiv.appendChild(document.createElement('br'));
+    });
+    container.appendChild(paraDiv);
+  });
+}
+
 function renderOracle() {
   const block = document.getElementById('oracle-block');
   const oracle = tasks.oracle;
@@ -97,17 +118,12 @@ function renderOracle() {
 
 function renderOracleSentences() {
   const oracle = tasks.oracle;
-  const container = document.getElementById('oracle-full-text');
-  const sentences = splitSentences(oracle.text);
   const preview = oracle.preview || '';
-  container.innerHTML = '';
-  sentences.forEach(sentence => {
-    const span = document.createElement('span');
-    span.className = 'oracle-sentence';
-    span.textContent = sentence;
-    if (preview && preview.includes(sentence.trim())) span.classList.add('selected');
-    container.appendChild(span);
-  });
+  buildSentenceSpans(
+    document.getElementById('oracle-full-text'),
+    oracle.text,
+    s => preview && preview.includes(s.trim())
+  );
 }
 
 function openOracleOverlay() {
@@ -725,16 +741,9 @@ function renderEditSentences() {
   );
   const currentPreview = tasks.oracle ? (tasks.oracle.preview || '') : '';
   section.classList.remove('hidden');
-  container.innerHTML = '';
-  splitSentences(text).forEach(sentence => {
-    const span = document.createElement('span');
-    span.className = 'oracle-sentence';
-    span.textContent = sentence;
-    if (prevSelected.has(sentence.trim()) || (currentPreview && currentPreview.includes(sentence.trim()))) {
-      span.classList.add('selected');
-    }
-    container.appendChild(span);
-  });
+  buildSentenceSpans(container, text, s =>
+    prevSelected.has(s.trim()) || (currentPreview && currentPreview.includes(s.trim()))
+  );
 }
 
 document.getElementById('oracle-expand-btn').addEventListener('click', openOracleOverlay);

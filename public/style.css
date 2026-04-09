@@ -852,6 +852,15 @@ body.admin-mode .step-delete {
 
 .oracle-overlay-content {
   max-width: 560px;
+  text-align: left;
+}
+
+.oracle-para {
+  margin-bottom: 1em;
+}
+
+.oracle-para:last-child {
+  margin-bottom: 0;
 }
 
 .oracle-select-hint {
