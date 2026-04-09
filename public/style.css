@@ -812,6 +812,7 @@ body.admin-mode .step-delete {
   border-bottom: 1px solid rgba(240, 232, 224, 0.1);
   padding: 28px 0 32px;
   margin-bottom: 8px;
+  cursor: pointer;
 }
 
 .oracle-source {
@@ -834,21 +835,6 @@ body.admin-mode .step-delete {
   overflow: hidden;
 }
 
-.oracle-expand-btn {
-  background: none;
-  border: none;
-  color: rgba(240, 232, 224, 0.35);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  cursor: pointer;
-  padding: 0;
-  transition: color 0.15s ease;
-}
-
-.oracle-expand-btn:hover {
-  color: rgba(240, 232, 224, 0.6);
-}
 
 .oracle-overlay-content {
   max-width: 560px;

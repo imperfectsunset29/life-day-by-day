@@ -103,8 +103,7 @@ function renderOracle() {
     if (isAdmin()) {
       block.classList.remove('hidden');
       document.getElementById('oracle-source-display').textContent = '';
-      document.getElementById('oracle-preview-text').textContent = '';
-      document.getElementById('oracle-expand-btn').textContent = 'add oracle';
+      document.getElementById('oracle-preview-text').textContent = 'add oracle';
     } else {
       block.classList.add('hidden');
     }
@@ -113,7 +112,6 @@ function renderOracle() {
   block.classList.remove('hidden');
   document.getElementById('oracle-source-display').textContent = oracle.source || '';
   document.getElementById('oracle-preview-text').textContent = oracle.preview || oracle.text;
-  document.getElementById('oracle-expand-btn').textContent = 'read more';
 }
 
 function renderOracleSentences() {
@@ -752,7 +750,7 @@ function updateOracleActionBtn() {
   document.getElementById('oracle-save-preview-btn').textContent = anySelected ? 'Save preview' : 'Close';
 }
 
-document.getElementById('oracle-expand-btn').addEventListener('click', openOracleOverlay);
+document.getElementById('oracle-block').addEventListener('click', openOracleOverlay);
 document.getElementById('oracle-x-btn').addEventListener('click', () => {
   document.getElementById('oracle-overlay').classList.add('hidden');
 });
