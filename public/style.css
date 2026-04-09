@@ -854,15 +854,39 @@ body.admin-mode .step-delete {
   max-width: 560px;
 }
 
+.oracle-select-hint {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(240, 232, 224, 0.3);
+  margin-bottom: 20px;
+}
+
 .oracle-full-text {
   font-family: 'Instrument Serif', serif;
   font-size: 1.15rem;
   line-height: 1.75;
   color: #f0e8e0;
-  white-space: pre-wrap;
   margin-bottom: 36px;
   max-height: 60vh;
   overflow-y: auto;
+}
+
+.oracle-sentence {
+  display: inline;
+  transition: color 0.12s ease;
+}
+
+body.admin-mode .oracle-sentence {
+  cursor: pointer;
+}
+
+body.admin-mode .oracle-sentence:hover {
+  color: rgba(181, 201, 154, 0.7);
+}
+
+.oracle-sentence.selected {
+  color: #b5c99a;
 }
 
 .oracle-source-input {

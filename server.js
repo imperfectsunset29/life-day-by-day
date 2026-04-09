@@ -131,7 +131,8 @@ function readTasks() {
   if (!data.olympus) data.olympus = [];
   if (!data.treats) data.treats = [];
   if (!data.hardThings) data.hardThings = [];
-  if (!data.oracle) data.oracle = { text: '', source: '' };
+  if (!data.oracle) data.oracle = { text: '', source: '', preview: '' };
+  if (data.oracle.preview === undefined) data.oracle.preview = '';
   for (const project of data.projects) {
     if (!project.steps) project.steps = [];
   }
