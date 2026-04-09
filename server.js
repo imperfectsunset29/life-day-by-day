@@ -256,6 +256,7 @@ app.put('/api/oracle', requireAdmin, (req, res) => {
   const data = readTasks();
   if (req.body.text !== undefined) data.oracle.text = req.body.text;
   if (req.body.source !== undefined) data.oracle.source = req.body.source;
+  if (req.body.preview !== undefined) data.oracle.preview = req.body.preview;
   writeTasks(data);
   res.json(data.oracle);
 });
