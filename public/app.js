@@ -104,6 +104,7 @@ function renderOracle() {
       block.classList.remove('hidden');
       document.getElementById('oracle-source-display').textContent = '';
       document.getElementById('oracle-preview-text').textContent = 'add oracle';
+      document.getElementById('oracle-more-hint').classList.add('hidden');
     } else {
       block.classList.add('hidden');
     }
@@ -112,6 +113,7 @@ function renderOracle() {
   block.classList.remove('hidden');
   document.getElementById('oracle-source-display').textContent = oracle.source || '';
   document.getElementById('oracle-preview-text').textContent = oracle.preview || oracle.text;
+  document.getElementById('oracle-more-hint').classList.remove('hidden');
 }
 
 function renderOracleSentences() {

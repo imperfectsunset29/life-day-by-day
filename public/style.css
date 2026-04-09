@@ -828,11 +828,18 @@ body.admin-mode .step-delete {
   font-size: 1.25rem;
   color: #f0e8e0;
   line-height: 1.6;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.oracle-more-hint {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: rgba(240, 232, 224, 0.3);
+  margin: 0;
 }
 
 
