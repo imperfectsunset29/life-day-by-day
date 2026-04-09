@@ -466,7 +466,7 @@ h1 {
 .overlay-actions {
   display: flex;
   gap: 12px;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .btn-primary, .btn-secondary {
