@@ -40,6 +40,7 @@ let tasks = { oneOff: [], habits: [], projects: [], treats: [], hardThings: [], 
 const expandedProjects = new Set();
 let oneOffExpanded = false;
 const ONEOFF_LIMIT = 5;
+let currentSurpriseTask = null;
 
 // DOM refs
 const overlay = document.getElementById('randomizer-overlay');
@@ -438,17 +439,21 @@ async function addTask(category) {
 async function surprise() {
   const res = await fetch(`${API}/random`);
   const task = await res.json();
+  const closeBtn = document.getElementById('close-overlay-btn');
 
   if (!task) {
+    currentSurpriseTask = null;
     overlayLabel.textContent = '';
     overlayTask.textContent = 'All done for today!';
     overlayTask.classList.remove('spinning');
     void overlayTask.offsetWidth;
     overlayTask.classList.add('spinning');
+    closeBtn.textContent = 'Got it';
     overlay.classList.remove('hidden');
     return;
   }
 
+  currentSurpriseTask = task;
   overlayLabel.textContent = categoryLabels[task.category] || '';
   overlayLabel.classList.toggle('treat-label', task.category === 'treats');
   overlayLabel.classList.toggle('hardthing-label', task.category === 'hardThings');
@@ -456,6 +461,7 @@ async function surprise() {
   overlayTask.classList.remove('spinning');
   void overlayTask.offsetWidth; // force reflow
   overlayTask.classList.add('spinning');
+  closeBtn.textContent = 'I\'ll do it';
   overlay.classList.remove('hidden');
 }
 
@@ -618,8 +624,12 @@ document.addEventListener('click', (e) => {
 
 document.getElementById('surprise-btn').addEventListener('click', surprise);
 document.getElementById('respin-btn').addEventListener('click', surprise);
-document.getElementById('close-overlay-btn').addEventListener('click', () => {
+document.getElementById('close-overlay-btn').addEventListener('click', async () => {
   overlay.classList.add('hidden');
+  if (currentSurpriseTask && (currentSurpriseTask.category === 'oneOff' || currentSurpriseTask.category === 'habits')) {
+    await toggleTask(currentSurpriseTask.category, currentSurpriseTask.id);
+  }
+  currentSurpriseTask = null;
 });
 document.getElementById('home-title').addEventListener('click', showMain);
 document.getElementById('olympus-btn').addEventListener('click', showOlympus);
