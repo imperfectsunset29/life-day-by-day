@@ -131,6 +131,7 @@ function readTasks() {
   if (!data.olympus) data.olympus = [];
   if (!data.treats) data.treats = [];
   if (!data.hardThings) data.hardThings = [];
+  if (!data.oracle) data.oracle = { text: '', source: '' };
   for (const project of data.projects) {
     if (!project.steps) project.steps = [];
   }
@@ -247,6 +248,15 @@ app.put('/api/tasks/:category/reorder', requireAdmin, (req, res) => {
   data[category] = ids.map(id => items.find(t => t.id === Number(id))).filter(Boolean);
   writeTasks(data);
   res.json({ success: true });
+});
+
+// Update oracle
+app.put('/api/oracle', requireAdmin, (req, res) => {
+  const data = readTasks();
+  if (req.body.text !== undefined) data.oracle.text = req.body.text;
+  if (req.body.source !== undefined) data.oracle.source = req.body.source;
+  writeTasks(data);
+  res.json(data.oracle);
 });
 
 // Update a task

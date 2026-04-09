@@ -63,9 +63,33 @@ function render() {
   renderCategory('habits', tasks.habits);
   renderProjects();
   renderDone();
+  renderOracle();
   initSortable('list-oneOff', 'oneOff');
   initSortable('list-habits', 'habits');
   initSortable('list-projects', 'projects');
+}
+
+function renderOracle() {
+  const block = document.getElementById('oracle-block');
+  const oracle = tasks.oracle;
+  if (!oracle || !oracle.text) {
+    block.classList.add('hidden');
+    return;
+  }
+  block.classList.remove('hidden');
+  document.getElementById('oracle-source-display').textContent = oracle.source || '';
+  const preview = oracle.text.length > 120 ? oracle.text.slice(0, 120) + '…' : oracle.text;
+  document.getElementById('oracle-preview-text').textContent = preview;
+}
+
+function openOracleOverlay() {
+  const oracle = tasks.oracle;
+  document.getElementById('oracle-overlay-source').textContent = oracle.source || '';
+  document.getElementById('oracle-full-text').textContent = oracle.text;
+  document.getElementById('oracle-read-mode').classList.remove('hidden');
+  document.getElementById('oracle-edit-mode').classList.add('hidden');
+  document.getElementById('oracle-edit-btn').classList.toggle('hidden', !isAdmin());
+  document.getElementById('oracle-overlay').classList.remove('hidden');
 }
 
 function renderCategory(category, items) {
@@ -646,9 +670,40 @@ overlay.addEventListener('click', (e) => {
 
 // Close overlay on Escape
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
+  if (e.key === 'Escape') {
     overlay.classList.add('hidden');
+    document.getElementById('oracle-overlay').classList.add('hidden');
   }
+});
+
+// Oracle
+document.getElementById('oracle-expand-btn').addEventListener('click', openOracleOverlay);
+document.getElementById('oracle-close-btn').addEventListener('click', () => {
+  document.getElementById('oracle-overlay').classList.add('hidden');
+});
+document.getElementById('oracle-edit-btn').addEventListener('click', () => {
+  document.getElementById('oracle-source-input').value = tasks.oracle.source || '';
+  document.getElementById('oracle-text-input').value = tasks.oracle.text || '';
+  document.getElementById('oracle-read-mode').classList.add('hidden');
+  document.getElementById('oracle-edit-mode').classList.remove('hidden');
+});
+document.getElementById('oracle-cancel-btn').addEventListener('click', () => {
+  document.getElementById('oracle-read-mode').classList.remove('hidden');
+  document.getElementById('oracle-edit-mode').classList.add('hidden');
+});
+document.getElementById('oracle-save-btn').addEventListener('click', async () => {
+  const text = document.getElementById('oracle-text-input').value.trim();
+  const source = document.getElementById('oracle-source-input').value.trim();
+  await apiFetch(`${API}/oracle`, {
+    method: 'PUT',
+    body: JSON.stringify({ text, source })
+  });
+  await loadTasks();
+  document.getElementById('oracle-overlay').classList.add('hidden');
+});
+document.getElementById('oracle-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('oracle-overlay'))
+    document.getElementById('oracle-overlay').classList.add('hidden');
 });
 
 document.getElementById('lock-btn').addEventListener('click', () => {

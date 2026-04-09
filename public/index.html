@@ -16,6 +16,28 @@
     </div>
   </header>
 
+  <!-- Oracle overlay -->
+  <div id="oracle-overlay" class="overlay hidden">
+    <div class="overlay-content oracle-overlay-content">
+      <p class="overlay-label" id="oracle-overlay-source"></p>
+      <div id="oracle-read-mode">
+        <p class="oracle-full-text" id="oracle-full-text"></p>
+        <div class="overlay-actions">
+          <button id="oracle-edit-btn" class="btn-secondary hidden">Edit</button>
+          <button id="oracle-close-btn" class="btn-primary">Close</button>
+        </div>
+      </div>
+      <div id="oracle-edit-mode" class="hidden">
+        <input type="text" id="oracle-source-input" class="oracle-source-input" placeholder="Source (e.g. I Ching · Hexagram 42)">
+        <textarea id="oracle-text-input" class="oracle-text-input" placeholder="Paste your oracle text here..."></textarea>
+        <div class="overlay-actions">
+          <button id="oracle-save-btn" class="btn-primary">Save</button>
+          <button id="oracle-cancel-btn" class="btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Randomizer overlay -->
   <div id="randomizer-overlay" class="overlay hidden">
     <div class="overlay-content">
@@ -30,6 +52,13 @@
 
   <!-- Main view -->
   <main id="main-view">
+    <!-- Oracle hero block -->
+    <div id="oracle-block" class="oracle-block hidden">
+      <p class="oracle-source" id="oracle-source-display"></p>
+      <p class="oracle-preview" id="oracle-preview-text"></p>
+      <button class="oracle-expand-btn" id="oracle-expand-btn">read more</button>
+    </div>
+
     <!-- One-off tasks -->
     <section class="category" data-category="oneOff">
       <div class="category-header">
