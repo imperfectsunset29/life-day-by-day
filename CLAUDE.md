@@ -16,8 +16,8 @@ No build step, no linting, no tests. The app is a single Express server serving 
 Node.js/Express backend + vanilla JS frontend. No frameworks, no bundler.
 
 ```
-server.js            → Express API: CRUD, randomizer, habit resets, done cleanup
-public/index.html    → Single HTML page with 3 views (main, Olympus, Treats)
+server.js            → Express API: CRUD, randomizer, habit resets, done cleanup, oracle
+public/index.html    → Single HTML page with 4 views (main, Olympus, Treats, Hard Things) + 2 overlays (randomizer, oracle)
 public/app.js        → All frontend logic: rendering, event delegation, view switching
 public/style.css     → Full stylesheet (no inline styles allowed)
 tasks.json           → All persistent data (auto-created on first run)
@@ -44,19 +44,45 @@ tasks.json           → All persistent data (auto-created on first run)
   - `renderProjects()` is separate from `renderCategory()` — different DOM structure (`.project-top` + `.progress-row` + `.steps-section`).
   - Route ordering in `server.js` matters: step routes (`/api/tasks/projects/:id/steps`) must be registered before the generic `/:category/:id` route.
 - **Treats:** Reward repository. 20% chance of appearing in "Surprise me" randomizer; guaranteed if all tasks are done.
+- **Hard Things:** Tasks the user avoids. 20% chance in randomizer. Stateless (no done state).
 - **Done:** Recently completed one-offs. 7-day retention.
 - **Olympus:** Completed projects with date and reflection quote. Can be restored.
+
+## Surprise Me — "I'll do it" flow
+
+The randomizer overlay (`#randomizer-overlay`) tracks the last spun task in `currentSurpriseTask`. When a real task is shown, the confirm button reads "I'll do it" and marks the task done on press (oneOff → `done: true`, habits → `doneToday: true`). Treats and Hard Things close without checking off — they have no done state. Button reads "Got it" when the "All done!" state is shown.
+
+## Oracle
+
+A single block of text the user sets manually — a quote, tenet, or passage from I Ching, Tarot, etc.
+
+**Where it lives:** Top of the main view, above One-offs. Hidden when empty (in locked mode) or shows an "add oracle" prompt (in admin mode).
+
+**Collapsed view:** Source label (e.g. "I Ching · Hexagram 42") + up to 3 lines of preview text (CSS line-clamp) + "read more" button. If the user has selected specific sentences for the preview, those are shown instead of the raw start of the text.
+
+**Expanded overlay** (`#oracle-overlay`): Full text rendered as clickable sentence `<span>` elements. In admin mode, tapping a sentence toggles it sage green (selected). "Save preview" saves the selected sentences as the homepage preview. "Edit" opens a form to replace the full text and source. Editing clears the saved preview selection.
+
+**Data** (top-level field in `tasks.json`, not an array):
+```js
+oracle: { text, source, preview }
+```
+
+**Key functions in app.js:** `renderOracle()`, `openOracleOverlay()`, `renderOracleSentences()`, `splitSentences(text)`.
+
+**API route in server.js:** `PUT /api/oracle` (admin-only) — updates any combination of `text`, `source`, `preview`.
 
 ## tasks.json Schema
 
 ```js
-oneOff:   { id, text, done }
-habits:   { id, text, doneToday, lastDoneDate }   // lastDoneDate: "YYYY-MM-DD" or null
-projects: { id, text, progress, steps }            // progress: 0–100; steps: [{ id, text, done }]
-treats:   { id, text }
-done:     { id, text, completedAt }                // completedAt: ISO string
-olympus:  { id, text, completedAt, reflection }    // reflection: Pynchon quote string
-nextId:   number                                   // auto-incrementing, starts at 500
+oneOff:     { id, text, done }
+habits:     { id, text, doneToday, lastDoneDate }   // lastDoneDate: "YYYY-MM-DD" or null
+projects:   { id, text, progress, steps }            // progress: 0–100; steps: [{ id, text, done }]
+treats:     { id, text }
+hardThings: { id, text }                             // stateless — no done field
+done:       { id, text, completedAt }                // completedAt: ISO string
+olympus:    { id, text, completedAt, reflection }    // reflection: Pynchon quote string
+oracle:     { text, source, preview }                // single object, not an array
+nextId:     number                                   // auto-incrementing, starts at 500
 ```
 
 Step IDs use the same `nextId` counter. Migration: `readTasks()` adds `steps: []` to any project missing it.
@@ -65,7 +91,7 @@ ID ranges in defaults: oneOff 1–10, habits 101–205, projects 201–206, trea
 
 ## Render Scope
 
-`render()` only updates the **main view** (oneOff, habits, projects, done) and re-initializes SortableJS on those three lists. The Olympus and Treats views have their own functions — `renderOlympus()` and `renderTreats()` — called on view switch, not in `render()`. `renderTreats()` also re-initializes SortableJS on `list-treats`. When modifying treats or olympus data, call the appropriate render function explicitly.
+`render()` updates the **main view** (oneOff, habits, projects, done, oracle) and re-initializes SortableJS on those three lists. The Olympus, Treats, and Hard Things views have their own render functions — `renderOlympus()`, `renderTreats()`, `renderHardThings()` — called on view switch, not in `render()`. `renderTreats()` also re-initializes SortableJS on `list-treats`. When modifying treats, hard things, or olympus data, call the appropriate render function explicitly. `renderOracle()` is called inside `render()` — it updates the hero block on the main view.
 
 ## Visual Identity — Non-Negotiable
 
@@ -89,7 +115,7 @@ ID ranges in defaults: oneOff 1–10, habits 101–205, projects 201–206, trea
 - **Persistence:** `tasks.json` saved to Railway volume mounted at `/app/data`. `server.js` checks `fs.existsSync('/app/data')` and falls back to `__dirname` for local dev.
 - **Deploy workflow:** push to `main` → Railway auto-redeploys.
 
-## Current State — April 6, 2026
+## Current State — April 9, 2026
 
 **Data snapshot (Railway live data):**
 - 7 projects active; 1 ascension; Olympus holds 1
