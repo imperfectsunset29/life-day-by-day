@@ -929,6 +929,15 @@ body.admin-mode .oracle-sentence:hover {
   color: rgba(240, 232, 224, 0.25);
 }
 
+.oracle-edit-sentences {
+  margin-bottom: 20px;
+}
+
+.oracle-edit-sentence-list {
+  max-height: 160px;
+  margin-bottom: 0;
+}
+
 .step-delete:hover {
   color: #f2a0b0;
 }

@@ -715,6 +715,28 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Oracle
+function renderEditSentences() {
+  const text = document.getElementById('oracle-text-input').value.trim();
+  const container = document.getElementById('oracle-edit-sentence-list');
+  const section = document.getElementById('oracle-edit-sentences');
+  if (!text) { section.classList.add('hidden'); return; }
+  const prevSelected = new Set(
+    [...container.querySelectorAll('.oracle-sentence.selected')].map(s => s.textContent.trim())
+  );
+  const currentPreview = tasks.oracle ? (tasks.oracle.preview || '') : '';
+  section.classList.remove('hidden');
+  container.innerHTML = '';
+  splitSentences(text).forEach(sentence => {
+    const span = document.createElement('span');
+    span.className = 'oracle-sentence';
+    span.textContent = sentence;
+    if (prevSelected.has(sentence.trim()) || (currentPreview && currentPreview.includes(sentence.trim()))) {
+      span.classList.add('selected');
+    }
+    container.appendChild(span);
+  });
+}
+
 document.getElementById('oracle-expand-btn').addEventListener('click', openOracleOverlay);
 document.getElementById('oracle-close-btn').addEventListener('click', () => {
   document.getElementById('oracle-overlay').classList.add('hidden');
@@ -724,6 +746,7 @@ document.getElementById('oracle-edit-btn').addEventListener('click', () => {
   document.getElementById('oracle-text-input').value = tasks.oracle.text || '';
   document.getElementById('oracle-read-mode').classList.add('hidden');
   document.getElementById('oracle-edit-mode').classList.remove('hidden');
+  renderEditSentences();
 });
 document.getElementById('oracle-cancel-btn').addEventListener('click', () => {
   document.getElementById('oracle-read-mode').classList.remove('hidden');
@@ -732,12 +755,26 @@ document.getElementById('oracle-cancel-btn').addEventListener('click', () => {
 document.getElementById('oracle-save-btn').addEventListener('click', async () => {
   const text = document.getElementById('oracle-text-input').value.trim();
   const source = document.getElementById('oracle-source-input').value.trim();
+  const preview = [...document.querySelectorAll('#oracle-edit-sentence-list .oracle-sentence.selected')]
+    .map(s => s.textContent.trim()).join(' ');
   await apiFetch(`${API}/oracle`, {
     method: 'PUT',
-    body: JSON.stringify({ text, source, preview: '' }) // clear preview — sentences changed
+    body: JSON.stringify({ text, source, preview })
   });
   await loadTasks();
   document.getElementById('oracle-overlay').classList.add('hidden');
+});
+let editSentenceTimer;
+document.getElementById('oracle-text-input').addEventListener('input', () => {
+  clearTimeout(editSentenceTimer);
+  editSentenceTimer = setTimeout(renderEditSentences, 300);
+});
+document.getElementById('oracle-text-input').addEventListener('paste', () => {
+  setTimeout(renderEditSentences, 50);
+});
+document.getElementById('oracle-edit-sentence-list').addEventListener('click', (e) => {
+  const sentence = e.target.closest('.oracle-sentence');
+  if (sentence) sentence.classList.toggle('selected');
 });
 document.getElementById('oracle-full-text').addEventListener('click', (e) => {
   if (!isAdmin()) return;
