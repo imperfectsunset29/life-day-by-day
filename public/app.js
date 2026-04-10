@@ -41,6 +41,7 @@ const expandedProjects = new Set();
 let oneOffExpanded = false;
 const ONEOFF_LIMIT = 5;
 let currentSurpriseTask = null;
+let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO)
 
 // DOM refs
 const overlay = document.getElementById('randomizer-overlay');
@@ -140,6 +141,9 @@ function openOracleOverlay() {
   } else {
     document.getElementById('oracle-overlay-source').textContent = oracle.source || '';
     renderOracleSentences();
+    // Populate selection order from saved preview (up to 2)
+    oracleSelectionOrder = [...document.querySelectorAll('#oracle-full-text .oracle-sentence.selected')]
+      .map(s => s.textContent.trim()).slice(0, 2);
     document.getElementById('oracle-read-mode').classList.remove('hidden');
     document.getElementById('oracle-edit-mode').classList.add('hidden');
     document.getElementById('oracle-edit-btn').classList.toggle('hidden', !isAdmin());
@@ -797,21 +801,40 @@ document.getElementById('oracle-edit-sentence-list').addEventListener('click', (
 document.getElementById('oracle-full-text').addEventListener('click', (e) => {
   if (!isAdmin()) return;
   const sentence = e.target.closest('.oracle-sentence');
-  if (sentence) {
-    sentence.classList.toggle('selected');
-    updateOracleActionBtn();
+  if (!sentence) return;
+  const text = sentence.textContent.trim();
+
+  if (sentence.classList.contains('selected')) {
+    // Deselect
+    sentence.classList.remove('selected');
+    oracleSelectionOrder = oracleSelectionOrder.filter(s => s !== text);
+  } else {
+    // Select — enforce max 2 (FIFO: evict oldest if at limit)
+    if (oracleSelectionOrder.length >= 2) {
+      const oldest = oracleSelectionOrder.shift();
+      document.querySelectorAll('#oracle-full-text .oracle-sentence').forEach(span => {
+        if (span.textContent.trim() === oldest) span.classList.remove('selected');
+      });
+    }
+    sentence.classList.add('selected');
+    oracleSelectionOrder.push(text);
   }
+  updateOracleActionBtn();
 });
 document.getElementById('oracle-save-preview-btn').addEventListener('click', async () => {
+  if (oracleSelectionOrder.length === 0) {
+    // Nothing selected — just close
+    document.getElementById('oracle-overlay').classList.add('hidden');
+    return;
+  }
+  // Build preview in document order (not tap order) so it reads naturally
   const selected = [...document.querySelectorAll('#oracle-full-text .oracle-sentence.selected')]
     .map(s => s.textContent.trim()).join(' ');
-  if (selected) {
-    await apiFetch(`${API}/oracle`, {
-      method: 'PUT',
-      body: JSON.stringify({ preview: selected })
-    });
-    await loadTasks();
-  }
+  await apiFetch(`${API}/oracle`, {
+    method: 'PUT',
+    body: JSON.stringify({ preview: selected })
+  });
+  await loadTasks();
   document.getElementById('oracle-overlay').classList.add('hidden');
 });
 document.getElementById('oracle-overlay').addEventListener('click', (e) => {
