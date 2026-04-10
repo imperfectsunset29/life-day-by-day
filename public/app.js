@@ -771,8 +771,9 @@ document.getElementById('oracle-edit-btn').addEventListener('click', () => {
   renderEditSentences();
 });
 document.getElementById('oracle-cancel-btn').addEventListener('click', () => {
-  document.getElementById('oracle-read-mode').classList.remove('hidden');
   document.getElementById('oracle-edit-mode').classList.add('hidden');
+  document.getElementById('oracle-read-mode').classList.remove('hidden');
+  document.getElementById('oracle-overlay').classList.add('hidden');
 });
 document.getElementById('oracle-save-btn').addEventListener('click', async () => {
   const text = document.getElementById('oracle-text-input').value.trim();
