@@ -882,5 +882,6 @@ function initSortable(listId, category) {
 (async () => {
   const { passwordRequired } = await fetch(`${API}/auth-mode`).then(r => r.json());
   if (!passwordRequired && !isAdmin()) unlock('dev');
-  loadTasks();
+  await loadTasks();
+  document.body.classList.add('loaded');
 })();

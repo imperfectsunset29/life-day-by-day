@@ -16,6 +16,12 @@ body {
   padding: 48px 24px 80px;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+body.loaded {
+  opacity: 1;
 }
 
 /* Header */
