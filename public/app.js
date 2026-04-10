@@ -119,10 +119,13 @@ function renderOracle() {
 function renderOracleSentences() {
   const oracle = tasks.oracle;
   const preview = oracle.preview || '';
+  const previewSet = preview
+    ? new Set(splitSentences(preview).map(s => s.trim()))
+    : new Set();
   buildSentenceSpans(
     document.getElementById('oracle-full-text'),
     oracle.text,
-    s => preview && preview.includes(s.trim())
+    s => previewSet.has(s.trim())
   );
 }
 

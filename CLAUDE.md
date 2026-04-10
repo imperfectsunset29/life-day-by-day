@@ -58,16 +58,16 @@ A single block of text the user sets manually — a quote, tenet, or passage fro
 
 **Where it lives:** Top of the main view, above One-offs. Hidden when empty (in locked mode) or shows an "add oracle" prompt (in admin mode).
 
-**Collapsed view:** Source label (e.g. "I Ching · Hexagram 42") + up to 3 lines of preview text (CSS line-clamp) + "read more" button. If the user has selected specific sentences for the preview, those are shown instead of the raw start of the text.
+**Collapsed view:** Source label (e.g. "I Ching · Hexagram 42") + up to 3 lines of preview text (CSS line-clamp) + a `(...)` hint indicating more text exists. The entire block is clickable — no separate "read more" button. If the user has selected specific sentences for the preview, those are shown instead of the raw start of the text.
 
-**Expanded overlay** (`#oracle-overlay`): Full text rendered as clickable sentence `<span>` elements. In admin mode, tapping a sentence toggles it sage green (selected). "Save preview" saves the selected sentences as the homepage preview. "Edit" opens a form to replace the full text and source. Editing clears the saved preview selection.
+**Expanded overlay** (`#oracle-overlay`): Full text rendered as clickable sentence `<span>` elements. Header has a × close button (`#oracle-x-btn`). In admin mode, tapping a sentence toggles it sage green (selected). Bottom actions (right-aligned, two boxed buttons): "Edit" opens the edit form; the second button is context-aware — reads "Save preview" if any sentences are selected, "Close" if none (`updateOracleActionBtn()`). "Edit" opens a form to replace the full text and source; a "Cancel" button (`#oracle-cancel-btn`) returns to read mode without saving. Editing clears the saved preview selection.
 
 **Data** (top-level field in `tasks.json`, not an array):
 ```js
 oracle: { text, source, preview }
 ```
 
-**Key functions in app.js:** `renderOracle()`, `openOracleOverlay()`, `renderOracleSentences()`, `splitSentences(text)`.
+**Key functions in app.js:** `renderOracle()`, `openOracleOverlay()`, `renderOracleSentences()`, `splitSentences(text)`, `updateOracleActionBtn()`, `renderEditSentences()`, `buildSentenceSpans(container, text, isSelectedFn)`.
 
 **API route in server.js:** `PUT /api/oracle` (admin-only) — updates any combination of `text`, `source`, `preview`.
 
@@ -129,10 +129,10 @@ ID ranges in defaults: oneOff 1–10, habits 101–205, projects 201–206, trea
 
 **Notion integration:**
 - MCP configured at project level (`~/.claude.json` → `mcpServers.notion`)
-- Portfolio page: `LIFE — Personal productivity app, built from scratch with Claude Code` → https://www.notion.so/3374ee47dcf581d0bba8fb5ca73f4a70
+- Portfolio page: `🏛️ LIFE — An AI-native task system, built and documented in real time` → https://www.notion.so/3374ee47dcf581d0bba8fb5ca73f4a70
 - Page lives inside `My latest (and bestest :) projects` database on `iamvalentina.notion.site`
 - Update workflow: FETCH → DIFF → UPDATE (surgical `update_content` patches, never full rewrites)
-- THE CHRONICLE: 3 entries max, newest first. Full log in memory: `project_chronicle_log.md`
+- The Chronicle: 3 entries max, newest first. Full log in memory: `project_chronicle_log.md`
 - Chronicle V&T: plain English, proof of output, no literary flourishes. See `feedback_chronicle_vt.md`
 
 ## Next Steps
@@ -141,4 +141,4 @@ ID ranges in defaults: oneOff 1–10, habits 101–205, projects 201–206, trea
 - [ ] **Progress projects.** Job search at 70%, Personal webpage at 90% — push to ascension.
 - [ ] **Add a backup button** to the UI so `/api/backup` can be triggered with auth headers from within the app.
 - [ ] **Update Live Status on Notion page** each session. Format: `X projects active. Y ascensions. Olympus holds N.`
-- [ ] **Append to THE CHRONICLE** when a meaningful decision is made. Prune Notion to 3, append full log to `project_chronicle_log.md`.
+- [ ] **Append to The Chronicle** when a meaningful decision is made. Prune Notion to 3, append full log to `project_chronicle_log.md`.
