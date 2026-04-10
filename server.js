@@ -13,6 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 if (!process.env.ADMIN_PASSWORD) console.warn('WARNING: ADMIN_PASSWORD not set — all writes will fail.');
 
 function requireAdmin(req, res, next) {
+  if (!process.env.ADMIN_PASSWORD) return next(); // dev mode: no password set, allow all
   const pw = req.headers['x-admin-password'];
   if (!pw || pw !== process.env.ADMIN_PASSWORD) {
     return res.status(401).json({ error: 'Unauthorized' });
