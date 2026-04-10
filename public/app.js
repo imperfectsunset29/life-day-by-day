@@ -143,7 +143,7 @@ function openOracleOverlay() {
     renderOracleSentences();
     // Populate selection order from saved preview (up to 2)
     oracleSelectionOrder = [...document.querySelectorAll('#oracle-full-text .oracle-sentence.selected')]
-      .map(s => s.textContent.trim()).slice(0, 1);
+      .map(s => s.textContent.trim()).slice(0, 2);
     document.getElementById('oracle-read-mode').classList.remove('hidden');
     document.getElementById('oracle-edit-mode').classList.add('hidden');
     document.getElementById('oracle-edit-btn').classList.toggle('hidden', !isAdmin());
@@ -805,14 +805,18 @@ document.getElementById('oracle-full-text').addEventListener('click', (e) => {
   const text = sentence.textContent.trim();
 
   if (sentence.classList.contains('selected')) {
-    // Toggle off
+    // Tap selected sentence → deselect it
     sentence.classList.remove('selected');
-    oracleSelectionOrder = [];
-  } else {
-    // Select this one, deselect all others
+    oracleSelectionOrder = oracleSelectionOrder.filter(s => s !== text);
+  } else if (oracleSelectionOrder.length >= 2) {
+    // Already have 2 — deselect all, start fresh with this one
     document.querySelectorAll('#oracle-full-text .oracle-sentence').forEach(s => s.classList.remove('selected'));
     sentence.classList.add('selected');
     oracleSelectionOrder = [text];
+  } else {
+    // 0 or 1 selected — add this one
+    sentence.classList.add('selected');
+    oracleSelectionOrder.push(text);
   }
   updateOracleActionBtn();
 });
