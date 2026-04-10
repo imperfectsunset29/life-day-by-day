@@ -143,7 +143,7 @@ function openOracleOverlay() {
     renderOracleSentences();
     // Populate selection order from saved preview (up to 2)
     oracleSelectionOrder = [...document.querySelectorAll('#oracle-full-text .oracle-sentence.selected')]
-      .map(s => s.textContent.trim()).slice(0, 2);
+      .map(s => s.textContent.trim()).slice(0, 1);
     document.getElementById('oracle-read-mode').classList.remove('hidden');
     document.getElementById('oracle-edit-mode').classList.add('hidden');
     document.getElementById('oracle-edit-btn').classList.toggle('hidden', !isAdmin());
@@ -805,19 +805,14 @@ document.getElementById('oracle-full-text').addEventListener('click', (e) => {
   const text = sentence.textContent.trim();
 
   if (sentence.classList.contains('selected')) {
-    // Deselect
+    // Toggle off
     sentence.classList.remove('selected');
-    oracleSelectionOrder = oracleSelectionOrder.filter(s => s !== text);
+    oracleSelectionOrder = [];
   } else {
-    // Select — enforce max 2 (FIFO: evict oldest if at limit)
-    if (oracleSelectionOrder.length >= 2) {
-      const oldest = oracleSelectionOrder.shift();
-      document.querySelectorAll('#oracle-full-text .oracle-sentence').forEach(span => {
-        if (span.textContent.trim() === oldest) span.classList.remove('selected');
-      });
-    }
+    // Select this one, deselect all others
+    document.querySelectorAll('#oracle-full-text .oracle-sentence').forEach(s => s.classList.remove('selected'));
     sentence.classList.add('selected');
-    oracleSelectionOrder.push(text);
+    oracleSelectionOrder = [text];
   }
   updateOracleActionBtn();
 });
