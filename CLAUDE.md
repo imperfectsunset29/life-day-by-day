@@ -31,6 +31,8 @@ tasks.json           → All persistent data (auto-created on first run)
 
 **Auth:** App is read-only by default. All mutating API routes require `X-Admin-Password` header matching `process.env.ADMIN_PASSWORD` (set in Railway). Frontend stores password in `localStorage` under `adminPassword`. `body.admin-mode` CSS class gates all write UI (add buttons, checkboxes, edit/delete/restore, progress buttons). Progress buttons (−/+) are visible in locked mode but `pointer-events: none`. `Surprise me` stays visible in both modes. Key functions: `isAdmin()`, `authHeaders()`, `apiFetch()` (wraps all mutating fetches, auto-locks on 401), `unlock(pw)`, `lock()`, `applyAuthUI()`. Lock button (`#lock-btn`) in header — 🔒 locked / 🔓 unlocked (sage green).
 
+**Dev mode:** If `ADMIN_PASSWORD` is not set, server skips auth entirely (`requireAdmin` middleware calls `next()` immediately). On init, frontend calls `GET /api/auth-mode` — if `passwordRequired: false`, auto-unlocks with password `'dev'` so admin UI appears without manual entry. This means local dev requires no password setup at all.
+
 ## Task Categories & Logic
 
 - **One-offs:** Boolean done. Completing moves to "Done" section; auto-clears after 7 days.
@@ -60,7 +62,9 @@ A single block of text the user sets manually — a quote, tenet, or passage fro
 
 **Collapsed view:** Source label (e.g. "I Ching · Hexagram 42") + up to 3 lines of preview text (CSS line-clamp) + a `(...)` hint indicating more text exists. The entire block is clickable — no separate "read more" button. If the user has selected specific sentences for the preview, those are shown instead of the raw start of the text.
 
-**Expanded overlay** (`#oracle-overlay`): Full text rendered as clickable sentence `<span>` elements. Header has a × close button (`#oracle-x-btn`). In admin mode, tapping a sentence toggles it sage green (selected). Bottom actions (right-aligned, two boxed buttons): "Edit" opens the edit form; the second button is context-aware — reads "Save preview" if any sentences are selected, "Close" if none (`updateOracleActionBtn()`). "Edit" opens a form to replace the full text and source; a "Cancel" button (`#oracle-cancel-btn`) returns to read mode without saving. Editing clears the saved preview selection.
+**Expanded overlay** (`#oracle-overlay`): Full text rendered as clickable sentence `<span>` elements. Header has a × close button (`#oracle-x-btn`). In admin mode, tapping a sentence selects it (sage green). Bottom actions (right-aligned, two boxed buttons): "Edit" opens the edit form; the second button is context-aware — reads "Save preview" if any sentences are selected, "Close" if none (`updateOracleActionBtn()`). "Edit" opens a form to replace the full text and source; a "Cancel" button (`#oracle-cancel-btn`) returns to read mode without saving. Editing clears the saved preview selection.
+
+**Sentence selection logic (admin only):** Up to 2 sentences can be selected as preview. Tapping an unselected sentence when 0 or 1 are selected adds it. Tapping an unselected sentence when 2 are already selected resets — deselects both and starts fresh with just the new one. Tapping an already-selected sentence deselects it. Selection order tracked in module-level `oracleSelectionOrder` array (populated from saved preview on overlay open). Preview is saved in document order (top-to-bottom), not tap order.
 
 **Data** (top-level field in `tasks.json`, not an array):
 ```js
@@ -115,7 +119,7 @@ ID ranges in defaults: oneOff 1–10, habits 101–205, projects 201–206, trea
 - **Persistence:** `tasks.json` saved to Railway volume mounted at `/app/data`. `server.js` checks `fs.existsSync('/app/data')` and falls back to `__dirname` for local dev.
 - **Deploy workflow:** push to `main` → Railway auto-redeploys.
 
-## Current State — April 9, 2026
+## Current State — April 10, 2026
 
 **Data snapshot (Railway live data):**
 - 7 projects active; 1 ascension; Olympus holds 1
