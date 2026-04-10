@@ -25,7 +25,29 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-const DONE_RETENTION_DAYS = 7;
+// Returns the "YYYY-MM-DD" (PT) of the most recent Sunday whose 23:59 PT has already passed.
+// If it's currently Sunday but before 23:59 PT, returns last Sunday's date.
+function getLastSundayPT() {
+  const now = new Date();
+  // Build a fake Date object whose getDay/getHours/etc. reflect PT local time
+  const ptDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+  const dayOfWeek = ptDate.getDay();   // 0 = Sun
+  const hour     = ptDate.getHours();
+  const minute   = ptDate.getMinutes();
+
+  // How many days to roll back to reach the most recent Sunday 23:59?
+  let daysBack = dayOfWeek; // e.g. Mon=1, Tue=2 ... Sat=6 → last Sunday
+  if (dayOfWeek === 0 && (hour < 23 || (hour === 23 && minute < 59))) {
+    daysBack = 7; // it's Sunday but the 23:59 window hasn't hit yet — use previous Sunday
+  }
+
+  const sundayPT = new Date(ptDate);
+  sundayPT.setDate(sundayPT.getDate() - daysBack);
+  const y = sundayPT.getFullYear();
+  const m = String(sundayPT.getMonth() + 1).padStart(2, '0');
+  const d = String(sundayPT.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 const pynchonQuotes = [
   "Another system dismantled from within. They said it couldn't be done, but They say a lot of things.",
@@ -99,6 +121,7 @@ const defaultTasks = {
   hardThings: [],
   done: [],
   olympus: [],
+  lastDoneCleared: null,
   nextId: 500
 };
 
@@ -138,6 +161,7 @@ function readTasks() {
   if (!data.hardThings) data.hardThings = [];
   if (!data.oracle) data.oracle = { text: '', source: '', preview: '' };
   if (data.oracle.preview === undefined) data.oracle.preview = '';
+  if (data.lastDoneCleared === undefined) data.lastDoneCleared = null;
   for (const project of data.projects) {
     if (!project.steps) project.steps = [];
   }
@@ -153,11 +177,17 @@ function readTasks() {
     }
   }
 
-  // Auto-clear done items older than 7 days
-  const cutoff = Date.now() - DONE_RETENTION_DAYS * 24 * 60 * 60 * 1000;
-  const before = data.done.length;
-  data.done = data.done.filter(t => new Date(t.completedAt).getTime() > cutoff);
-  if (data.done.length !== before) changed = true;
+  // Clear done list every Sunday at 23:59 PT
+  const lastSunday = getLastSundayPT();
+  if (data.lastDoneCleared !== lastSunday && data.done.length > 0) {
+    data.done = [];
+    data.lastDoneCleared = lastSunday;
+    changed = true;
+  } else if (data.lastDoneCleared !== lastSunday) {
+    // No items to clear but still record the sweep so we don't re-check
+    data.lastDoneCleared = lastSunday;
+    changed = true;
+  }
 
   if (changed) {
     fs.writeFileSync(TASKS_FILE, JSON.stringify(data, null, 2));
