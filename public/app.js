@@ -855,5 +855,9 @@ function initSortable(listId, category) {
   });
 }
 
-// Init
-loadTasks();
+// Init — auto-unlock in dev mode (no password required on server)
+(async () => {
+  const { passwordRequired } = await fetch(`${API}/auth-mode`).then(r => r.json());
+  if (!passwordRequired && !isAdmin()) unlock('dev');
+  loadTasks();
+})();

@@ -10,7 +10,11 @@ const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-if (!process.env.ADMIN_PASSWORD) console.warn('WARNING: ADMIN_PASSWORD not set — all writes will fail.');
+if (!process.env.ADMIN_PASSWORD) console.warn('WARNING: ADMIN_PASSWORD not set — running in dev mode (auth disabled).');
+
+app.get('/api/auth-mode', (req, res) => {
+  res.json({ passwordRequired: !!process.env.ADMIN_PASSWORD });
+});
 
 function requireAdmin(req, res, next) {
   if (!process.env.ADMIN_PASSWORD) return next(); // dev mode: no password set, allow all
