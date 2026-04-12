@@ -97,6 +97,10 @@ ID ranges in defaults: oneOff 1–10, habits 101–205, projects 201–206, trea
 
 `render()` updates the **main view** (oneOff, habits, projects, done, oracle) and re-initializes SortableJS on those three lists. The Olympus, Treats, and Hard Things views have their own render functions — `renderOlympus()`, `renderTreats()`, `renderHardThings()` — called on view switch, not in `render()`. `renderTreats()` also re-initializes SortableJS on `list-treats`. When modifying treats, hard things, or olympus data, call the appropriate render function explicitly. `renderOracle()` is called inside `render()` — it updates the hero block on the main view.
 
+## Mobile
+
+Single breakpoint at `max-width: 480px` in `style.css`. When editing overlay or button styles, always check whether the mobile block also needs updating — the breakpoint reduces card padding but does not automatically scale button padding, font sizes, or spacing. Any change to `.overlay-content`, `.btn-primary`, `.btn-secondary`, or similar components on desktop should be audited against the mobile block.
+
 ## Visual Identity — Non-Negotiable
 
 - **Palette:** Deep plum `#2d0a2e` background, warm ivory `#f0e8e0` text, sage green `#b5c99a` accents
