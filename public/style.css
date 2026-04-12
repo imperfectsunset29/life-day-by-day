@@ -724,11 +724,15 @@ body.admin-mode .progress-btn { pointer-events: auto; cursor: pointer; opacity: 
   border: none;
   color: rgba(240, 232, 224, 0.5);
   cursor: pointer;
-  font-size: 0.65rem;
-  padding: 0 6px 0 0;
+  font-size: 0.85rem;
+  padding: 8px 10px 8px 0;
   transition: color 0.1s ease;
   flex-shrink: 0;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
 }
 
 .step-toggle:hover {
