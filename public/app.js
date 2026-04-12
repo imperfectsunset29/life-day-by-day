@@ -1,10 +1,15 @@
 const API = '/api';
 
+// Profile
+let currentProfile = null; // 'vc' | 'fg' | null
+function getProfile() { return currentProfile || 'vc'; }
+
 // Auth
-let adminPassword = localStorage.getItem('adminPassword') || null;
+let adminPassword = null;
 function isAdmin() { return adminPassword !== null; }
+function authKey() { return `adminPassword-${getProfile()}`; }
 function authHeaders() {
-  const h = { 'Content-Type': 'application/json' };
+  const h = { 'Content-Type': 'application/json', 'X-Profile': getProfile() };
   if (adminPassword) h['X-Admin-Password'] = adminPassword;
   return h;
 }
@@ -24,8 +29,8 @@ function applyAuthUI() {
     btn.textContent = '🔒'; btn.title = 'Click to unlock';
   }
 }
-function unlock(pw) { adminPassword = pw; localStorage.setItem('adminPassword', pw); applyAuthUI(); }
-function lock() { adminPassword = null; localStorage.removeItem('adminPassword'); applyAuthUI(); }
+function unlock(pw) { adminPassword = pw; localStorage.setItem(authKey(), pw); applyAuthUI(); }
+function lock() { adminPassword = null; localStorage.removeItem(authKey()); applyAuthUI(); }
 
 const categoryLabels = {
   oneOff: 'One-off',
@@ -51,10 +56,12 @@ const mainView = document.getElementById('main-view');
 const olympusView = document.getElementById('olympus-view');
 const treatsView = document.getElementById('treats-view');
 const hardThingsView = document.getElementById('hard-things-view');
+const profileSelectorView = document.getElementById('profile-selector');
+const appHeader = document.getElementById('header');
 
 // Fetch and render
 async function loadTasks() {
-  const res = await fetch(`${API}/tasks`);
+  const res = await fetch(`${API}/tasks`, { headers: authHeaders() });
   tasks = await res.json();
   render();
 }
@@ -157,6 +164,12 @@ function openOracleOverlay() {
 function renderCategory(category, items) {
   const list = document.getElementById(`list-${category}`);
   list.innerHTML = '';
+
+  // Always clean up the show-more button (it lives on the section, not the list)
+  if (category === 'oneOff') {
+    const existing = list.parentElement.querySelector('.show-more-btn');
+    if (existing) existing.remove();
+  }
 
   if (items.length === 0) {
     const li = document.createElement('li');
@@ -523,7 +536,7 @@ async function addTask(category) {
 
 // Randomizer
 async function surprise() {
-  const res = await fetch(`${API}/random`);
+  const res = await fetch(`${API}/random`, { headers: authHeaders() });
   const task = await res.json();
   const closeBtn = document.getElementById('close-overlay-btn');
 
@@ -616,6 +629,38 @@ function renderHardThings() {
     list.appendChild(li);
   }
   initSortable('list-hardThings', 'hardThings');
+}
+
+// Profile selector
+function showProfileSelector() {
+  profileSelectorView.classList.remove('hidden');
+  appHeader.classList.add('hidden');
+  mainView.classList.add('hidden');
+  olympusView.classList.add('hidden');
+  treatsView.classList.add('hidden');
+  hardThingsView.classList.add('hidden');
+}
+
+function hideProfileSelector() {
+  profileSelectorView.classList.add('hidden');
+  appHeader.classList.remove('hidden');
+}
+
+async function selectProfile(profile) {
+  currentProfile = profile;
+  localStorage.setItem('currentProfile', profile);
+  // Reset per-session state so previous profile doesn't bleed through
+  adminPassword = localStorage.getItem(`adminPassword-${profile}`) || null;
+  oneOffExpanded = false;
+  expandedProjects.clear();
+  document.getElementById('profile-btn').textContent = profile.toUpperCase();
+  hideProfileSelector();
+  applyAuthUI();
+  const { passwordRequired } = await fetch(`${API}/auth-mode`, { headers: authHeaders() }).then(r => r.json());
+  if (!passwordRequired && !isAdmin()) unlock('dev');
+  await loadTasks();
+  showMain();
+  document.body.classList.add('loaded');
 }
 
 // View switching
@@ -848,6 +893,14 @@ document.getElementById('lock-btn').addEventListener('click', () => {
 });
 applyAuthUI();
 
+// Profile selector buttons
+document.querySelectorAll('.profile-btn').forEach(btn => {
+  btn.addEventListener('click', () => selectProfile(btn.dataset.profile));
+});
+document.getElementById('profile-btn').addEventListener('click', () => {
+  showProfileSelector();
+});
+
 // Drag to reorder (SortableJS — works on touch and desktop)
 function initSortable(listId, category) {
   const el = document.getElementById(listId);
@@ -878,10 +931,15 @@ function initSortable(listId, category) {
   });
 }
 
-// Init — auto-unlock in dev mode (no password required on server)
+// Init — show profile selector or resume stored profile
 (async () => {
-  const { passwordRequired } = await fetch(`${API}/auth-mode`).then(r => r.json());
-  if (!passwordRequired && !isAdmin()) unlock('dev');
-  await loadTasks();
-  document.body.classList.add('loaded');
+  // Clean up old single-key format (harmless if absent)
+  localStorage.removeItem('adminPassword');
+  const stored = localStorage.getItem('currentProfile');
+  if (stored === 'vc' || stored === 'fg') {
+    await selectProfile(stored);
+  } else {
+    showProfileSelector();
+    document.body.classList.add('loaded');
+  }
 })();

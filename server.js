@@ -5,21 +5,38 @@ const path = require('path');
 const app = express();
 const PORT = 3000;
 const DATA_DIR = fs.existsSync('/app/data') ? '/app/data' : __dirname;
-const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
+const TASKS_FILES = {
+  vc: path.join(DATA_DIR, 'tasks.json'),
+  fg: path.join(DATA_DIR, 'tasks-fg.json'),
+};
+
+function getTasksFile(profile) {
+  return TASKS_FILES[profile] || TASKS_FILES.vc;
+}
+
+function profileFrom(req) {
+  const p = (req.headers['x-profile'] || 'vc').toLowerCase();
+  return p === 'fg' ? 'fg' : 'vc';
+}
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-if (!process.env.ADMIN_PASSWORD) console.warn('WARNING: ADMIN_PASSWORD not set — running in dev mode (auth disabled).');
+if (!process.env.ADMIN_PASSWORD) console.warn('WARNING: ADMIN_PASSWORD not set — VC running in dev mode.');
+if (!process.env.FG_ADMIN_PASSWORD) console.warn('WARNING: FG_ADMIN_PASSWORD not set — FG running in dev mode.');
 
 app.get('/api/auth-mode', (req, res) => {
-  res.json({ passwordRequired: !!process.env.ADMIN_PASSWORD });
+  const profile = profileFrom(req);
+  const passwordRequired = profile === 'fg' ? !!process.env.FG_ADMIN_PASSWORD : !!process.env.ADMIN_PASSWORD;
+  res.json({ passwordRequired });
 });
 
 function requireAdmin(req, res, next) {
-  if (!process.env.ADMIN_PASSWORD) return next(); // dev mode: no password set, allow all
+  const profile = profileFrom(req);
+  const expectedPw = profile === 'fg' ? process.env.FG_ADMIN_PASSWORD : process.env.ADMIN_PASSWORD;
+  if (!expectedPw) return next(); // dev mode: this profile's password not set
   const pw = req.headers['x-admin-password'];
-  if (!pw || pw !== process.env.ADMIN_PASSWORD) {
+  if (!pw || pw !== expectedPw) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   next();
@@ -125,6 +142,19 @@ const defaultTasks = {
   nextId: 500
 };
 
+const defaultFgTasks = {
+  oneOff: [],
+  habits: [],
+  projects: [],
+  treats: [],
+  hardThings: [],
+  done: [],
+  olympus: [],
+  oracle: { text: '', source: '', preview: '' },
+  lastDoneCleared: null,
+  nextId: 1
+};
+
 // Returns the current "habit day" in PT, with the day rolling over at 5 AM PT.
 // Between midnight and 4:59 AM PT, it's still considered the previous habit-day.
 function getHabitDay() {
@@ -147,12 +177,14 @@ function getHabitDay() {
   return `${year}-${month}-${day}`;
 }
 
-function readTasks() {
-  if (!fs.existsSync(TASKS_FILE)) {
-    fs.writeFileSync(TASKS_FILE, JSON.stringify(defaultTasks, null, 2));
-    return defaultTasks;
+function readTasks(profile) {
+  const file = getTasksFile(profile || 'vc');
+  const defaults = profile === 'fg' ? defaultFgTasks : defaultTasks;
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, JSON.stringify(defaults, null, 2));
+    return JSON.parse(JSON.stringify(defaults));
   }
-  const data = JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8'));
+  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
 
   // Ensure new fields exist for migration
   if (!data.done) data.done = [];
@@ -190,13 +222,13 @@ function readTasks() {
   }
 
   if (changed) {
-    fs.writeFileSync(TASKS_FILE, JSON.stringify(data, null, 2));
+    fs.writeFileSync(file, JSON.stringify(data, null, 2));
   }
   return data;
 }
 
-function writeTasks(data) {
-  fs.writeFileSync(TASKS_FILE, JSON.stringify(data, null, 2));
+function writeTasks(data, profile) {
+  fs.writeFileSync(getTasksFile(profile || 'vc'), JSON.stringify(data, null, 2));
 }
 
 function getRandomPynchon() {
@@ -205,7 +237,8 @@ function getRandomPynchon() {
 
 // Add a step to a project
 app.post('/api/tasks/projects/:id/steps', requireAdmin, (req, res) => {
-  const data = readTasks();
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
   const { id } = req.params;
   const { text } = req.body;
   const project = data.projects.find(t => t.id === Number(id));
@@ -213,13 +246,14 @@ app.post('/api/tasks/projects/:id/steps', requireAdmin, (req, res) => {
   if (!project.steps) project.steps = [];
   const stepId = data.nextId++;
   project.steps.push({ id: stepId, text, done: false });
-  writeTasks(data);
+  writeTasks(data, profile);
   res.json(project);
 });
 
 // Update a step (toggle done or rename)
 app.put('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => {
-  const data = readTasks();
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
   const { id, stepId } = req.params;
   const project = data.projects.find(t => t.id === Number(id));
   if (!project) return res.status(404).json({ error: 'Project not found' });
@@ -229,31 +263,34 @@ app.put('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => {
   if (req.body.text !== undefined) step.text = req.body.text;
   if (req.body.done !== undefined) step.done = req.body.done;
 
-  writeTasks(data);
+  writeTasks(data, profile);
   res.json(project);
 });
 
 // Delete a step
 app.delete('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => {
-  const data = readTasks();
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
   const { id, stepId } = req.params;
   const project = data.projects.find(t => t.id === Number(id));
   if (!project) return res.status(404).json({ error: 'Project not found' });
   if (!project.steps) return res.status(404).json({ error: 'Step not found' });
   project.steps = project.steps.filter(s => s.id !== Number(stepId));
 
-  writeTasks(data);
+  writeTasks(data, profile);
   res.json({ success: true });
 });
 
 // Get all tasks
 app.get('/api/tasks', (req, res) => {
-  res.json(readTasks());
+  const profile = profileFrom(req);
+  res.json(readTasks(profile));
 });
 
 // Add a task
 app.post('/api/tasks/:category', requireAdmin, (req, res) => {
-  const data = readTasks();
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
   const { category } = req.params;
   const { text } = req.body;
   if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings'].includes(category)) {
@@ -268,13 +305,14 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
     ? { id, text, progress: 0 }
     : { id, text, done: false };
   data[category].push(task);
-  writeTasks(data);
+  writeTasks(data, profile);
   res.json(task);
 });
 
 // Reorder tasks within a category
 app.put('/api/tasks/:category/reorder', requireAdmin, (req, res) => {
-  const data = readTasks();
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
   const { category } = req.params;
   const { ids } = req.body;
   if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings'].includes(category)) {
@@ -282,23 +320,25 @@ app.put('/api/tasks/:category/reorder', requireAdmin, (req, res) => {
   }
   const items = data[category];
   data[category] = ids.map(id => items.find(t => t.id === Number(id))).filter(Boolean);
-  writeTasks(data);
+  writeTasks(data, profile);
   res.json({ success: true });
 });
 
 // Update oracle
 app.put('/api/oracle', requireAdmin, (req, res) => {
-  const data = readTasks();
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
   if (req.body.text !== undefined) data.oracle.text = req.body.text;
   if (req.body.source !== undefined) data.oracle.source = req.body.source;
   if (req.body.preview !== undefined) data.oracle.preview = req.body.preview;
-  writeTasks(data);
+  writeTasks(data, profile);
   res.json(data.oracle);
 });
 
 // Update a task
 app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
-  const data = readTasks();
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
   const { category, id } = req.params;
   if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
@@ -343,25 +383,27 @@ app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
     }
   }
 
-  writeTasks(data);
+  writeTasks(data, profile);
   res.json(task);
 });
 
 // Delete a task
 app.delete('/api/tasks/:category/:id', requireAdmin, (req, res) => {
-  const data = readTasks();
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
   const { category, id } = req.params;
   if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'done', 'olympus'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   data[category] = data[category].filter(t => t.id !== Number(id));
-  writeTasks(data);
+  writeTasks(data, profile);
   res.json({ success: true });
 });
 
 // Restore a done/olympus task back to its original category
 app.post('/api/restore/:category/:id', requireAdmin, (req, res) => {
-  const data = readTasks();
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
   const { category, id } = req.params;
   const numId = Number(id);
 
@@ -379,13 +421,14 @@ app.post('/api/restore/:category/:id', requireAdmin, (req, res) => {
     return res.status(400).json({ error: 'Can only restore from done or olympus' });
   }
 
-  writeTasks(data);
+  writeTasks(data, profile);
   res.json({ success: true });
 });
 
 // Get a random uncompleted task (20% treat, 20% hard thing, 60% regular pool)
 app.get('/api/random', (req, res) => {
-  const data = readTasks();
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
   const treats = (data.treats || []).map(t => ({ ...t, category: 'treats' }));
   const hardThings = (data.hardThings || []).map(t => ({ ...t, category: 'hardThings' }));
 
@@ -415,9 +458,10 @@ app.get('/api/random', (req, res) => {
 
 // Backup — download tasks.json as a file (admin only)
 app.get('/api/backup', requireAdmin, (req, res) => {
-  const data = readTasks();
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
   const date = new Date().toISOString().split('T')[0];
-  res.setHeader('Content-Disposition', `attachment; filename="tasks-backup-${date}.json"`);
+  res.setHeader('Content-Disposition', `attachment; filename="tasks-${profile}-backup-${date}.json"`);
   res.setHeader('Content-Type', 'application/json');
   res.send(JSON.stringify(data, null, 2));
 });

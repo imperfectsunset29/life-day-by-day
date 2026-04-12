@@ -7,11 +7,22 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
+  <!-- Profile selector (shown before header on first visit) -->
+  <main id="profile-selector" class="hidden">
+    <h1 class="profile-selector-title">LIFE <span class="subtle">(day by day)</span></h1>
+    <p class="profile-selector-label">Who's here?</p>
+    <div class="profile-selector-btns">
+      <button class="profile-btn" data-profile="vc">VC</button>
+      <button class="profile-btn" data-profile="fg">FG</button>
+    </div>
+  </main>
+
+  <header id="header">
     <h1 id="home-title">LIFE <span class="subtle">(day by day)</span></h1>
     <div class="header-actions">
       <button id="olympus-btn" class="olympus-btn">Mount Olympus</button>
       <button id="surprise-btn" class="surprise-btn">Surprise me</button>
+      <button id="profile-btn" class="profile-switcher-btn" title="Switch profile"></button>
       <button id="lock-btn" class="lock-btn" title="Click to unlock">🔒</button>
     </div>
   </header>

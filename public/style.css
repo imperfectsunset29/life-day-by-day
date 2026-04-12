@@ -1039,3 +1039,88 @@ body.admin-mode .progress-btn:disabled {
   cursor: default;
   pointer-events: none;
 }
+
+/* ============ Profile Selector ============ */
+#profile-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 40px;
+  padding: 48px 24px;
+}
+
+#profile-selector.hidden {
+  display: none;
+}
+
+.profile-selector-title {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: clamp(2.8rem, 10vw, 6.5rem);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: #f0e8e0;
+  line-height: 1;
+  text-align: center;
+  cursor: default;
+}
+
+.profile-selector-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(240, 232, 224, 0.4);
+}
+
+.profile-selector-btns {
+  display: flex;
+  gap: 16px;
+}
+
+.profile-btn {
+  background: none;
+  border: 1px solid rgba(240, 232, 224, 0.25);
+  color: #f0e8e0;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 3rem;
+  font-weight: 400;
+  width: 140px;
+  height: 140px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-btn:hover {
+  border-color: #b5c99a;
+  background: rgba(181, 201, 154, 0.06);
+}
+
+.profile-btn:active {
+  background: rgba(181, 201, 154, 0.12);
+}
+
+/* Profile switcher in header */
+.profile-switcher-btn {
+  background: none;
+  border: 1px solid rgba(240, 232, 224, 0.2);
+  color: rgba(240, 232, 224, 0.5);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-radius: 0;
+}
+
+.profile-switcher-btn:hover {
+  border-color: rgba(240, 232, 224, 0.5);
+  color: #f0e8e0;
+}
