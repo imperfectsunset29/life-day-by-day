@@ -753,6 +753,10 @@ document.addEventListener('click', (e) => {
   }
 });
 
+document.getElementById('randomizer-x-btn').addEventListener('click', () => {
+  overlay.classList.add('hidden');
+  currentSurpriseTask = null;
+});
 document.getElementById('surprise-btn').addEventListener('click', surprise);
 document.getElementById('respin-btn').addEventListener('click', surprise);
 document.getElementById('close-overlay-btn').addEventListener('click', async () => {
