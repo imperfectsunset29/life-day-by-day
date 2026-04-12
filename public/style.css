@@ -33,6 +33,13 @@ header {
   gap: 0;
 }
 
+.header-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 100%;
+}
+
 h1 {
   font-family: 'Instrument Serif', Georgia, serif;
   font-size: clamp(2.8rem, 10vw, 6.5rem);
