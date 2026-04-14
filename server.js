@@ -456,6 +456,46 @@ app.get('/api/random', (req, res) => {
   res.json(pick);
 });
 
+// Siri voice task creation — uses a separate SIRI_API_KEY env var
+// so you never embed your admin password in the iOS Shortcut.
+// POST /api/siri/task
+// Headers: X-Siri-Key: <SIRI_API_KEY>  (omit in dev mode if key not set)
+// Body:    { "text": "...", "category": "oneOff", "profile": "vc" }
+app.post('/api/siri/task', (req, res) => {
+  const siriKey = process.env.SIRI_API_KEY;
+  if (siriKey) {
+    const provided = req.headers['x-siri-key'];
+    if (!provided || provided !== siriKey) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+
+  const { text, category = 'oneOff', profile = 'vc' } = req.body || {};
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    return res.status(400).json({ error: 'text is required' });
+  }
+  const validCategories = ['oneOff', 'habits', 'projects', 'treats', 'hardThings'];
+  if (!validCategories.includes(category)) {
+    return res.status(400).json({ error: `Invalid category. Use one of: ${validCategories.join(', ')}` });
+  }
+  const safeProfile = profile === 'fg' ? 'fg' : 'vc';
+
+  const data = readTasks(safeProfile);
+  const id = data.nextId++;
+  const task = category === 'habits'
+    ? { id, text: text.trim(), doneToday: false, lastDoneDate: null }
+    : category === 'treats' || category === 'hardThings'
+    ? { id, text: text.trim() }
+    : category === 'projects'
+    ? { id, text: text.trim(), progress: 0, steps: [] }
+    : { id, text: text.trim(), done: false };
+
+  data[category].push(task);
+  writeTasks(data, safeProfile);
+
+  res.json({ success: true, message: `Task added: ${task.text}`, task });
+});
+
 // Backup — download tasks.json as a file (admin only)
 app.get('/api/backup', requireAdmin, (req, res) => {
   const profile = profileFrom(req);
