@@ -302,15 +302,18 @@ async function addStep(projectId) {
   if (!btn) return;
   const addRow = btn.closest('.step-add-row');
   if (!addRow || addRow.querySelector('.step-text-input')) return;
+  const projectItem = addRow.closest('.task-item');
 
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'step-text-input';
   input.placeholder = 'New step...';
   addRow.insertBefore(input, btn);
+  if (projectItem) enterEditMode(projectItem);
   input.focus();
 
   const save = async () => {
+    if (projectItem) exitEditMode(projectItem);
     const text = input.value.trim();
     if (text) {
       expandedProjects.add(projectId);
@@ -441,6 +444,19 @@ async function toggleTask(category, id) {
   await loadTasks();
 }
 
+function enterEditMode(el) {
+  document.body.classList.add('editing-active');
+  el.classList.add('is-editing');
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function exitEditMode(el) {
+  el.classList.remove('is-editing');
+  if (!document.querySelector('.is-editing')) {
+    document.body.classList.remove('editing-active');
+  }
+}
+
 // Edit task
 function startEdit(category, id) {
   const taskList = (category === 'treats' || category === 'hardThings') ? tasks[category] : tasks[category];
@@ -464,8 +480,10 @@ function startEdit(category, id) {
       textSpan.replaceWith(input);
       input.focus();
       input.select();
+      enterEditMode(item);
 
       const save = async () => {
+        exitEditMode(item);
         const newText = input.value.trim();
         if (newText && newText !== currentText) {
           await apiFetch(`${API}/tasks/${category}/${id}`, {
@@ -512,9 +530,11 @@ async function addTask(category) {
   list.appendChild(li);
 
   const input = li.querySelector('input');
+  enterEditMode(li);
   input.focus();
 
   const save = async () => {
+    exitEditMode(li);
     const text = input.value.trim();
     if (text) {
       await apiFetch(`${API}/tasks/${category}`, {

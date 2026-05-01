@@ -259,6 +259,30 @@ h1 {
   user-select: none;
 }
 
+/* Edit/add focus backdrop */
+#edit-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+body.editing-active #edit-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.task-item.is-editing {
+  position: relative;
+  z-index: 51;
+  background: #2d0a2e;
+  padding: 12px 10px;
+  margin: 0 -10px;
+}
+
 .task-text-input {
   flex: 1;
   font-size: 0.85rem;
