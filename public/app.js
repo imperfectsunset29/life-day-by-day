@@ -227,7 +227,7 @@ function renderStepsHTML(task) {
     html += `
       <div class="step-item">
         <button class="step-checkbox${step.done ? ' checked' : ''}" data-project-id="${task.id}" data-step-id="${step.id}"></button>
-        <span class="step-text${step.done ? ' done' : ''}">${escapeHtml(step.text)}</span>
+        <span class="step-text${step.done ? ' done' : ''}" data-project-id="${task.id}" data-step-id="${step.id}">${escapeHtml(step.text)}</span>
         <button class="step-delete" data-project-id="${task.id}" data-step-id="${step.id}" title="Delete step">&times;</button>
       </div>`;
   }
@@ -326,6 +326,43 @@ async function addStep(projectId) {
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') input.blur();
     if (e.key === 'Escape') { input.value = ''; input.blur(); }
+  });
+}
+
+function startEditStep(projectId, stepId) {
+  const project = tasks.projects.find(p => p.id === projectId);
+  const step = project && project.steps && project.steps.find(s => s.id === stepId);
+  if (!step) return;
+
+  const textSpan = document.querySelector(`.step-text[data-project-id="${projectId}"][data-step-id="${stepId}"]`);
+  if (!textSpan) return;
+
+  const currentText = step.text;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'step-text-input';
+  input.value = currentText;
+
+  textSpan.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const save = async () => {
+    const newText = input.value.trim();
+    expandedProjects.add(projectId);
+    if (newText && newText !== currentText) {
+      await apiFetch(`${API}/tasks/projects/${projectId}/steps/${stepId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ text: newText })
+      });
+    }
+    await loadTasks();
+  };
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { input.value = currentText; input.blur(); }
   });
 }
 
@@ -747,6 +784,10 @@ document.addEventListener('click', (e) => {
   }
   else if (target.classList.contains('step-delete')) {
     deleteStep(Number(target.dataset.projectId), Number(target.dataset.stepId));
+  }
+  else if (target.classList.contains('step-text') && target.closest('.step-item')) {
+    if (!isAdmin()) return;
+    startEditStep(Number(target.dataset.projectId), Number(target.dataset.stepId));
   }
   else if (target.classList.contains('step-add-btn')) {
     addStep(Number(target.dataset.projectId));

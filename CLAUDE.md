@@ -39,7 +39,7 @@ tasks.json           → All persistent data (auto-created on first run)
 
 - **One-offs:** Boolean done. Completing moves to "Done"; clears every Sunday 23:59 PT.
 - **Habits:** Daily recurring. `doneToday` resets at 5 AM PT (checked on every `readTasks()`).
-- **Projects:** Progress 0–100 via +/− buttons. Sub-steps (`steps[]`) are a pure checklist — don't affect progress. Auto-ascends to Olympus at 100% with a random Pynchon quote. Route ordering in `server.js` matters: step routes must be registered before `/:category/:id`.
+- **Projects:** Progress 0–100 via +/− buttons. Sub-steps (`steps[]`) are a pure checklist — don't affect progress. Auto-ascends to Olympus at 100% with a random Pynchon quote. Route ordering in `server.js` matters: step routes must be registered before `/:category/:id`. Step text is edited inline by tapping it (admin only) — `startEditStep()` replaces the span with an input, same pattern as `addStep()`, reuses `.step-text-input` CSS.
 - **Treats / Hard Things:** Stateless. 20% chance each in randomizer.
 - **Done:** Completed one-offs; cleared every Sunday 23:59 PT.
 - **Olympus:** Ascended projects. Restoring resets progress to 0; steps not restored.

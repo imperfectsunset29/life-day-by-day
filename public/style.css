@@ -810,6 +810,10 @@ body.admin-mode .step-checkbox:hover {
   color: rgba(240, 232, 224, 0.5);
 }
 
+body.admin-mode .step-text {
+  cursor: text;
+}
+
 .step-delete {
   background: none;
   border: none;
