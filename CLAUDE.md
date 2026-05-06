@@ -78,6 +78,18 @@ Single breakpoint at `max-width: 480px` in `style.css`. When editing overlay or 
 - **Geometry:** Strict square corners throughout — no `border-radius`
 - **Feel:** High-end editorial (Prada FW21 reference). Minimalist borders, restrained animation.
 
+## Interaction Design Decisions
+
+**Tap-to-edit vs. explicit edit buttons**
+Project steps use tap-to-edit (click the text to edit inline) with no button. All other task categories (one-offs, habits, projects, treats, hard things) keep an explicit edit button. Rationale:
+
+- Steps have no checkbox, so a tap on text is unambiguous. Edit buttons would clutter small rows.
+- One-offs and habits sit next to a checkbox — a single tap on text to edit is too easy to confuse with completing the task. The existing `dblclick` handler is the right compromise there.
+- Project titles and treats/hard things keep the button because discoverability matters; the button signals that editing is possible. It's low-opacity until hover so it doesn't clutter the UI.
+- Removing edit buttons everywhere would look cleaner but risks accidental edits while scrolling on mobile, and new users would have no cue that text is editable.
+
+Rule of thumb: **tap-to-edit is appropriate when there is no competing single-tap action on the same row.**
+
 ## Instructions for Claude
 
 - **Non-coder friendly:** Explain logic changes in plain English.
