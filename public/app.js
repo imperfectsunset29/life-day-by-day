@@ -200,7 +200,7 @@ function renderCategory(category, items) {
       <span class="task-text">${escapeHtml(task.text)}</span>
       <div class="task-actions">
         <button class="task-action-btn edit" data-id="${task.id}" data-category="${category}" title="Edit">edit</button>
-        <button class="task-action-btn delete" data-id="${task.id}" data-category="${category}" title="Delete">&times;</button>
+        <button class="task-action-btn delete" data-id="${task.id}" data-category="${category}" title="Delete">delete</button>
       </div>
     `;
 
@@ -270,7 +270,7 @@ function renderProjects() {
         <span class="task-text">${escapeHtml(task.text)}</span>
         <div class="task-actions">
           <button class="task-action-btn edit" data-id="${task.id}" data-category="projects" title="Edit">edit</button>
-          <button class="task-action-btn delete" data-id="${task.id}" data-category="projects" title="Delete">&times;</button>
+          <button class="task-action-btn delete" data-id="${task.id}" data-category="projects" title="Delete">delete</button>
         </div>
       </div>
       <div class="progress-row">
@@ -646,7 +646,7 @@ function renderTreats() {
       <span class="task-text">${escapeHtml(treat.text)}</span>
       <div class="task-actions" style="opacity:1">
         <button class="task-action-btn edit" data-id="${treat.id}" data-category="treats" title="Edit">edit</button>
-        <button class="task-action-btn delete" data-id="${treat.id}" data-category="treats" title="Delete">&times;</button>
+        <button class="task-action-btn delete" data-id="${treat.id}" data-category="treats" title="Delete">delete</button>
       </div>
     `;
     list.appendChild(li);
@@ -676,7 +676,7 @@ function renderHardThings() {
       <span class="task-text">${escapeHtml(item.text)}</span>
       <div class="task-actions" style="opacity:1">
         <button class="task-action-btn edit" data-id="${item.id}" data-category="hardThings" title="Edit">edit</button>
-        <button class="task-action-btn delete" data-id="${item.id}" data-category="hardThings" title="Delete">&times;</button>
+        <button class="task-action-btn delete" data-id="${item.id}" data-category="hardThings" title="Delete">delete</button>
       </div>
     `;
     list.appendChild(li);
@@ -767,13 +767,27 @@ document.addEventListener('dblclick', (e) => {
 document.addEventListener('click', (e) => {
   const target = e.target;
 
+  if (!target.closest('.task-actions')) {
+    document.querySelectorAll('.task-actions.expanded').forEach(el => el.classList.remove('expanded'));
+  }
+
   if (target.classList.contains('task-checkbox')) {
     toggleTask(target.dataset.category, Number(target.dataset.id));
   }
   else if (target.classList.contains('edit')) {
+    if (window.innerWidth <= 480) {
+      const actions = target.closest('.task-actions');
+      if (!actions.classList.contains('expanded')) {
+        document.querySelectorAll('.task-actions.expanded').forEach(el => el.classList.remove('expanded'));
+        actions.classList.add('expanded');
+        return;
+      }
+      actions.classList.remove('expanded');
+    }
     startEdit(target.dataset.category, Number(target.dataset.id));
   }
   else if (target.classList.contains('delete')) {
+    target.closest('.task-actions')?.classList.remove('expanded');
     deleteTask(target.dataset.category, Number(target.dataset.id));
   }
   else if (target.classList.contains('restore')) {
