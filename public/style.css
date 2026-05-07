@@ -299,7 +299,7 @@ h1 {
 }
 
 .task-action-btn.delete:hover {
-  color: #f2a0b0;
+  color: #ff2d78;
 }
 
 /* Project slider */
@@ -516,7 +516,7 @@ h1 {
 
 /* Treat overlay label */
 .overlay-label.treat-label {
-  color: #f2a0b0;
+  color: #ff2d78;
 }
 
 /* Hard thing overlay label */
@@ -661,12 +661,12 @@ h1 {
 }
 
 .action-dropdown .dropdown-delete {
-  color: #f2a0b0;
+  color: #ff2d78;
   border-top: 1px solid rgba(240, 232, 224, 0.08);
 }
 
 .action-dropdown .dropdown-delete:hover {
-  color: #f5b8c6;
+  color: #ff5c93;
 }
 
 /* Mobile */
@@ -1055,7 +1055,7 @@ body.admin-mode .oracle-sentence:hover {
 }
 
 .step-delete:hover {
-  color: #f2a0b0;
+  color: #ff2d78;
 }
 
 .step-add-row {
