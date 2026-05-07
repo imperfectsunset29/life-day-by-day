@@ -655,6 +655,19 @@ h1 {
     opacity: 1;
   }
 
+  body.admin-mode .task-action-btn.delete {
+    display: none;
+  }
+
+  body.admin-mode .task-actions.expanded .task-action-btn.delete {
+    display: inline-block;
+    color: #f2a0b0;
+  }
+
+  .task-actions.expanded .task-action-btn.edit {
+    color: rgba(240, 232, 224, 0.6);
+  }
+
   .overlay-content {
     padding: 40px 24px 32px;
   }
