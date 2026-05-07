@@ -196,6 +196,31 @@ function readTasks(profile) {
   if (data.lastDoneCleared === undefined) data.lastDoneCleared = null;
   for (const project of data.projects) {
     if (!project.steps) project.steps = [];
+    for (const step of project.steps) {
+      if (step.completedAt === undefined) {
+        step.completedAt = step.done ? new Date().toISOString() : null;
+        changed = true;
+      }
+    }
+  }
+
+  // Move completed steps older than 1 hour into the done list
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  for (const project of data.projects) {
+    const toMigrate = project.steps.filter(s =>
+      s.done && s.completedAt && new Date(s.completedAt).getTime() < oneHourAgo
+    );
+    if (toMigrate.length > 0) {
+      for (const step of toMigrate) {
+        data.done.push({
+          id: step.id,
+          text: `${project.text} → ${step.text}`,
+          completedAt: step.completedAt
+        });
+      }
+      project.steps = project.steps.filter(s => !toMigrate.some(m => m.id === s.id));
+      changed = true;
+    }
   }
 
   let changed = false;
@@ -261,7 +286,10 @@ app.put('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => {
   if (!step) return res.status(404).json({ error: 'Step not found' });
 
   if (req.body.text !== undefined) step.text = req.body.text;
-  if (req.body.done !== undefined) step.done = req.body.done;
+  if (req.body.done !== undefined) {
+    step.done = req.body.done;
+    step.completedAt = req.body.done ? new Date().toISOString() : null;
+  }
 
   writeTasks(data, profile);
   res.json(project);
