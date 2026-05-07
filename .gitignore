@@ -1,5 +1,8 @@
 node_modules/
 tasks.json
+tasks-fg.json
+events.json
+events-fg.json
 .DS_Store
 .claude/
 Claude/

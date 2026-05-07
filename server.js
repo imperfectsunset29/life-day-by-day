@@ -9,9 +9,17 @@ const TASKS_FILES = {
   vc: path.join(DATA_DIR, 'tasks.json'),
   fg: path.join(DATA_DIR, 'tasks-fg.json'),
 };
+const EVENTS_FILES = {
+  vc: path.join(DATA_DIR, 'events.json'),
+  fg: path.join(DATA_DIR, 'events-fg.json'),
+};
 
 function getTasksFile(profile) {
   return TASKS_FILES[profile] || TASKS_FILES.vc;
+}
+
+function getEventsFile(profile) {
+  return EVENTS_FILES[profile] || EVENTS_FILES.vc;
 }
 
 function profileFrom(req) {
@@ -256,6 +264,13 @@ function writeTasks(data, profile) {
   fs.writeFileSync(getTasksFile(profile || 'vc'), JSON.stringify(data, null, 2));
 }
 
+function logEvent(type, payload, profile) {
+  const file = getEventsFile(profile || 'vc');
+  const events = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
+  events.push({ type, at: new Date().toISOString(), ...payload });
+  fs.writeFileSync(file, JSON.stringify(events, null, 2));
+}
+
 function getRandomPynchon() {
   return pynchonQuotes[Math.floor(Math.random() * pynchonQuotes.length)];
 }
@@ -289,6 +304,8 @@ app.put('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => {
   if (req.body.done !== undefined) {
     step.done = req.body.done;
     step.completedAt = req.body.done ? new Date().toISOString() : null;
+    if (req.body.done) logEvent('step_done', { taskId: step.id, text: step.text, projectId: Number(id), projectText: project.text }, profile);
+    else logEvent('step_undone', { taskId: step.id, text: step.text, projectId: Number(id), projectText: project.text }, profile);
   }
 
   writeTasks(data, profile);
@@ -303,6 +320,8 @@ app.delete('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => 
   const project = data.projects.find(t => t.id === Number(id));
   if (!project) return res.status(404).json({ error: 'Project not found' });
   if (!project.steps) return res.status(404).json({ error: 'Step not found' });
+  const deletedStep = project.steps.find(s => s.id === Number(stepId));
+  if (deletedStep) logEvent('step_deleted', { taskId: deletedStep.id, text: deletedStep.text, projectId: Number(id), projectText: project.text }, profile);
   project.steps = project.steps.filter(s => s.id !== Number(stepId));
 
   writeTasks(data, profile);
@@ -325,14 +344,16 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const id = data.nextId++;
+  const createdAt = new Date().toISOString();
   const task = category === 'habits'
-    ? { id, text, doneToday: false, lastDoneDate: null }
+    ? { id, text, doneToday: false, lastDoneDate: null, createdAt }
     : category === 'treats' || category === 'hardThings'
-    ? { id, text }
+    ? { id, text, createdAt }
     : category === 'projects'
-    ? { id, text, progress: 0 }
-    : { id, text, done: false };
+    ? { id, text, progress: 0, createdAt }
+    : { id, text, done: false, createdAt };
   data[category].push(task);
+  logEvent('task_created', { taskId: id, text, category }, profile);
   writeTasks(data, profile);
   res.json(task);
 });
@@ -356,9 +377,15 @@ app.put('/api/tasks/:category/reorder', requireAdmin, (req, res) => {
 app.put('/api/oracle', requireAdmin, (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
-  if (req.body.text !== undefined) data.oracle.text = req.body.text;
+  if (req.body.text !== undefined) {
+    data.oracle.text = req.body.text;
+    logEvent('oracle_updated', { source: req.body.source || data.oracle.source }, profile);
+  }
   if (req.body.source !== undefined) data.oracle.source = req.body.source;
-  if (req.body.preview !== undefined) data.oracle.preview = req.body.preview;
+  if (req.body.preview !== undefined) {
+    data.oracle.preview = req.body.preview;
+    if (req.body.preview) logEvent('oracle_sentence_selected', { preview: req.body.preview }, profile);
+  }
   writeTasks(data, profile);
   res.json(data.oracle);
 });
@@ -379,15 +406,18 @@ app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
   if (category === 'habits') {
     if (req.body.doneToday !== undefined) {
       task.doneToday = req.body.doneToday;
-      task.lastDoneDate = req.body.doneToday
-        ? getHabitDay()
-        : task.lastDoneDate;
+      task.lastDoneDate = req.body.doneToday ? getHabitDay() : task.lastDoneDate;
+      if (req.body.doneToday) logEvent('habit_done', { taskId: task.id, text: task.text }, profile);
+      else logEvent('habit_undone', { taskId: task.id, text: task.text }, profile);
     }
   } else if (category === 'projects' && req.body.progress !== undefined) {
+    const prevProgress = task.progress;
     task.progress = Math.max(0, Math.min(100, req.body.progress));
+    logEvent('project_progress', { taskId: task.id, text: task.text, from: prevProgress, to: task.progress }, profile);
 
     // Auto-ascend at 100%
     if (task.progress >= 100) {
+      logEvent('project_ascended', { taskId: task.id, text: task.text }, profile);
       data.olympus.push({
         id: task.id,
         text: task.text,
@@ -402,6 +432,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
 
     // Move to done when one-off checked
     if (req.body.done && !wasDone && category === 'oneOff') {
+      logEvent('oneoff_done', { taskId: task.id, text: task.text }, profile);
       data.done.push({
         id: task.id,
         text: task.text,
@@ -423,6 +454,8 @@ app.delete('/api/tasks/:category/:id', requireAdmin, (req, res) => {
   if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'done', 'olympus'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
+  const deletedTask = data[category].find(t => t.id === Number(id));
+  if (deletedTask) logEvent('task_deleted', { taskId: deletedTask.id, text: deletedTask.text, category }, profile);
   data[category] = data[category].filter(t => t.id !== Number(id));
   writeTasks(data, profile);
   res.json({ success: true });
@@ -439,11 +472,13 @@ app.post('/api/restore/:category/:id', requireAdmin, (req, res) => {
     const idx = data.done.findIndex(t => t.id === numId);
     if (idx === -1) return res.status(404).json({ error: 'Task not found' });
     const task = data.done.splice(idx, 1)[0];
+    logEvent('task_restored', { taskId: task.id, text: task.text, from: 'done' }, profile);
     data.oneOff.push({ id: task.id, text: task.text, done: false });
   } else if (category === 'olympus') {
     const idx = data.olympus.findIndex(t => t.id === numId);
     if (idx === -1) return res.status(404).json({ error: 'Task not found' });
     const task = data.olympus.splice(idx, 1)[0];
+    logEvent('task_restored', { taskId: task.id, text: task.text, from: 'olympus' }, profile);
     data.projects.push({ id: task.id, text: task.text, progress: 0 });
   } else {
     return res.status(400).json({ error: 'Can only restore from done or olympus' });
@@ -460,12 +495,17 @@ app.get('/api/random', (req, res) => {
   const treats = (data.treats || []).map(t => ({ ...t, category: 'treats' }));
   const hardThings = (data.hardThings || []).map(t => ({ ...t, category: 'hardThings' }));
 
+  const surfaceAndReturn = (task) => {
+    if (task) logEvent('surprise_surfaced', { taskId: task.id, text: task.text, category: task.category }, profile);
+    res.json(task);
+  };
+
   const roll = Math.random();
   if (roll < 0.2 && treats.length > 0) {
-    return res.json(treats[Math.floor(Math.random() * treats.length)]);
+    return surfaceAndReturn(treats[Math.floor(Math.random() * treats.length)]);
   }
   if (roll < 0.4 && hardThings.length > 0) {
-    return res.json(hardThings[Math.floor(Math.random() * hardThings.length)]);
+    return surfaceAndReturn(hardThings[Math.floor(Math.random() * hardThings.length)]);
   }
 
   const pool = [
@@ -473,15 +513,41 @@ app.get('/api/random', (req, res) => {
     ...data.habits.filter(t => !t.doneToday).map(t => ({ ...t, category: 'habits' }))
   ];
   if (pool.length === 0) {
-    // If no tasks left, surface a treat or hard thing
     const specials = [...treats, ...hardThings];
-    if (specials.length > 0) {
-      return res.json(specials[Math.floor(Math.random() * specials.length)]);
-    }
-    return res.json(null);
+    return surfaceAndReturn(specials.length > 0 ? specials[Math.floor(Math.random() * specials.length)] : null);
   }
-  const pick = pool[Math.floor(Math.random() * pool.length)];
-  res.json(pick);
+  surfaceAndReturn(pool[Math.floor(Math.random() * pool.length)]);
+});
+
+// Log a Surprise Me outcome (acted / dismissed / skipped)
+app.post('/api/surprise/outcome', (req, res) => {
+  const profile = profileFrom(req);
+  const { taskId, text, category, outcome } = req.body;
+  if (taskId) logEvent(`surprise_${outcome}`, { taskId, text, category }, profile);
+  res.json({ ok: true });
+});
+
+// Session ping — logs each time the app is opened
+app.post('/api/ping', (req, res) => {
+  const profile = profileFrom(req);
+  logEvent('session_start', {}, profile);
+  res.json({ ok: true });
+});
+
+// Export events log as CSV (admin only)
+app.get('/api/export', requireAdmin, (req, res) => {
+  const profile = profileFrom(req);
+  const file = getEventsFile(profile);
+  const events = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
+  const rows = [['type', 'at', 'taskId', 'text', 'value'].join(',')];
+  for (const e of events) {
+    const value = e.from !== undefined ? `${e.from}→${e.to}` : '';
+    rows.push([e.type, e.at, e.taskId || '', `"${(e.text || '').replace(/"/g, '""')}"`, value].join(','));
+  }
+  const date = new Date().toISOString().split('T')[0];
+  res.setHeader('Content-Disposition', `attachment; filename="life-events-${profile}-${date}.csv"`);
+  res.setHeader('Content-Type', 'text/csv');
+  res.send(rows.join('\n'));
 });
 
 // Backup — download tasks.json as a file (admin only)

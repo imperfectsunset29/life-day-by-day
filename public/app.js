@@ -572,7 +572,16 @@ async function addTask(category) {
 }
 
 // Randomizer
+async function logSurpriseOutcome(outcome) {
+  if (!currentSurpriseTask) return;
+  await apiFetch(`${API}/surprise/outcome`, {
+    method: 'POST',
+    body: JSON.stringify({ taskId: currentSurpriseTask.id, text: currentSurpriseTask.text, category: currentSurpriseTask.category, outcome })
+  });
+}
+
 async function surprise() {
+  if (currentSurpriseTask) await logSurpriseOutcome('skipped');
   const res = await fetch(`${API}/random`, { headers: authHeaders() });
   const task = await res.json();
   const closeBtn = document.getElementById('close-overlay-btn');
@@ -696,6 +705,7 @@ async function selectProfile(profile) {
   const { passwordRequired } = await fetch(`${API}/auth-mode`, { headers: authHeaders() }).then(r => r.json());
   if (!passwordRequired && !isAdmin()) unlock('dev');
   await loadTasks();
+  apiFetch(`${API}/ping`, { method: 'POST' });
   showMain();
   document.body.classList.add('loaded');
 }
@@ -794,13 +804,15 @@ document.addEventListener('click', (e) => {
   }
 });
 
-document.getElementById('randomizer-x-btn').addEventListener('click', () => {
+document.getElementById('randomizer-x-btn').addEventListener('click', async () => {
+  await logSurpriseOutcome('dismissed');
   overlay.classList.add('hidden');
   currentSurpriseTask = null;
 });
 document.getElementById('surprise-btn').addEventListener('click', surprise);
 document.getElementById('respin-btn').addEventListener('click', surprise);
 document.getElementById('close-overlay-btn').addEventListener('click', async () => {
+  await logSurpriseOutcome('acted');
   overlay.classList.add('hidden');
   if (currentSurpriseTask && (currentSurpriseTask.category === 'oneOff' || currentSurpriseTask.category === 'habits')) {
     await toggleTask(currentSurpriseTask.category, currentSurpriseTask.id);
@@ -816,14 +828,20 @@ document.getElementById('hard-things-btn').addEventListener('click', showHardThi
 document.getElementById('hard-things-back').addEventListener('click', showMain);
 
 // Close overlay on backdrop click
-overlay.addEventListener('click', (e) => {
-  if (e.target === overlay) overlay.classList.add('hidden');
+overlay.addEventListener('click', async (e) => {
+  if (e.target === overlay) {
+    await logSurpriseOutcome('dismissed');
+    overlay.classList.add('hidden');
+    currentSurpriseTask = null;
+  }
 });
 
 // Close overlay on Escape
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', async (e) => {
   if (e.key === 'Escape') {
+    await logSurpriseOutcome('dismissed');
     overlay.classList.add('hidden');
+    currentSurpriseTask = null;
     document.getElementById('oracle-overlay').classList.add('hidden');
   }
 });
@@ -936,6 +954,7 @@ document.getElementById('lock-btn').addEventListener('click', () => {
   if (isAdmin()) { lock(); }
   else { const pw = prompt('Password:'); if (pw) unlock(pw); }
 });
+
 applyAuthUI();
 
 // Profile selector buttons
