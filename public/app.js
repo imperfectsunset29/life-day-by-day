@@ -763,12 +763,42 @@ document.addEventListener('dblclick', (e) => {
   if (editBtn) startEdit(editBtn.dataset.category, Number(editBtn.dataset.id));
 });
 
+function closeActionDropdown() {
+  const existing = document.querySelector('.action-dropdown');
+  if (existing) existing.remove();
+}
+
+function openActionDropdown(editBtn) {
+  closeActionDropdown();
+  const category = editBtn.dataset.category;
+  const id = Number(editBtn.dataset.id);
+  const rect = editBtn.getBoundingClientRect();
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'action-dropdown';
+  dropdown.style.top = (rect.bottom + 4) + 'px';
+  dropdown.style.right = (window.innerWidth - rect.right) + 'px';
+
+  const doEdit = document.createElement('button');
+  doEdit.textContent = 'edit';
+  doEdit.addEventListener('click', (e) => { e.stopPropagation(); closeActionDropdown(); startEdit(category, id); });
+
+  const doDelete = document.createElement('button');
+  doDelete.textContent = 'delete';
+  doDelete.className = 'dropdown-delete';
+  doDelete.addEventListener('click', (e) => { e.stopPropagation(); closeActionDropdown(); deleteTask(category, id); });
+
+  dropdown.appendChild(doEdit);
+  dropdown.appendChild(doDelete);
+  document.body.appendChild(dropdown);
+}
+
 // Event delegation
 document.addEventListener('click', (e) => {
   const target = e.target;
 
-  if (!target.closest('.task-actions')) {
-    document.querySelectorAll('.task-actions.expanded').forEach(el => el.classList.remove('expanded'));
+  if (!target.closest('.action-dropdown') && !target.classList.contains('edit')) {
+    closeActionDropdown();
   }
 
   if (target.classList.contains('task-checkbox')) {
@@ -776,18 +806,12 @@ document.addEventListener('click', (e) => {
   }
   else if (target.classList.contains('edit')) {
     if (window.innerWidth <= 480) {
-      const actions = target.closest('.task-actions');
-      if (!actions.classList.contains('expanded')) {
-        document.querySelectorAll('.task-actions.expanded').forEach(el => el.classList.remove('expanded'));
-        actions.classList.add('expanded');
-        return;
-      }
-      actions.classList.remove('expanded');
+      openActionDropdown(target);
+      return;
     }
     startEdit(target.dataset.category, Number(target.dataset.id));
   }
   else if (target.classList.contains('delete')) {
-    target.closest('.task-actions')?.classList.remove('expanded');
     deleteTask(target.dataset.category, Number(target.dataset.id));
   }
   else if (target.classList.contains('restore')) {

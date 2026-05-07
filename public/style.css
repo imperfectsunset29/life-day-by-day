@@ -631,6 +631,44 @@ h1 {
   color: rgba(240, 232, 224, 0.2);
 }
 
+/* Edit/delete dropdown (mobile) */
+.action-dropdown {
+  position: fixed;
+  background: #3d1a3e;
+  border: 1px solid rgba(240, 232, 224, 0.15);
+  z-index: 1000;
+  min-width: 90px;
+}
+
+.action-dropdown button {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: rgba(240, 232, 224, 0.7);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.action-dropdown button:hover {
+  background: rgba(240, 232, 224, 0.06);
+  color: #f0e8e0;
+}
+
+.action-dropdown .dropdown-delete {
+  color: #f2a0b0;
+  border-top: 1px solid rgba(240, 232, 224, 0.08);
+}
+
+.action-dropdown .dropdown-delete:hover {
+  color: #f5b8c6;
+}
+
 /* Mobile */
 @media (max-width: 480px) {
   body {
@@ -657,15 +695,6 @@ h1 {
 
   body.admin-mode .task-action-btn.delete {
     display: none;
-  }
-
-  body.admin-mode .task-actions.expanded .task-action-btn.delete {
-    display: inline-block;
-    color: #f2a0b0;
-  }
-
-  .task-actions.expanded .task-action-btn.edit {
-    color: rgba(240, 232, 224, 0.6);
   }
 
   .overlay-content {
