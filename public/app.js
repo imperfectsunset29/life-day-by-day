@@ -1,7 +1,7 @@
 const API = '/api';
 
 function scrollToInput(input) {
-  scrollToInput(input);
+  setTimeout(() => input.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 300);
 }
 
 // Profile
