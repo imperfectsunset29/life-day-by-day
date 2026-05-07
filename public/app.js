@@ -1,5 +1,9 @@
 const API = '/api';
 
+function scrollToInput(input) {
+  scrollToInput(input);
+}
+
 // Profile
 let currentProfile = null; // 'vc' | 'fg' | null
 function getProfile() { return currentProfile || 'vc'; }
@@ -309,6 +313,7 @@ async function addStep(projectId) {
   input.placeholder = 'New step...';
   addRow.insertBefore(input, btn);
   input.focus();
+  scrollToInput(input);
 
   const save = async () => {
     const text = input.value.trim();
@@ -501,6 +506,7 @@ function startEdit(category, id) {
       textSpan.replaceWith(input);
       input.focus();
       input.select();
+      scrollToInput(input);
 
       const save = async () => {
         const newText = input.value.trim();
@@ -550,6 +556,7 @@ async function addTask(category) {
 
   const input = li.querySelector('input');
   input.focus();
+  scrollToInput(input);
 
   const save = async () => {
     const text = input.value.trim();
