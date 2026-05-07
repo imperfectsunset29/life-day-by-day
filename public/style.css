@@ -693,10 +693,6 @@ h1 {
     opacity: 1;
   }
 
-  body.admin-mode .task-action-btn.delete {
-    display: none;
-  }
-
   .overlay-content {
     padding: 40px 24px 32px;
   }
@@ -751,6 +747,10 @@ body.admin-mode .task-action-btn.edit,
 body.admin-mode .task-action-btn.delete,
 body.admin-mode .task-action-btn.restore { display: inline-block; }
 body.admin-mode .progress-btn { pointer-events: auto; cursor: pointer; opacity: 1; }
+
+@media (max-width: 480px) {
+  body.admin-mode .task-action-btn.delete { display: none; }
+}
 
 /* ============ Drag to reorder ============ */
 
