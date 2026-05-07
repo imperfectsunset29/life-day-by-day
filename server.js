@@ -202,6 +202,7 @@ function readTasks(profile) {
   if (!data.oracle) data.oracle = { text: '', source: '', preview: '' };
   if (data.oracle.preview === undefined) data.oracle.preview = '';
   if (data.lastDoneCleared === undefined) data.lastDoneCleared = null;
+  let changed = false;
   for (const project of data.projects) {
     if (!project.steps) project.steps = [];
     for (const step of project.steps) {
@@ -230,8 +231,6 @@ function readTasks(profile) {
       changed = true;
     }
   }
-
-  let changed = false;
 
   // Reset habits if the habit-day has changed (rolls over at 5 AM PT)
   const today = getHabitDay();
