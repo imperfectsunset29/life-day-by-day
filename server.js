@@ -351,7 +351,7 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
     : category === 'projects'
     ? { id, text, progress: 0, createdAt }
     : { id, text, done: false, createdAt };
-  data[category].push(task);
+  data[category].unshift(task);
   logEvent('task_created', { taskId: id, text, category }, profile);
   writeTasks(data, profile);
   res.json(task);
