@@ -73,10 +73,18 @@ Single breakpoint at `max-width: 480px` in `style.css`. When editing overlay or 
 
 ## Visual Identity — Non-Negotiable
 
-- **Palette:** Deep plum `#2d0a2e` background, warm ivory `#f0e8e0` text, sage green `#b5c99a` accents
+- **Palette:** Deep plum `#2d0a2e` background, warm ivory `#f0e8e0` text, sage green `#b5c99a` accents, warm amber `#c8a87a` for highlights
 - **Typography:** Instrument Serif for headings, Inter for body. All-caps with letter-spacing for labels/nav.
 - **Geometry:** Strict square corners throughout — no `border-radius`
 - **Feel:** High-end editorial (Prada FW21 reference). Minimalist borders, restrained animation.
+
+## App Icon — Official, Non-Negotiable
+
+`public/apple-touch-icon.png` (180×180) and `public/favicon.png` (32×32) are the canonical icons. Source: `public/brain-icon.svg`.
+
+**Design:** Top-down view of a brain. Left hemisphere — conventional, bold, anatomical (clear gyral bumps in outline, solid sage-green sulci, specular sheen). Right hemisphere — wabi-sabi, dissolving (outline fades out rightward, sulci ghost away, one stroke escapes the silhouette). Warm amber glow at the longitudinal fissure. Dark plum background with faint gyrus-like texture marks in the corners.
+
+**Any future visual work** — loading states, overlays, illustrations, splash screens — must feel continuous with this icon. The amber `#c8a87a` is now a full palette member alongside sage and ivory. The wabi-sabi split (one side solid, one side dissolving) is a visual language to honor, not override.
 
 ## Interaction Design Decisions
 
