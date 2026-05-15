@@ -1123,6 +1123,7 @@ body.admin-mode .progress-btn:disabled {
   width: 96px;
   height: 96px;
   display: block;
+  mix-blend-mode: lighten;
 }
 
 .profile-selector-title {
