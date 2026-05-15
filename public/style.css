@@ -1119,6 +1119,12 @@ body.admin-mode .progress-btn:disabled {
   display: none;
 }
 
+.profile-logo {
+  width: 96px;
+  height: 96px;
+  display: block;
+}
+
 .profile-selector-title {
   font-family: 'Instrument Serif', Georgia, serif;
   font-size: clamp(2.8rem, 10vw, 6.5rem);
