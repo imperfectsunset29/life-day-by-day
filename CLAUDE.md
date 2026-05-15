@@ -78,13 +78,17 @@ Single breakpoint at `max-width: 480px` in `style.css`. When editing overlay or 
 - **Geometry:** Strict square corners throughout — no `border-radius`
 - **Feel:** High-end editorial (Prada FW21 reference). Minimalist borders, restrained animation.
 
-## App Icon — Official, Non-Negotiable
+## App Icon & Visual Reference — Non-Negotiable
 
-`public/apple-touch-icon.png` (180×180) and `public/favicon.png` (32×32) are the canonical icons. Source: `public/brain-icon.svg`.
+`public/apple-touch-icon.png` (180×180) and `public/favicon.png` (32×32) are the canonical icons. **`public/logo.jpg` is the high-quality design reference** — consult it before making any visual decisions.
 
-**Design:** Top-down view of a brain. Left hemisphere — conventional, bold, anatomical (clear gyral bumps in outline, solid sage-green sulci, specular sheen). Right hemisphere — wabi-sabi, dissolving (outline fades out rightward, sulci ghost away, one stroke escapes the silhouette). Warm amber glow at the longitudinal fissure. Dark plum background with faint gyrus-like texture marks in the corners.
+**Design (from logo.jpg):** Top-down anatomical brain on a near-black background (much darker than the UI's `#2d0a2e` — the brain floats in near-darkness). Golden amber continuous outline traces the full silhouette, with visible rounded gyral bumps along the edge.
 
-**Any future visual work** — loading states, overlays, illustrations, splash screens — must feel continuous with this icon. The amber `#c8a87a` is now a full palette member alongside sage and ivory. The wabi-sabi split (one side solid, one side dissolving) is a visual language to honor, not override.
+- **Left hemisphere:** Bold, fluid sulci in sage green (`#b5c99a`) that bloom toward ivory/white at their peaks. Three prominent arcs — one large S-curve, one U near the top, one lower arc. A glossy specular highlight in the upper-left gives it a glassy, living quality. This side is defined, illuminated, present.
+- **Right hemisphere:** Sulci present but ghosted — smaller, less defined, fading before they end. No specular highlight. Darker, more recessive. The dissolving quality is the point, not a defect.
+- **Center fissure:** The warmest element. Amber-orange glow (`#d4902a` to near-white at peak) radiates from the base of the fissure upward, like an inner light source. This is the emotional center of the icon.
+
+**Visual language to carry forward:** Any future illustration, loading state, overlay, or UI element should feel like it belongs in the same world as logo.jpg — near-black ground, amber inner light, the left-right split between the structured and the dissolving. The wabi-sabi asymmetry is a design principle, not a stylistic accident.
 
 ## Interaction Design Decisions
 
