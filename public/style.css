@@ -1195,3 +1195,12 @@ body.admin-mode .progress-btn:disabled {
   border-color: rgba(240, 232, 224, 0.5);
   color: #f0e8e0;
 }
+
+.app-footer {
+  text-align: center;
+  padding: 32px 24px;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: rgba(240, 232, 224, 0.2);
+  font-family: Inter, sans-serif;
+}
