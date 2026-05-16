@@ -644,7 +644,7 @@ function renderTreats() {
     li.dataset.category = 'treats';
     li.innerHTML = `
       <span class="task-text">${escapeHtml(treat.text)}</span>
-      <div class="task-actions" style="opacity:1">
+      <div class="task-actions">
         <button class="task-action-btn edit" data-id="${treat.id}" data-category="treats" title="Edit">edit</button>
         <button class="task-action-btn delete" data-id="${treat.id}" data-category="treats" title="Delete">delete</button>
       </div>
@@ -674,7 +674,7 @@ function renderHardThings() {
     li.dataset.category = 'hardThings';
     li.innerHTML = `
       <span class="task-text">${escapeHtml(item.text)}</span>
-      <div class="task-actions" style="opacity:1">
+      <div class="task-actions">
         <button class="task-action-btn edit" data-id="${item.id}" data-category="hardThings" title="Edit">edit</button>
         <button class="task-action-btn delete" data-id="${item.id}" data-category="hardThings" title="Delete">delete</button>
       </div>
