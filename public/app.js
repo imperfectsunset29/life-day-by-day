@@ -52,6 +52,16 @@ const ONEOFF_LIMIT = 5;
 let currentSurpriseTask = null;
 let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO)
 
+const oneOffCelebrationQuotes = [
+  'The list is empty. The world, improbably, persists.',
+  'All tasks resolved. The entropy was only deferred.',
+  'You have named the knowable things and done them. The rest were never on the list.',
+  'Completion noted. The network hums with indifference.',
+  'Every item accounted for. Whatever comes next was not written down.',
+  'The list clears. Somewhere, a signal travels the full length of its cable.',
+  'Done. The day holds its shape a little longer than expected.',
+];
+
 // DOM refs
 const overlay = document.getElementById('randomizer-overlay');
 const overlayTask = document.getElementById('overlay-task');
@@ -481,6 +491,133 @@ async function toggleTask(category, id) {
   });
 
   await loadTasks();
+
+  if (category === 'oneOff' && !task.done && tasks.oneOff.length === 0) {
+    showOneOffCelebration();
+  }
+}
+
+async function showOneOffCelebration() {
+  const quote = oneOffCelebrationQuotes[Math.floor(Math.random() * oneOffCelebrationQuotes.length)];
+  const el = document.getElementById('oneoff-celebration-overlay');
+  el.classList.remove('hidden');
+  await document.fonts.ready;
+  requestAnimationFrame(() => {
+    animateSandText(el.querySelector('.celebration-canvas'), quote);
+  });
+}
+
+function animateSandText(canvas, text) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight;
+  if (!W || !H) return;
+
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Render text offscreen to sample pixel positions
+  const off = document.createElement('canvas');
+  off.width = W * dpr;
+  off.height = H * dpr;
+  const octx = off.getContext('2d');
+  octx.scale(dpr, dpr);
+
+  const fontSize = 20;
+  const lineHeight = fontSize * 1.85;
+  octx.font = `italic ${fontSize}px "Instrument Serif", serif`;
+  octx.textAlign = 'center';
+  octx.textBaseline = 'alphabetic';
+  octx.fillStyle = '#fff';
+
+  // Word-wrap
+  const words = text.split(' ');
+  const maxLineW = W - 48;
+  const lines = [];
+  let cur = '';
+  for (const word of words) {
+    const test = cur ? cur + ' ' + word : word;
+    if (octx.measureText(test).width > maxLineW && cur) {
+      lines.push(cur);
+      cur = word;
+    } else {
+      cur = test;
+    }
+  }
+  if (cur) lines.push(cur);
+
+  const totalTextH = lines.length * lineHeight;
+  const topPad = (H - totalTextH) / 2;
+  for (let i = 0; i < lines.length; i++) {
+    octx.fillText(lines[i], W / 2, topPad + (i + 1) * lineHeight - fontSize * 0.2);
+  }
+
+  // Sample filled pixels
+  const imgData = octx.getImageData(0, 0, W * dpr, H * dpr).data;
+  const targets = [];
+  const step = Math.ceil(dpr * 3.5);
+  for (let py = 0; py < H * dpr; py += step) {
+    for (let px = 0; px < W * dpr; px += step) {
+      if (imgData[(py * Math.round(W * dpr) + px) * 4 + 3] > 60) {
+        targets.push({ x: px / dpr, y: py / dpr });
+      }
+    }
+  }
+  if (!targets.length) return;
+
+  // y range for stagger (bottom rows start first)
+  let yMin = Infinity, yMax = -Infinity;
+  for (const t of targets) {
+    if (t.y < yMin) yMin = t.y;
+    if (t.y > yMax) yMax = t.y;
+  }
+  const ySpan = yMax - yMin || 1;
+
+  const particles = targets.map(t => ({
+    tx: t.x,
+    ty: t.y,
+    sx: t.x + (Math.random() - 0.5) * 60,
+    delay: ((yMax - t.y) / ySpan) * 700,   // bottom-first
+    dur: 850 + Math.random() * 400,
+    color: Math.random() < 0.6 ? '#f0e8e0' : '#c8a87a',
+    r: 0.65 + Math.random() * 1.1,
+  }));
+
+  let t0 = null;
+
+  function frame(ts) {
+    if (!t0) t0 = ts;
+    const elapsed = ts - t0;
+    ctx.clearRect(0, 0, W, H);
+
+    let allDone = true;
+    for (const p of particles) {
+      const local = elapsed - p.delay;
+      if (local <= 0) { allDone = false; continue; }
+
+      const prog = Math.min(1, local / p.dur);
+      if (prog < 1) allDone = false;
+
+      // ease-out cubic: fast fall, gentle settle
+      const ease = 1 - Math.pow(1 - prog, 3);
+
+      const x = p.sx + (p.tx - p.sx) * ease;
+      const y = -10 + (p.ty + 10) * ease;
+
+      ctx.globalAlpha = Math.min(1, local / 120);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(x, y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = 1;
+    if (!allDone) requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
 }
 
 // Edit task
@@ -993,6 +1130,12 @@ document.getElementById('oracle-save-preview-btn').addEventListener('click', asy
 document.getElementById('oracle-overlay').addEventListener('click', (e) => {
   if (e.target === document.getElementById('oracle-overlay'))
     document.getElementById('oracle-overlay').classList.add('hidden');
+});
+
+const celebrationOverlay = document.getElementById('oneoff-celebration-overlay');
+celebrationOverlay.addEventListener('click', (e) => {
+  if (e.target === celebrationOverlay || e.target.classList.contains('celebration-dismiss'))
+    celebrationOverlay.classList.add('hidden');
 });
 
 document.getElementById('lock-btn').addEventListener('click', () => {
