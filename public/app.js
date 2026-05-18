@@ -726,7 +726,8 @@ async function logSurpriseOutcome(outcome) {
 
 async function surprise() {
   if (currentSurpriseTask) await logSurpriseOutcome('skipped');
-  const res = await fetch(`${API}/random`, { headers: authHeaders() });
+  const excludeParam = currentSurpriseTask ? `?exclude=${currentSurpriseTask.id}` : '';
+  const res = await fetch(`${API}/random${excludeParam}`, { headers: authHeaders() });
   const task = await res.json();
   const closeBtn = document.getElementById('close-overlay-btn');
 

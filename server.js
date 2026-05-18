@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const DATA_DIR = fs.existsSync('/app/data') ? '/app/data' : __dirname;
 const TASKS_FILES = {
   vc: path.join(DATA_DIR, 'tasks.json'),
@@ -491,31 +491,29 @@ app.post('/api/restore/:category/:id', requireAdmin, (req, res) => {
 app.get('/api/random', (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
-  const treats = (data.treats || []).map(t => ({ ...t, category: 'treats' }));
-  const hardThings = (data.hardThings || []).map(t => ({ ...t, category: 'hardThings' }));
+  const excludeId = req.query.exclude ? Number(req.query.exclude) : null;
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  const treats = (data.treats || []).filter(t => t.id !== excludeId).map(t => ({ ...t, category: 'treats' }));
+  const hardThings = (data.hardThings || []).filter(t => t.id !== excludeId).map(t => ({ ...t, category: 'hardThings' }));
 
   const surfaceAndReturn = (task) => {
     if (task) logEvent('surprise_surfaced', { taskId: task.id, text: task.text, category: task.category }, profile);
     res.json(task);
   };
 
-  const roll = Math.random();
-  if (roll < 0.2 && treats.length > 0) {
-    return surfaceAndReturn(treats[Math.floor(Math.random() * treats.length)]);
-  }
-  if (roll < 0.4 && hardThings.length > 0) {
-    return surfaceAndReturn(hardThings[Math.floor(Math.random() * hardThings.length)]);
-  }
+  if (treats.length > 0 && Math.random() < 0.2) return surfaceAndReturn(pick(treats));
+  if (hardThings.length > 0 && Math.random() < 0.2) return surfaceAndReturn(pick(hardThings));
 
   const pool = [
-    ...data.oneOff.filter(t => !t.done).map(t => ({ ...t, category: 'oneOff' })),
-    ...data.habits.filter(t => !t.doneToday).map(t => ({ ...t, category: 'habits' }))
+    ...data.oneOff.filter(t => !t.done && t.id !== excludeId).map(t => ({ ...t, category: 'oneOff' })),
+    ...data.habits.filter(t => !t.doneToday && t.id !== excludeId).map(t => ({ ...t, category: 'habits' }))
   ];
   if (pool.length === 0) {
     const specials = [...treats, ...hardThings];
-    return surfaceAndReturn(specials.length > 0 ? specials[Math.floor(Math.random() * specials.length)] : null);
+    return surfaceAndReturn(specials.length > 0 ? pick(specials) : null);
   }
-  surfaceAndReturn(pool[Math.floor(Math.random() * pool.length)]);
+  surfaceAndReturn(pick(pool));
 });
 
 // Log a Surprise Me outcome (acted / dismissed / skipped)
