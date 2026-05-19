@@ -52,6 +52,7 @@ const ONEOFF_LIMIT = 5;
 let currentSurpriseTask = null;
 let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO)
 
+let lastCelebrationQuoteIdx = -1;
 const oneOffCelebrationQuotes = [
   'The list is empty. The world, improbably, persists.',
   'All tasks resolved. The entropy was only deferred.',
@@ -498,7 +499,11 @@ async function toggleTask(category, id) {
 }
 
 async function showOneOffCelebration() {
-  const quote = oneOffCelebrationQuotes[Math.floor(Math.random() * oneOffCelebrationQuotes.length)];
+  let idx;
+  do { idx = Math.floor(Math.random() * oneOffCelebrationQuotes.length); }
+  while (idx === lastCelebrationQuoteIdx && oneOffCelebrationQuotes.length > 1);
+  lastCelebrationQuoteIdx = idx;
+  const quote = oneOffCelebrationQuotes[idx];
   const el = document.getElementById('oneoff-celebration-overlay');
   el.classList.remove('hidden');
   await document.fonts.ready;
@@ -614,7 +619,18 @@ function animateSandText(canvas, text) {
     }
 
     ctx.globalAlpha = 1;
-    if (!allDone) requestAnimationFrame(frame);
+    if (!allDone) {
+      requestAnimationFrame(frame);
+    } else {
+      ctx.clearRect(0, 0, W, H);
+      ctx.font = `italic ${fontSize}px "Instrument Serif", serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#f0e8e0';
+      for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], W / 2, topPad + (i + 1) * lineHeight - fontSize * 0.2);
+      }
+    }
   }
 
   requestAnimationFrame(frame);
