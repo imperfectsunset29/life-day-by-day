@@ -563,7 +563,7 @@ function animateSandText(canvas, text) {
   // Sample filled pixels
   const imgData = octx.getImageData(0, 0, W * dpr, H * dpr).data;
   const targets = [];
-  const step = Math.ceil(dpr * 3.5);
+  const step = Math.ceil(dpr * 2);
   for (let py = 0; py < H * dpr; py += step) {
     for (let px = 0; px < W * dpr; px += step) {
       if (imgData[(py * Math.round(W * dpr) + px) * 4 + 3] > 60) {
@@ -588,7 +588,7 @@ function animateSandText(canvas, text) {
     delay: ((yMax - t.y) / ySpan) * 700,   // bottom-first
     dur: 850 + Math.random() * 400,
     color: Math.random() < 0.6 ? '#f0e8e0' : '#c8a87a',
-    r: 0.65 + Math.random() * 1.1,
+    r: 0.3 + Math.random() * 0.5,
   }));
 
   let t0 = null;
@@ -624,12 +624,12 @@ function animateSandText(canvas, text) {
       requestAnimationFrame(frame);
     } else {
       // Cross-fade: particles dissolve out as text materialises in (~250ms)
-      const fadeDur = 250;
+      const fadeDur = 500;
       let f0 = null;
       function fadeFrame(ts) {
         if (!f0) f0 = ts;
         const prog = Math.min(1, (ts - f0) / fadeDur);
-        const ease = 1 - Math.pow(1 - prog, 2);
+        const ease = 1 - Math.pow(1 - prog, 3);
         ctx.clearRect(0, 0, W, H);
         for (const p of particles) {
           ctx.globalAlpha = (1 - ease);
