@@ -52,7 +52,7 @@ const ONEOFF_LIMIT = 5;
 let currentSurpriseTask = null;
 let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO)
 
-let lastCelebrationQuoteIdx = -1;
+let lastCelebrationQuoteIdx = parseInt(localStorage.getItem('lastCelebQuote') ?? '-1', 10);
 const oneOffCelebrationQuotes = [
   'The list is empty. The world, improbably, persists.',
   'All tasks resolved. The entropy was only deferred.',
@@ -503,6 +503,7 @@ async function showOneOffCelebration() {
   do { idx = Math.floor(Math.random() * oneOffCelebrationQuotes.length); }
   while (idx === lastCelebrationQuoteIdx && oneOffCelebrationQuotes.length > 1);
   lastCelebrationQuoteIdx = idx;
+  localStorage.setItem('lastCelebQuote', idx);
   const quote = oneOffCelebrationQuotes[idx];
   const el = document.getElementById('oneoff-celebration-overlay');
   el.classList.remove('hidden');
@@ -622,14 +623,33 @@ function animateSandText(canvas, text) {
     if (!allDone) {
       requestAnimationFrame(frame);
     } else {
-      ctx.clearRect(0, 0, W, H);
-      ctx.font = `italic ${fontSize}px "Instrument Serif", serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = '#f0e8e0';
-      for (let i = 0; i < lines.length; i++) {
-        ctx.fillText(lines[i], W / 2, topPad + (i + 1) * lineHeight - fontSize * 0.2);
+      // Cross-fade: particles dissolve out as text materialises in (~250ms)
+      const fadeDur = 250;
+      let f0 = null;
+      function fadeFrame(ts) {
+        if (!f0) f0 = ts;
+        const prog = Math.min(1, (ts - f0) / fadeDur);
+        const ease = 1 - Math.pow(1 - prog, 2);
+        ctx.clearRect(0, 0, W, H);
+        for (const p of particles) {
+          ctx.globalAlpha = (1 - ease);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.tx, p.ty, p.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = ease;
+        ctx.font = `italic ${fontSize}px "Instrument Serif", serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = '#f0e8e0';
+        for (let i = 0; i < lines.length; i++) {
+          ctx.fillText(lines[i], W / 2, topPad + (i + 1) * lineHeight - fontSize * 0.2);
+        }
+        ctx.globalAlpha = 1;
+        if (prog < 1) requestAnimationFrame(fadeFrame);
       }
+      requestAnimationFrame(fadeFrame);
     }
   }
 
