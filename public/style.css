@@ -111,7 +111,8 @@ h1 {
 }
 
 body.secondary-view .olympus-btn,
-body.secondary-view .surprise-btn {
+body.secondary-view .surprise-btn,
+body.secondary-view .header-actions {
   display: none;
 }
 
@@ -575,24 +576,26 @@ body.secondary-view .surprise-btn {
 .back-arrow-btn {
   background: none;
   border: none;
-  color: rgba(240, 232, 224, 0.5);
-  font-size: 1.6rem;
+  color: rgba(240, 232, 224, 0.4);
+  font-size: 1.1rem;
   line-height: 1;
-  padding: 4px 8px 4px 0;
+  padding: 4px 10px 4px 0;
   cursor: pointer;
   transition: color 0.15s ease;
   flex-shrink: 0;
 }
 
 .back-arrow-btn:hover {
-  color: #f0e8e0;
+  color: rgba(240, 232, 224, 0.8);
 }
 
 .olympus-title {
-  font-family: 'Instrument Serif', Georgia, serif;
-  font-size: 2rem;
-  font-weight: 400;
-  color: #f0e8e0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(240, 232, 224, 0.6);
 }
 
 .olympus-subtitle {
