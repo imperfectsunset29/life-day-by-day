@@ -567,6 +567,22 @@ h1 {
   margin-bottom: 8px;
 }
 
+.back-arrow-btn {
+  background: none;
+  border: none;
+  color: rgba(240, 232, 224, 0.5);
+  font-size: 1.6rem;
+  line-height: 1;
+  padding: 4px 8px 4px 0;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.back-arrow-btn:hover {
+  color: #f0e8e0;
+}
+
 .olympus-title {
   font-family: 'Instrument Serif', Georgia, serif;
   font-size: 2rem;
