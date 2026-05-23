@@ -144,6 +144,7 @@ const defaultTasks = {
     { id: 410, text: "Listen to a full album start to finish" }
   ],
   hardThings: [],
+  shoppingList: [],
   done: [],
   olympus: [],
   lastDoneCleared: null,
@@ -156,6 +157,7 @@ const defaultFgTasks = {
   projects: [],
   treats: [],
   hardThings: [],
+  shoppingList: [],
   done: [],
   olympus: [],
   oracle: { text: '', source: '', preview: '' },
@@ -199,6 +201,7 @@ function readTasks(profile) {
   if (!data.olympus) data.olympus = [];
   if (!data.treats) data.treats = [];
   if (!data.hardThings) data.hardThings = [];
+  if (!data.shoppingList) data.shoppingList = [];
   if (!data.oracle) data.oracle = { text: '', source: '', preview: '' };
   if (data.oracle.preview === undefined) data.oracle.preview = '';
   if (data.lastDoneCleared === undefined) data.lastDoneCleared = null;
@@ -339,14 +342,14 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
   const data = readTasks(profile);
   const { category } = req.params;
   const { text } = req.body;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const id = data.nextId++;
   const createdAt = new Date().toISOString();
   const task = category === 'habits'
     ? { id, text, doneToday: false, lastDoneDate: null, createdAt }
-    : category === 'treats' || category === 'hardThings'
+    : category === 'treats' || category === 'hardThings' || category === 'shoppingList'
     ? { id, text, createdAt }
     : category === 'projects'
     ? { id, text, progress: 0, createdAt }
@@ -363,7 +366,7 @@ app.put('/api/tasks/:category/reorder', requireAdmin, (req, res) => {
   const data = readTasks(profile);
   const { category } = req.params;
   const { ids } = req.body;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const items = data[category];
@@ -394,7 +397,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { category, id } = req.params;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const task = data[category].find(t => t.id === Number(id));
@@ -450,7 +453,7 @@ app.delete('/api/tasks/:category/:id', requireAdmin, (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { category, id } = req.params;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'done', 'olympus'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'done', 'olympus'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const deletedTask = data[category].find(t => t.id === Number(id));

@@ -123,6 +123,7 @@
     <nav class="tertiary-nav">
       <button id="treats-btn" class="tertiary-link">Treats</button>
       <button id="hard-things-btn" class="tertiary-link">Hard things</button>
+      <button id="shopping-list-btn" class="tertiary-link">Shopping list</button>
     </nav>
   </main>
 
@@ -152,6 +153,22 @@
         <button class="add-btn" data-category="treats">+</button>
       </div>
       <ul id="list-treats" class="task-list"></ul>
+    </section>
+  </main>
+
+  <!-- Shopping List view -->
+  <main id="shopping-list-view" class="hidden">
+    <div class="olympus-header">
+      <button id="shopping-list-back" class="btn-secondary">Back</button>
+      <h2 class="olympus-title">Shopping List</h2>
+    </div>
+    <p class="olympus-subtitle">Things to pick up</p>
+    <section class="category">
+      <div class="category-header">
+        <h2>Your list</h2>
+        <button class="add-btn" data-category="shoppingList">+</button>
+      </div>
+      <ul id="list-shoppingList" class="task-list"></ul>
     </section>
   </main>
 

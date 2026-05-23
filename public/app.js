@@ -41,11 +41,12 @@ const categoryLabels = {
   habits: 'Habit',
   projects: 'Project',
   treats: 'Treat',
-  hardThings: 'Hard thing'
+  hardThings: 'Hard thing',
+  shoppingList: 'Shopping item'
 };
 
 // State
-let tasks = { oneOff: [], habits: [], projects: [], treats: [], hardThings: [], done: [], olympus: [] };
+let tasks = { oneOff: [], habits: [], projects: [], treats: [], hardThings: [], shoppingList: [], done: [], olympus: [] };
 const expandedProjects = new Set();
 let oneOffExpanded = false;
 const ONEOFF_LIMIT = 5;
@@ -71,6 +72,7 @@ const mainView = document.getElementById('main-view');
 const olympusView = document.getElementById('olympus-view');
 const treatsView = document.getElementById('treats-view');
 const hardThingsView = document.getElementById('hard-things-view');
+const shoppingListView = document.getElementById('shopping-list-view');
 const profileSelectorView = document.getElementById('profile-selector');
 const appHeader = document.getElementById('header');
 
@@ -709,6 +711,7 @@ async function deleteTask(category, id) {
   await loadTasks();
   if (category === 'treats') renderTreats();
   if (category === 'hardThings') renderHardThings();
+  if (category === 'shoppingList') renderShoppingList();
 }
 
 // Add task
@@ -724,6 +727,8 @@ async function addTask(category) {
     ? `<input type="text" class="task-text-input" placeholder="New treat...">`
     : category === 'hardThings'
     ? `<input type="text" class="task-text-input" placeholder="New hard thing...">`
+    : category === 'shoppingList'
+    ? `<input type="text" class="task-text-input" placeholder="New item...">`
     : `<span class="task-checkbox"></span><input type="text" class="task-text-input" placeholder="New task...">`;
   list.appendChild(li);
 
@@ -742,6 +747,7 @@ async function addTask(category) {
     await loadTasks();
     if (category === 'treats') renderTreats();
     if (category === 'hardThings') renderHardThings();
+    if (category === 'shoppingList') renderShoppingList();
   };
 
   input.addEventListener('blur', save);
@@ -828,6 +834,36 @@ function renderTreats() {
   initSortable('list-treats', 'treats');
 }
 
+// Render shopping list
+function renderShoppingList() {
+  const list = document.getElementById('list-shoppingList');
+  list.innerHTML = '';
+
+  if (!tasks.shoppingList || tasks.shoppingList.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty-state';
+    li.textContent = 'Nothing here yet — add something to pick up';
+    list.appendChild(li);
+    return;
+  }
+
+  for (const item of tasks.shoppingList) {
+    const li = document.createElement('li');
+    li.className = 'task-item';
+    li.dataset.id = item.id;
+    li.dataset.category = 'shoppingList';
+    li.innerHTML = `
+      <span class="task-text">${escapeHtml(item.text)}</span>
+      <div class="task-actions">
+        <button class="task-action-btn edit" data-id="${item.id}" data-category="shoppingList" title="Edit">edit</button>
+        <button class="task-action-btn delete" data-id="${item.id}" data-category="shoppingList" title="Delete">delete</button>
+      </div>
+    `;
+    list.appendChild(li);
+  }
+  initSortable('list-shoppingList', 'shoppingList');
+}
+
 // Render hard things
 function renderHardThings() {
   const list = document.getElementById('list-hardThings');
@@ -866,6 +902,7 @@ function showProfileSelector() {
   olympusView.classList.add('hidden');
   treatsView.classList.add('hidden');
   hardThingsView.classList.add('hidden');
+  shoppingListView.classList.add('hidden');
 }
 
 function hideProfileSelector() {
@@ -897,6 +934,7 @@ function hideAllViews() {
   olympusView.classList.add('hidden');
   treatsView.classList.add('hidden');
   hardThingsView.classList.add('hidden');
+  shoppingListView.classList.add('hidden');
 }
 
 function showOlympus() {
@@ -920,6 +958,13 @@ function showHardThings() {
   window.scrollTo(0, 0);
 }
 
+function showShoppingList() {
+  renderShoppingList();
+  hideAllViews();
+  shoppingListView.classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
 function showMain() {
   hideAllViews();
   mainView.classList.remove('hidden');
@@ -933,7 +978,7 @@ document.addEventListener('dblclick', (e) => {
   if (!li) return;
   e.preventDefault();
   if (!e.target.classList.contains('task-text')) return;
-  const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"], .edit[data-category="hardThings"]');
+  const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"], .edit[data-category="hardThings"], .edit[data-category="shoppingList"]');
   if (editBtn) startEdit(editBtn.dataset.category, Number(editBtn.dataset.id));
 });
 
@@ -1045,6 +1090,8 @@ document.getElementById('treats-btn').addEventListener('click', showTreats);
 document.getElementById('treats-back').addEventListener('click', showMain);
 document.getElementById('hard-things-btn').addEventListener('click', showHardThings);
 document.getElementById('hard-things-back').addEventListener('click', showMain);
+document.getElementById('shopping-list-btn').addEventListener('click', showShoppingList);
+document.getElementById('shopping-list-back').addEventListener('click', showMain);
 
 // Close overlay on backdrop click
 overlay.addEventListener('click', async (e) => {
