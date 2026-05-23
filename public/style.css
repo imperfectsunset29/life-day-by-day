@@ -110,6 +110,11 @@ h1 {
   border-color: #f0e8e0;
 }
 
+body.secondary-view .olympus-btn,
+body.secondary-view .surprise-btn {
+  display: none;
+}
+
 /* Tertiary nav (Treats / Hard Things links at bottom of main view) */
 .tertiary-nav {
   margin-top: 40px;

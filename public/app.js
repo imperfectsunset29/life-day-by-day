@@ -941,6 +941,7 @@ function showOlympus() {
   renderOlympus();
   hideAllViews();
   olympusView.classList.remove('hidden');
+  document.body.classList.add('secondary-view');
   window.scrollTo(0, 0);
 }
 
@@ -948,6 +949,7 @@ function showTreats() {
   renderTreats();
   hideAllViews();
   treatsView.classList.remove('hidden');
+  document.body.classList.add('secondary-view');
   window.scrollTo(0, 0);
 }
 
@@ -955,6 +957,7 @@ function showHardThings() {
   renderHardThings();
   hideAllViews();
   hardThingsView.classList.remove('hidden');
+  document.body.classList.add('secondary-view');
   window.scrollTo(0, 0);
 }
 
@@ -962,12 +965,14 @@ function showShoppingList() {
   renderShoppingList();
   hideAllViews();
   shoppingListView.classList.remove('hidden');
+  document.body.classList.add('secondary-view');
   window.scrollTo(0, 0);
 }
 
 function showMain() {
   hideAllViews();
   mainView.classList.remove('hidden');
+  document.body.classList.remove('secondary-view');
   window.scrollTo(0, 0);
 }
 
