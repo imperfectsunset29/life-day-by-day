@@ -1,0 +1,22 @@
+{
+  "name": "LIFE (day by day)",
+  "short_name": "LIFE",
+  "description": "Personal life tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2d0a2e",
+  "theme_color": "#2d0a2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

@@ -70,7 +70,7 @@ body {
   line-height: 1.5;
   max-width: 640px;
   margin: 0 auto;
-  padding: 48px 24px 80px;
+  padding: max(48px, calc(env(safe-area-inset-top) + 16px)) 24px max(80px, calc(env(safe-area-inset-bottom) + 24px));
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   opacity: 0;
@@ -758,7 +758,7 @@ body.secondary-view header {
 /* Mobile */
 @media (max-width: 480px) {
   body {
-    padding: 32px 16px 60px;
+    padding: max(32px, calc(env(safe-area-inset-top) + 16px)) 16px max(60px, calc(env(safe-area-inset-bottom) + 16px));
   }
 
   header {
