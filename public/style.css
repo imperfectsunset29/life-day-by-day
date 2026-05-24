@@ -1,5 +1,62 @@
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600&display=swap');
 
+/* ============================================================
+   Design Tokens
+   All visual decisions should derive from these values.
+   ============================================================
+
+   SPACING  — 8px base, powers of 2
+     --sp-1   8px   tight: icon gaps, internal padding
+     --sp-2  16px   component internal spacing
+     --sp-3  24px   between related elements
+     --sp-4  32px   between sections within a view
+     --sp-5  48px   between major blocks
+     --sp-6  64px   page-level separation (home only, with action bar)
+
+   TYPE     — two families, one scale
+     Instrument Serif → display, longform, quotes
+     Inter            → labels, UI, data
+
+   COLORS   — three roles
+     --c-bg          page background
+     --c-surface     elevated surface (overlays, cards)
+     --c-text        primary text
+     --c-accent      sage green (actions, active states)
+     --c-amber       warm amber (highlights, hard things)
+     --c-danger      destructive actions
+
+   OPACITY STEPS for --c-text and --c-accent use rgba() inline
+     full / 0.6 / 0.4 / 0.3 / 0.2 / 0.15 / 0.06
+   ============================================================ */
+
+:root {
+  /* Spacing */
+  --sp-1: 8px;
+  --sp-2: 16px;
+  --sp-3: 24px;
+  --sp-4: 32px;
+  --sp-5: 48px;
+  --sp-6: 64px;
+
+  /* Colors */
+  --c-bg:      #2d0a2e;
+  --c-surface: #3a1040;
+  --c-text:    #f0e8e0;
+  --c-accent:  #b5c99a;
+  --c-amber:   #c8a87a;
+  --c-danger:  #ff2d78;
+
+  /* Typography */
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Type scale */
+  --text-body:   0.85rem;   /* task text, primary content */
+  --text-ui:     0.70rem;   /* buttons, action labels */
+  --text-label:  0.65rem;   /* section headers, nav, screen titles */
+  --text-fine:   0.60rem;   /* dates, hints, metadata */
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -114,6 +171,11 @@ body.secondary-view .olympus-btn,
 body.secondary-view .surprise-btn,
 body.secondary-view .header-actions {
   display: none;
+}
+
+/* Secondary view: tighten header gap — no action bar fills the space */
+body.secondary-view header {
+  margin-bottom: var(--sp-3);
 }
 
 /* Tertiary nav (Treats / Hard Things links at bottom of main view) */
@@ -569,8 +631,8 @@ body.secondary-view .header-actions {
 .olympus-header {
   display: flex;
   align-items: center;
-  gap: 20px;
-  margin-bottom: 8px;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-1);
 }
 
 .back-arrow-btn {
@@ -599,10 +661,10 @@ body.secondary-view .header-actions {
 }
 
 .olympus-subtitle {
-  font-family: 'Instrument Serif', Georgia, serif;
-  font-size: 0.95rem;
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
   color: rgba(181, 201, 154, 0.4);
-  margin-bottom: 56px;
+  margin-bottom: var(--sp-5);
   font-style: italic;
 }
 
@@ -700,7 +762,11 @@ body.secondary-view .header-actions {
   }
 
   header {
-    margin-bottom: 48px;
+    margin-bottom: var(--sp-5);
+  }
+
+  body.secondary-view header {
+    margin-bottom: var(--sp-2);
   }
 
 
