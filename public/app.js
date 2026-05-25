@@ -484,9 +484,25 @@ async function toggleTask(category, id) {
   const task = taskList.find(t => t.id === id);
   if (!task) return;
 
+  const wasDone = category === 'habits' ? task.doneToday : task.done;
+  const nowDone = !wasDone;
+
+  // Optimistic DOM update — instant feedback before network round-trip
+  const li = document.querySelector(`#list-${category} li[data-id="${id}"]`);
+  if (li) {
+    const checkbox = li.querySelector('.task-checkbox');
+    if (nowDone) {
+      li.classList.add('done');
+      checkbox && checkbox.classList.add('checked');
+    } else {
+      li.classList.remove('done');
+      checkbox && checkbox.classList.remove('checked');
+    }
+  }
+
   const body = category === 'habits'
-    ? { doneToday: !task.doneToday }
-    : { done: !task.done };
+    ? { doneToday: nowDone }
+    : { done: nowDone };
 
   await apiFetch(`${API}/tasks/${category}/${id}`, {
     method: 'PUT',
@@ -495,7 +511,7 @@ async function toggleTask(category, id) {
 
   await loadTasks();
 
-  if (category === 'oneOff' && !task.done && tasks.oneOff.length === 0) {
+  if (category === 'oneOff' && !wasDone && tasks.oneOff.length === 0) {
     showOneOffCelebration();
   }
 }
