@@ -865,10 +865,11 @@ function renderShoppingList() {
 
   for (const item of tasks.shoppingList) {
     const li = document.createElement('li');
-    li.className = 'task-item';
+    li.className = `task-item${item.done ? ' done' : ''}`;
     li.dataset.id = item.id;
     li.dataset.category = 'shoppingList';
     li.innerHTML = `
+      <button class="task-checkbox${item.done ? ' checked' : ''}" data-id="${item.id}" data-category="shoppingList"></button>
       <span class="task-text">${escapeHtml(item.text)}</span>
       <div class="task-actions">
         <button class="task-action-btn edit" data-id="${item.id}" data-category="shoppingList" title="Edit">edit</button>

@@ -349,8 +349,10 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
   const createdAt = new Date().toISOString();
   const task = category === 'habits'
     ? { id, text, doneToday: false, lastDoneDate: null, createdAt }
-    : category === 'treats' || category === 'hardThings' || category === 'shoppingList'
+    : category === 'treats' || category === 'hardThings'
     ? { id, text, createdAt }
+    : category === 'shoppingList'
+    ? { id, text, done: false, createdAt }
     : category === 'projects'
     ? { id, text, progress: 0, createdAt }
     : { id, text, done: false, createdAt };
