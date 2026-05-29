@@ -1238,10 +1238,14 @@ body.admin-mode .progress-btn:disabled {
 }
 
 .profile-logo {
-  width: 96px;
-  height: 96px;
+  width: 200px;
+  height: 200px;
   display: block;
-  mix-blend-mode: lighten;
+  mix-blend-mode: screen;
+  mask-image: radial-gradient(ellipse 75% 75% at center, black 35%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse 75% 75% at center, black 35%, transparent 72%);
+  filter: drop-shadow(0 0 32px rgba(200, 150, 60, 0.22));
+  opacity: 0.92;
 }
 
 .profile-selector-title {
