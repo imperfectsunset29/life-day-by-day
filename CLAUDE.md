@@ -73,10 +73,14 @@ Single breakpoint at `max-width: 480px` in `style.css`. When editing overlay or 
 
 ## Visual Identity — Non-Negotiable
 
-- **Palette:** Deep plum `#2d0a2e` background, warm ivory `#f0e8e0` text, sage green `#b5c99a` accents, warm amber `#c8a87a` for highlights
+- **Palette:** Near-black (`#130518`) radial gradient background with plum/indigo blooms, warm ivory `#f0e8e0` text, sage green `#b5c99a` accents, warm amber `#c8a87a` for highlights
 - **Typography:** Instrument Serif for headings, Inter for body. All-caps with letter-spacing for labels/nav.
-- **Geometry:** Strict square corners throughout — no `border-radius`
-- **Feel:** High-end editorial (Prada FW21 reference). Minimalist borders, restrained animation.
+- **Geometry:** Dark-mode Liquid Glass (Apple iOS 26 / macOS Tahoe paradigm). Task cards and overlays are floating glass panels — `backdrop-filter: blur()`, `rgba(255,255,255,0.055–0.08)` fills, `1px solid rgba(255,255,255,0.09–0.14)` luminous borders, inner specular highlight via `box-shadow: inset 0 1px 0 rgba(255,255,255,0.10–0.18)`. Buttons are pill-shaped (`border-radius: 100px`). Cards use `border-radius: 16–28px`.
+- **Feel:** Material depth over editorial flatness. The amber and sage palette carries through — the logo's inner light and the glass surfaces belong to the same world.
+
+**Back buttons:** Secondary views (Olympus, Treats, Hard Things, Shopping List) use `.back-btn` — a bare `‹` chevron via `::before`, no label, no border. Context makes navigation legible without naming it.
+
+**Profile selector logo:** `logo.jpg` displayed at 200px with `mix-blend-mode: screen`, radial `mask-image` fade, and amber `drop-shadow` — the brain emerges from the dark gradient rather than sitting as a distinct image.
 
 ## App Icon & Visual Reference — Non-Negotiable
 
