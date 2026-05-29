@@ -624,11 +624,43 @@ h1 {
   display: none;
 }
 
+/* Back button — Apple chevron style */
+.back-btn {
+  background: none;
+  border: none;
+  color: rgba(240, 232, 224, 0.55);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  padding: 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+  font-family: inherit;
+  text-transform: uppercase;
+}
+
+.back-btn::before {
+  content: '‹';
+  font-size: 1.3rem;
+  font-weight: 300;
+  line-height: 1;
+  margin-top: -1px;
+  color: inherit;
+}
+
+.back-btn:hover {
+  color: rgba(240, 232, 224, 0.85);
+}
+
 /* ============ Olympus View ============ */
 .olympus-header {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   margin-bottom: 8px;
 }
 
@@ -747,7 +779,7 @@ h1 {
 /* Mobile */
 @media (max-width: 480px) {
   body {
-    padding: 32px 16px 60px;
+    padding: 56px 20px 60px;
   }
 
   header {
