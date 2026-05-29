@@ -2,10 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#2d0a2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LIFE">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="icon" href="/favicon.png">
+  <link rel="manifest" href="/manifest.json">
   <title>LIFE (day by day)</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -123,6 +127,7 @@
     <nav class="tertiary-nav">
       <button id="treats-btn" class="tertiary-link">Treats</button>
       <button id="hard-things-btn" class="tertiary-link">Hard things</button>
+      <button id="shopping-list-btn" class="tertiary-link">Shopping list</button>
     </nav>
   </main>
 
@@ -152,6 +157,22 @@
         <button class="add-btn" data-category="treats">+</button>
       </div>
       <ul id="list-treats" class="task-list"></ul>
+    </section>
+  </main>
+
+  <!-- Shopping List view -->
+  <main id="shopping-list-view" class="hidden">
+    <div class="olympus-header">
+      <button id="shopping-list-back" class="back-btn">Back</button>
+      <h2 class="olympus-title">Shopping List</h2>
+    </div>
+    <p class="olympus-subtitle">Things to pick up</p>
+    <section class="category">
+      <div class="category-header">
+        <h2>Your list</h2>
+        <button class="add-btn" data-category="shoppingList">+</button>
+      </div>
+      <ul id="list-shoppingList" class="task-list"></ul>
     </section>
   </main>
 
