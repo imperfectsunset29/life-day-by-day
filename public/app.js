@@ -405,6 +405,8 @@ async function updateProgress(id, delta) {
   // Full reload only needed if ascension may have fired
   if (newProgress >= 100) {
     await loadTasks();
+    const ascended = tasks.olympus.find(t => t.id === id);
+    if (ascended) showCelebration(ascended.reflection);
   }
 }
 
@@ -516,19 +518,22 @@ async function toggleTask(category, id) {
   }
 }
 
-async function showOneOffCelebration() {
-  let idx;
-  do { idx = Math.floor(Math.random() * oneOffCelebrationQuotes.length); }
-  while (idx === lastCelebrationQuoteIdx && oneOffCelebrationQuotes.length > 1);
-  lastCelebrationQuoteIdx = idx;
-  localStorage.setItem('lastCelebQuote', idx);
-  const quote = oneOffCelebrationQuotes[idx];
+async function showCelebration(quote) {
   const el = document.getElementById('oneoff-celebration-overlay');
   el.classList.remove('hidden');
   await document.fonts.ready;
   requestAnimationFrame(() => {
     animateSandText(el.querySelector('.celebration-canvas'), quote);
   });
+}
+
+async function showOneOffCelebration() {
+  let idx;
+  do { idx = Math.floor(Math.random() * oneOffCelebrationQuotes.length); }
+  while (idx === lastCelebrationQuoteIdx && oneOffCelebrationQuotes.length > 1);
+  lastCelebrationQuoteIdx = idx;
+  localStorage.setItem('lastCelebQuote', idx);
+  showCelebration(oneOffCelebrationQuotes[idx]);
 }
 
 function animateSandText(canvas, text) {
