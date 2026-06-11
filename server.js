@@ -428,7 +428,7 @@ app.get('/api/quote/celebration', async (req, res) => {
       max_tokens: 150,
       messages: [{
         role: 'user',
-        content: 'Write a single brief observation (1–2 sentences) about having cleared every item from a to-do list. Make it sardonic, slightly absurdist, wryly literary — a dark-comic aside on productivity and existence. Return only the quote, no attribution or preamble.'
+        content: 'Write a single brief observation (1–2 short sentences) about having cleared every item from a to-do list. Tone: dry, minimal, quietly wry — like a deadpan aside to no one in particular. No paranoia, no conspiracies, no literary excess. Think: matter-of-fact acknowledgment that the list is empty and the world continues anyway. Short sentences, plain words, slight irony. Examples of the target register: "The list is empty. The world, improbably, persists." / "All tasks resolved. The entropy was only deferred." / "Done. The day holds its shape a little longer than expected." Return only the observation, no attribution or preamble.'
       }]
     });
     res.json({ quote: msg.content[0].text.trim() });
