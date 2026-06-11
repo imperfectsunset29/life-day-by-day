@@ -428,7 +428,7 @@ app.get('/api/quote/celebration', async (req, res) => {
       max_tokens: 150,
       messages: [{
         role: 'user',
-        content: 'Write a single brief observation (1–2 sentences) about having cleared every item from a to-do list. Make it sardonic, slightly absurdist, wryly literary — a dark-comic aside on productivity and existence. Return only the quote, no attribution or preamble.'
+        content: 'Write a single brief quote (1–3 sentences) in the style of Thomas Pynchon about having cleared every item from a to-do list. Make it sardonic, paranoid, literary — darkly funny with hints of entropy, hidden systems, or "They". Return only the quote, no attribution or preamble.'
       }]
     });
     res.json({ quote: msg.content[0].text.trim() });
