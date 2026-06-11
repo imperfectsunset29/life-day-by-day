@@ -45,6 +45,8 @@ tasks.json           → All persistent data (auto-created on first run)
 - **Olympus:** Ascended projects. Restoring resets progress to 0; steps not restored.
 - **Surprise Me:** `currentSurpriseTask` tracks the last spin. "I'll do it" marks oneOff/habit done; Treats/Hard Things close without checking off.
 
+**Quote style — non-negotiable:** Both the one-off celebration quote (`GET /api/quote/celebration`, shown when all one-offs are cleared) and the project ascension quote (`reflection` field, shown when a project hits 100%) must be Pynchon-style: sardonic, paranoid, literary, darkly funny — hints of entropy, hidden systems, "They". No plain/minimalist/dry register for either.
+
 ## Oracle
 
 Single block of text (quote, I Ching, etc.) at the top of the main view. Stored as `oracle: { text, source, preview }` in `tasks.json`. Collapsed view shows source + preview (up to 3 lines, CSS line-clamp). Clicking opens `#oracle-overlay` with full text as clickable sentence spans. Admin can select up to 2 sentences as preview (tap to select; tapping a 3rd resets). Key functions: `renderOracle()`, `openOracleOverlay()`, `buildSentenceSpans()`, `updateOracleActionBtn()`. API: `PUT /api/oracle`.
