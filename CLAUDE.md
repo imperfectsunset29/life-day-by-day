@@ -2,10 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Pending Reminders
-
-- **ANTHROPIC_API_KEY** needs to be added as an environment variable in Railway (Settings → Variables) for the live Claude-generated quotes to work. The PR with that change is on branch `claude/project-completion-modal-oddcxa` and needs to be merged once the key is set. Remind Valentina of this at the start of the next session.
-
 ## Commands
 
 ```bash
