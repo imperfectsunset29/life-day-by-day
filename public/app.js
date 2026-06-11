@@ -53,16 +53,6 @@ const ONEOFF_LIMIT = 5;
 let currentSurpriseTask = null;
 let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO)
 
-let lastCelebrationQuoteIdx = parseInt(localStorage.getItem('lastCelebQuote') ?? '-1', 10);
-const oneOffCelebrationQuotes = [
-  'The list is empty. The world, improbably, persists.',
-  'All tasks resolved. The entropy was only deferred.',
-  'You have named the knowable things and done them. The rest were never on the list.',
-  'Completion noted. The network hums with indifference.',
-  'Every item accounted for. Whatever comes next was not written down.',
-  'The list clears. Somewhere, a signal travels the full length of its cable.',
-  'Done. The day holds its shape a little longer than expected.',
-];
 
 // DOM refs
 const overlay = document.getElementById('randomizer-overlay');
@@ -528,12 +518,12 @@ async function showCelebration(quote) {
 }
 
 async function showOneOffCelebration() {
-  let idx;
-  do { idx = Math.floor(Math.random() * oneOffCelebrationQuotes.length); }
-  while (idx === lastCelebrationQuoteIdx && oneOffCelebrationQuotes.length > 1);
-  lastCelebrationQuoteIdx = idx;
-  localStorage.setItem('lastCelebQuote', idx);
-  showCelebration(oneOffCelebrationQuotes[idx]);
+  try {
+    const data = await apiFetch(`${API}/quote/celebration`);
+    showCelebration(data.quote);
+  } catch {
+    showCelebration('The list is empty. The world, improbably, persists.');
+  }
 }
 
 function animateSandText(canvas, text) {

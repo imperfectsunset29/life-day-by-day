@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const Anthropic = require('@anthropic-ai/sdk');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -74,7 +75,9 @@ function getLastSundayPT() {
   return `${y}-${m}-${d}`;
 }
 
-const pynchonQuotes = [
+const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
+
+const fallbackPynchonQuotes = [
   "Another system dismantled from within. They said it couldn't be done, but They say a lot of things.",
   "The project is complete, which means of course that it was never really about the project at all.",
   "Somewhere between the first commit and the last, the paranoia lifted — briefly — and what remained was something almost like accomplishment.",
@@ -273,8 +276,23 @@ function logEvent(type, payload, profile) {
   fs.writeFileSync(file, JSON.stringify(events, null, 2));
 }
 
-function getRandomPynchon() {
-  return pynchonQuotes[Math.floor(Math.random() * pynchonQuotes.length)];
+async function getRandomPynchon() {
+  if (!anthropic) {
+    return fallbackPynchonQuotes[Math.floor(Math.random() * fallbackPynchonQuotes.length)];
+  }
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-opus-4-8',
+      max_tokens: 200,
+      messages: [{
+        role: 'user',
+        content: 'Write a single brief quote (1–3 sentences) in the style of Thomas Pynchon about finishing a project or completing a piece of work. Make it sardonic, paranoid, literary — darkly funny with hints of entropy, hidden systems, or "They". Return only the quote, no attribution or preamble.'
+      }]
+    });
+    return msg.content[0].text.trim();
+  } catch {
+    return fallbackPynchonQuotes[Math.floor(Math.random() * fallbackPynchonQuotes.length)];
+  }
 }
 
 // Add a step to a project
@@ -394,8 +412,33 @@ app.put('/api/oracle', requireAdmin, (req, res) => {
   res.json(data.oracle);
 });
 
+// Generate a one-off celebration quote
+app.get('/api/quote/celebration', async (req, res) => {
+  if (!anthropic) {
+    const fallback = [
+      'The list is empty. The world, improbably, persists.',
+      'All tasks resolved. The entropy was only deferred.',
+      'You have named the knowable things and done them. The rest were never on the list.',
+    ];
+    return res.json({ quote: fallback[Math.floor(Math.random() * fallback.length)] });
+  }
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-opus-4-8',
+      max_tokens: 150,
+      messages: [{
+        role: 'user',
+        content: 'Write a single brief observation (1–2 sentences) about having cleared every item from a to-do list. Make it sardonic, slightly absurdist, wryly literary — a dark-comic aside on productivity and existence. Return only the quote, no attribution or preamble.'
+      }]
+    });
+    res.json({ quote: msg.content[0].text.trim() });
+  } catch {
+    res.json({ quote: 'The list is empty. The world, improbably, persists.' });
+  }
+});
+
 // Update a task
-app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
+app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { category, id } = req.params;
@@ -426,7 +469,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, (req, res) => {
         id: task.id,
         text: task.text,
         completedAt: new Date().toISOString(),
-        reflection: getRandomPynchon()
+        reflection: await getRandomPynchon()
       });
       data.projects = data.projects.filter(t => t.id !== task.id);
     }
