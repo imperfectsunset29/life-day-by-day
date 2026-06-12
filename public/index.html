@@ -128,6 +128,7 @@
       <button id="treats-btn" class="tertiary-link">Treats</button>
       <button id="hard-things-btn" class="tertiary-link">Hard things</button>
       <button id="shopping-list-btn" class="tertiary-link">Shopping list</button>
+      <button id="wardrobe-btn" class="tertiary-link">Wardrobe</button>
     </nav>
   </main>
 
@@ -192,6 +193,60 @@
     </section>
   </main>
 
+  <!-- Wardrobe view -->
+  <main id="wardrobe-view" class="hidden">
+    <div class="olympus-header">
+      <button id="wardrobe-back" class="back-btn"></button>
+      <h2 class="olympus-title">Wardrobe</h2>
+    </div>
+    <p class="olympus-subtitle">life tells me what to wear</p>
+
+    <div class="wardrobe-suggest-row">
+      <input id="outfit-prompt-input" class="wardrobe-prompt-input" placeholder="hot day, important meeting, rainy lunch…" type="text">
+      <button id="suggest-outfit-btn" class="surprise-btn">What should I wear?</button>
+    </div>
+
+    <section class="category">
+      <div class="category-header">
+        <h2>Tops</h2>
+        <button class="wardrobe-add-btn" data-wardrobe-cat="tops">+</button>
+      </div>
+      <ul id="list-wardrobe-tops" class="task-list"></ul>
+    </section>
+
+    <section class="category">
+      <div class="category-header">
+        <h2>Bottoms</h2>
+        <button class="wardrobe-add-btn" data-wardrobe-cat="bottoms">+</button>
+      </div>
+      <ul id="list-wardrobe-bottoms" class="task-list"></ul>
+    </section>
+
+    <section class="category">
+      <div class="category-header">
+        <h2>Shoes</h2>
+        <button class="wardrobe-add-btn" data-wardrobe-cat="shoes">+</button>
+      </div>
+      <ul id="list-wardrobe-shoes" class="task-list"></ul>
+    </section>
+
+    <section class="category">
+      <div class="category-header">
+        <h2>Outerwear</h2>
+        <button class="wardrobe-add-btn" data-wardrobe-cat="outerwear">+</button>
+      </div>
+      <ul id="list-wardrobe-outerwear" class="task-list"></ul>
+    </section>
+
+    <section class="category">
+      <div class="category-header">
+        <h2>Accessories</h2>
+        <button class="wardrobe-add-btn" data-wardrobe-cat="accessories">+</button>
+      </div>
+      <ul id="list-wardrobe-accessories" class="task-list"></ul>
+    </section>
+  </main>
+
   <footer class="app-footer">© 2025 Valentina Calvache. All rights reserved.</footer>
 
   <!-- One-off celebration overlay -->
@@ -199,6 +254,81 @@
     <div class="overlay-content celebration-content">
       <canvas class="celebration-canvas"></canvas>
       <button class="celebration-dismiss">close</button>
+    </div>
+  </div>
+
+  <!-- Wardrobe add overlay -->
+  <div id="wardrobe-add-overlay" class="overlay hidden">
+    <div class="overlay-content wardrobe-add-content">
+      <button id="wardrobe-add-x-btn" class="oracle-x-btn">&times;</button>
+      <p class="overlay-label">Add item</p>
+
+      <input type="file" id="wardrobe-photo-input" accept="image/*" capture="environment" style="display:none">
+
+      <div class="wardrobe-photo-controls">
+        <button id="wardrobe-camera-btn" class="btn-secondary">Add photo</button>
+        <span id="wardrobe-photo-count" class="wardrobe-photo-count"></span>
+        <button id="wardrobe-analyze-btn" class="btn-primary hidden">Analyze photos</button>
+      </div>
+      <p id="wardrobe-analyzing-msg" class="wardrobe-analyzing hidden">Reading item…</p>
+
+      <div class="wardrobe-form-fields">
+        <input id="wf-name"     class="task-text-input wardrobe-field-input" placeholder="Item name" type="text">
+        <input id="wf-brand"    class="task-text-input wardrobe-field-input" placeholder="Brand (optional)" type="text">
+        <input id="wf-color"    class="task-text-input wardrobe-field-input" placeholder="Color" type="text">
+        <input id="wf-material" class="task-text-input wardrobe-field-input" placeholder="Material (e.g. linen)" type="text">
+        <div class="wf-row">
+          <select id="wf-pattern"  class="wardrobe-cat-select">
+            <option value="">Pattern</option>
+            <option value="solid">Solid</option>
+            <option value="stripes">Stripes</option>
+            <option value="plaid">Plaid</option>
+            <option value="floral">Floral</option>
+            <option value="graphic">Graphic</option>
+            <option value="other">Other</option>
+          </select>
+          <select id="wf-occasion" class="wardrobe-cat-select">
+            <option value="">Occasion</option>
+            <option value="casual">Casual</option>
+            <option value="formal">Formal</option>
+            <option value="sporty">Sporty</option>
+            <option value="evening">Evening</option>
+            <option value="business">Business</option>
+          </select>
+          <select id="wf-season" class="wardrobe-cat-select">
+            <option value="all">All seasons</option>
+            <option value="summer">Summer</option>
+            <option value="winter">Winter</option>
+            <option value="spring">Spring</option>
+            <option value="autumn">Autumn</option>
+          </select>
+        </div>
+        <select id="wf-cat" class="wardrobe-cat-select">
+          <option value="tops">Tops</option>
+          <option value="bottoms">Bottoms</option>
+          <option value="shoes">Shoes</option>
+          <option value="outerwear">Outerwear</option>
+          <option value="accessories">Accessories</option>
+        </select>
+      </div>
+
+      <div class="overlay-actions">
+        <button id="wardrobe-save-btn" class="btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Outfit suggestion overlay -->
+  <div id="outfit-overlay" class="overlay hidden">
+    <div class="overlay-content outfit-overlay-content">
+      <button id="outfit-x-btn" class="oracle-x-btn">&times;</button>
+      <p class="overlay-label">Today's outfit</p>
+      <p id="outfit-prompt-echo" class="outfit-prompt-echo"></p>
+      <div id="outfit-items" class="outfit-items"></div>
+      <div class="overlay-actions">
+        <button id="outfit-respin-btn" class="btn-secondary">Re-spin</button>
+        <button id="outfit-close-btn" class="btn-primary">Love it</button>
+      </div>
     </div>
   </div>
 
