@@ -28,7 +28,7 @@ function profileFrom(req) {
   return p === 'fg' ? 'fg' : 'vc';
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 if (!process.env.ADMIN_PASSWORD) console.warn('WARNING: ADMIN_PASSWORD not set — VC running in dev mode.');
@@ -148,6 +148,7 @@ const defaultTasks = {
   ],
   hardThings: [],
   shoppingList: [],
+  wardrobe: [],
   done: [],
   olympus: [],
   lastDoneCleared: null,
@@ -161,6 +162,7 @@ const defaultFgTasks = {
   treats: [],
   hardThings: [],
   shoppingList: [],
+  wardrobe: [],
   done: [],
   olympus: [],
   oracle: { text: '', source: '', preview: '' },
@@ -205,6 +207,7 @@ function readTasks(profile) {
   if (!data.treats) data.treats = [];
   if (!data.hardThings) data.hardThings = [];
   if (!data.shoppingList) data.shoppingList = [];
+  if (!data.wardrobe) data.wardrobe = [];
   if (!data.oracle) data.oracle = { text: '', source: '', preview: '' };
   if (data.oracle.preview === undefined) data.oracle.preview = '';
   if (data.lastDoneCleared === undefined) data.lastDoneCleared = null;
@@ -348,6 +351,74 @@ app.delete('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => 
   res.json({ success: true });
 });
 
+// Analyze clothing photos with Claude vision — returns extracted metadata, discards images
+app.post('/api/wardrobe/analyze-photo', requireAdmin, async (req, res) => {
+  if (!anthropic) return res.status(503).json({ error: 'AI not configured — set ANTHROPIC_API_KEY' });
+  try {
+    const { images } = req.body;
+    if (!images || !images.length) return res.status(400).json({ error: 'No images provided' });
+    const imageBlocks = images.map(({ image, mimeType }) => ({
+      type: 'image',
+      source: { type: 'base64', media_type: mimeType || 'image/jpeg', data: image }
+    }));
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: [
+          ...imageBlocks,
+          { type: 'text', text: 'These are photos of the same clothing item. Analyze them together for accuracy. Return ONLY a JSON object with these keys: category (one of: tops, bottoms, shoes, outerwear, accessories), brand (visible brand name or empty string), color (main color in 2-3 words), material (e.g. linen, denim, knit wool — infer from texture), pattern (one of: solid, stripes, plaid, floral, graphic, geometric, other), occasion (one of: casual, formal, sporty, evening, business), season (one of: summer, winter, spring, autumn, all), text (short descriptive name e.g. "white linen shirt"). Raw JSON only, no markdown.' }
+        ]
+      }]
+    });
+    res.json(JSON.parse(message.content[0].text));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Suggest an outfit from the wardrobe given a free-text prompt
+app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
+  const { prompt } = req.body;
+  if (!data.wardrobe || !data.wardrobe.length) return res.json({ items: [] });
+
+  if (!anthropic) {
+    // Fallback: random pick per category
+    const cats = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
+    const items = cats
+      .map(cat => {
+        const pool = data.wardrobe.filter(i => i.wardrobeCategory === cat);
+        return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+      })
+      .filter(Boolean);
+    return res.json({ items });
+  }
+
+  try {
+    const inventory = data.wardrobe.map(i =>
+      `ID:${i.id} | ${i.wardrobeCategory} | ${i.brand ? i.brand + ' ' : ''}${i.text} | color:${i.color || ''} | ${i.material || ''} | pattern:${i.pattern || ''} | occasion:${i.occasion || ''} | season:${i.season || ''}`
+    ).join('\n');
+
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      messages: [{
+        role: 'user',
+        content: `You are a personal stylist. Wardrobe inventory:\n${inventory}\n\nBuild an outfit for: "${prompt}"\n\nPick the best combination — one item per relevant category, compatible patterns and seasons. Return ONLY a JSON array of item IDs (numbers). Raw JSON array only, no markdown.`
+      }]
+    });
+
+    const ids = JSON.parse(message.content[0].text);
+    const items = ids.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
+    res.json({ items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get all tasks
 app.get('/api/tasks', (req, res) => {
   const profile = profileFrom(req);
@@ -360,11 +431,12 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
   const data = readTasks(profile);
   const { category } = req.params;
   const { text } = req.body;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wardrobe'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const id = data.nextId++;
   const createdAt = new Date().toISOString();
+  const body = req.body;
   const task = category === 'habits'
     ? { id, text, doneToday: false, lastDoneDate: null, createdAt }
     : category === 'treats' || category === 'hardThings'
@@ -373,6 +445,8 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
     ? { id, text, done: false, createdAt }
     : category === 'projects'
     ? { id, text, progress: 0, createdAt }
+    : category === 'wardrobe'
+    ? { id, text: body.text, brand: body.brand || '', color: body.color || '', material: body.material || '', pattern: body.pattern || '', occasion: body.occasion || '', season: body.season || 'all', wardrobeCategory: body.wardrobeCategory || 'tops', createdAt }
     : { id, text, done: false, createdAt };
   data[category].unshift(task);
   logEvent('task_created', { taskId: id, text, category }, profile);
@@ -386,7 +460,7 @@ app.put('/api/tasks/:category/reorder', requireAdmin, (req, res) => {
   const data = readTasks(profile);
   const { category } = req.params;
   const { ids } = req.body;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wardrobe'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const items = data[category];
@@ -442,7 +516,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { category, id } = req.params;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wardrobe'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const task = data[category].find(t => t.id === Number(id));
@@ -498,7 +572,7 @@ app.delete('/api/tasks/:category/:id', requireAdmin, (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { category, id } = req.params;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'done', 'olympus'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wardrobe', 'done', 'olympus'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const deletedTask = data[category].find(t => t.id === Number(id));

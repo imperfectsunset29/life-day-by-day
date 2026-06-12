@@ -46,12 +46,14 @@ const categoryLabels = {
 };
 
 // State
-let tasks = { oneOff: [], habits: [], projects: [], treats: [], hardThings: [], shoppingList: [], done: [], olympus: [] };
+let tasks = { oneOff: [], habits: [], projects: [], treats: [], hardThings: [], shoppingList: [], wardrobe: [], done: [], olympus: [] };
 const expandedProjects = new Set();
 let oneOffExpanded = false;
 const ONEOFF_LIMIT = 5;
 let currentSurpriseTask = null;
 let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO)
+let capturedPhotos = []; // [{ image: base64, mimeType }] — cleared after each wardrobe save
+let lastOutfitPrompt = '';
 
 
 // DOM refs
@@ -63,6 +65,10 @@ const olympusView = document.getElementById('olympus-view');
 const treatsView = document.getElementById('treats-view');
 const hardThingsView = document.getElementById('hard-things-view');
 const shoppingListView = document.getElementById('shopping-list-view');
+const wardrobeView = document.getElementById('wardrobe-view');
+const wardrobeAddOverlay = document.getElementById('wardrobe-add-overlay');
+const outfitOverlay = document.getElementById('outfit-overlay');
+const wardrobePhotoInput = document.getElementById('wardrobe-photo-input');
 const profileSelectorView = document.getElementById('profile-selector');
 const appHeader = document.getElementById('header');
 
@@ -671,49 +677,54 @@ function animateSandText(canvas, text) {
 
 // Edit task
 function startEdit(category, id) {
-  const taskList = (category === 'treats' || category === 'hardThings') ? tasks[category] : tasks[category];
-  const task = taskList.find(t => t.id === id);
+  const task = tasks[category] && tasks[category].find(t => t.id === id);
   if (!task) return;
 
-  const list = document.getElementById(`list-${category}`);
-  const items = list.querySelectorAll('.task-item');
-
-  for (const item of items) {
-    const editBtn = item.querySelector('.edit');
-    if (editBtn && Number(editBtn.dataset.id) === id) {
-      const textSpan = item.querySelector('.task-text');
-      const currentText = task.text;
-
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'task-text-input';
-      input.value = currentText;
-
-      textSpan.replaceWith(input);
-      input.focus();
-      input.select();
-      scrollToInput(input);
-
-      const save = async () => {
-        const newText = input.value.trim();
-        if (newText && newText !== currentText) {
-          await apiFetch(`${API}/tasks/${category}/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify({ text: newText })
-          });
-        }
-        await loadTasks();
-      };
-
-      input.addEventListener('blur', save);
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') input.blur();
-        if (e.key === 'Escape') { input.value = currentText; input.blur(); }
-      });
-
-      break;
+  // Wardrobe items live in per-category sublists — find the <li> by data attribute
+  let li;
+  if (category === 'wardrobe') {
+    li = document.querySelector(`.task-item[data-id="${id}"][data-category="wardrobe"]`);
+  } else {
+    const list = document.getElementById(`list-${category}`);
+    if (!list) return;
+    for (const item of list.querySelectorAll('.task-item')) {
+      const editBtn = item.querySelector('.edit');
+      if (editBtn && Number(editBtn.dataset.id) === id) { li = item; break; }
     }
   }
+
+  if (!li) return;
+
+  const textSpan = li.querySelector('.task-text');
+  const currentText = task.text;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'task-text-input';
+  input.value = currentText;
+
+  textSpan.replaceWith(input);
+  input.focus();
+  input.select();
+  scrollToInput(input);
+
+  const save = async () => {
+    const newText = input.value.trim();
+    if (newText && newText !== currentText) {
+      await apiFetch(`${API}/tasks/${category}/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ text: newText })
+      });
+    }
+    await loadTasks();
+    if (category === 'wardrobe') renderWardrobe();
+  };
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { input.value = currentText; input.blur(); }
+  });
 }
 
 // Delete task
@@ -723,6 +734,7 @@ async function deleteTask(category, id) {
   if (category === 'treats') renderTreats();
   if (category === 'hardThings') renderHardThings();
   if (category === 'shoppingList') renderShoppingList();
+  if (category === 'wardrobe') renderWardrobe();
 }
 
 // Add task
@@ -915,6 +927,7 @@ function showProfileSelector() {
   treatsView.classList.add('hidden');
   hardThingsView.classList.add('hidden');
   shoppingListView.classList.add('hidden');
+  wardrobeView.classList.add('hidden');
 }
 
 function hideProfileSelector() {
@@ -947,6 +960,7 @@ function hideAllViews() {
   treatsView.classList.add('hidden');
   hardThingsView.classList.add('hidden');
   shoppingListView.classList.add('hidden');
+  wardrobeView.classList.add('hidden');
 }
 
 function showOlympus() {
@@ -988,6 +1002,195 @@ function showMain() {
   window.scrollTo(0, 0);
 }
 
+function showWardrobe() {
+  renderWardrobe();
+  hideAllViews();
+  wardrobeView.classList.remove('hidden');
+  document.body.classList.add('secondary-view');
+  window.scrollTo(0, 0);
+}
+
+// ============ Wardrobe ============
+
+const WARDROBE_CATS = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
+const WARDROBE_CAT_LABELS = { tops: 'Top', bottoms: 'Bottom', shoes: 'Shoes', outerwear: 'Outerwear', accessories: 'Accessory' };
+
+function renderWardrobe() {
+  for (const cat of WARDROBE_CATS) {
+    const list = document.getElementById(`list-wardrobe-${cat}`);
+    if (!list) continue;
+    list.innerHTML = '';
+    const items = (tasks.wardrobe || []).filter(i => i.wardrobeCategory === cat);
+
+    if (items.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'empty-state';
+      li.textContent = 'Nothing here yet';
+      list.appendChild(li);
+      continue;
+    }
+
+    for (const item of items) {
+      const li = document.createElement('li');
+      li.className = 'task-item wardrobe-item';
+      li.dataset.id = item.id;
+      li.dataset.category = 'wardrobe';
+      const meta = [item.brand, item.color, item.occasion].filter(Boolean).join(' · ');
+      li.innerHTML = `
+        <div class="wardrobe-item-body">
+          <span class="task-text">${escapeHtml(item.text)}</span>
+          ${meta ? `<span class="wardrobe-item-meta">${escapeHtml(meta)}</span>` : ''}
+        </div>
+        <div class="task-actions">
+          <button class="task-action-btn edit" data-id="${item.id}" data-category="wardrobe" title="Edit">edit</button>
+          <button class="task-action-btn delete" data-id="${item.id}" data-category="wardrobe" title="Delete">delete</button>
+        </div>
+      `;
+      list.appendChild(li);
+    }
+  }
+}
+
+function openWardrobeAddModal(wardrobeCat) {
+  capturedPhotos = [];
+  wardrobePhotoInput.value = '';
+  document.getElementById('wf-name').value = '';
+  document.getElementById('wf-brand').value = '';
+  document.getElementById('wf-color').value = '';
+  document.getElementById('wf-material').value = '';
+  document.getElementById('wf-pattern').value = '';
+  document.getElementById('wf-occasion').value = '';
+  document.getElementById('wf-season').value = 'all';
+  document.getElementById('wf-cat').value = wardrobeCat;
+  document.getElementById('wardrobe-photo-count').textContent = '';
+  document.getElementById('wardrobe-analyze-btn').classList.add('hidden');
+  document.getElementById('wardrobe-analyzing-msg').classList.add('hidden');
+  wardrobeAddOverlay.classList.remove('hidden');
+}
+
+function capturePhoto(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    capturedPhotos.push({
+      image: e.target.result.split(',')[1],
+      mimeType: file.type || 'image/jpeg'
+    });
+    const count = capturedPhotos.length;
+    document.getElementById('wardrobe-photo-count').textContent = `${count} photo${count > 1 ? 's' : ''}`;
+    document.getElementById('wardrobe-analyze-btn').classList.remove('hidden');
+    wardrobePhotoInput.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analyzePhotos() {
+  if (!capturedPhotos.length) return;
+  const analyzeBtn = document.getElementById('wardrobe-analyze-btn');
+  const analyzingMsg = document.getElementById('wardrobe-analyzing-msg');
+  analyzeBtn.classList.add('hidden');
+  analyzingMsg.classList.remove('hidden');
+
+  try {
+    const res = await apiFetch(`${API}/wardrobe/analyze-photo`, {
+      method: 'POST',
+      body: JSON.stringify({ images: capturedPhotos })
+    });
+    const data = await res.json();
+    if (data.text)     document.getElementById('wf-name').value     = data.text;
+    if (data.brand)    document.getElementById('wf-brand').value    = data.brand;
+    if (data.color)    document.getElementById('wf-color').value    = data.color;
+    if (data.material) document.getElementById('wf-material').value = data.material;
+    if (data.pattern)  document.getElementById('wf-pattern').value  = data.pattern;
+    if (data.occasion) document.getElementById('wf-occasion').value = data.occasion;
+    if (data.season)   document.getElementById('wf-season').value   = data.season;
+    if (data.category) document.getElementById('wf-cat').value      = data.category;
+  } catch (err) {
+    console.error('Photo analysis failed:', err);
+  } finally {
+    analyzingMsg.classList.add('hidden');
+    analyzeBtn.classList.remove('hidden');
+  }
+}
+
+async function saveWardrobeItem() {
+  const text = document.getElementById('wf-name').value.trim();
+  if (!text) return;
+
+  await apiFetch(`${API}/tasks/wardrobe`, {
+    method: 'POST',
+    body: JSON.stringify({
+      text,
+      brand:           document.getElementById('wf-brand').value.trim(),
+      color:           document.getElementById('wf-color').value.trim(),
+      material:        document.getElementById('wf-material').value.trim(),
+      pattern:         document.getElementById('wf-pattern').value,
+      occasion:        document.getElementById('wf-occasion').value,
+      season:          document.getElementById('wf-season').value,
+      wardrobeCategory: document.getElementById('wf-cat').value
+    })
+  });
+
+  capturedPhotos = [];
+  wardrobeAddOverlay.classList.add('hidden');
+  await loadTasks();
+  renderWardrobe();
+}
+
+async function suggestOutfit() {
+  const promptEl = document.getElementById('outfit-prompt-input');
+  const prompt = (promptEl && promptEl.value.trim()) || lastOutfitPrompt;
+  if (!prompt) return;
+  lastOutfitPrompt = prompt;
+
+  const btn = document.getElementById('suggest-outfit-btn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Asking…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/wardrobe/suggest-outfit`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ prompt })
+    });
+    const { items } = await res.json();
+
+    document.getElementById('outfit-prompt-echo').textContent = `"${prompt}"`;
+
+    const container = document.getElementById('outfit-items');
+    container.innerHTML = '';
+
+    if (!items || items.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'outfit-empty';
+      p.textContent = 'Add some clothes first — or try a different prompt';
+      container.appendChild(p);
+    } else {
+      for (const item of items) {
+        const row = document.createElement('div');
+        row.className = 'outfit-item-row';
+        const meta = [item.brand, item.color, item.material].filter(Boolean).join(' · ');
+        row.innerHTML = `
+          <span class="outfit-cat-label">${escapeHtml(WARDROBE_CAT_LABELS[item.wardrobeCategory] || item.wardrobeCategory)}</span>
+          <div class="outfit-item-info">
+            <span class="outfit-item-text">${escapeHtml(item.text)}</span>
+            ${meta ? `<span class="outfit-item-meta">${escapeHtml(meta)}</span>` : ''}
+          </div>
+        `;
+        container.appendChild(row);
+      }
+    }
+
+    outfitOverlay.classList.remove('hidden');
+  } catch (err) {
+    console.error('Outfit suggestion failed:', err);
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
 // Double-click to edit one-off or treat task text
 document.addEventListener('dblclick', (e) => {
   if (!isAdmin()) return;
@@ -995,7 +1198,7 @@ document.addEventListener('dblclick', (e) => {
   if (!li) return;
   e.preventDefault();
   if (!e.target.classList.contains('task-text')) return;
-  const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"], .edit[data-category="hardThings"], .edit[data-category="shoppingList"]');
+  const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"], .edit[data-category="hardThings"], .edit[data-category="shoppingList"], .edit[data-category="wardrobe"]');
   if (editBtn) startEdit(editBtn.dataset.category, Number(editBtn.dataset.id));
 });
 
@@ -1058,6 +1261,9 @@ document.addEventListener('click', (e) => {
   }
   else if (target.classList.contains('add-btn')) {
     addTask(target.dataset.category);
+  }
+  else if (target.classList.contains('wardrobe-add-btn')) {
+    openWardrobeAddModal(target.dataset.wardrobeCat);
   }
   else if (target.classList.contains('step-toggle')) {
     const id = Number(target.dataset.id);
@@ -1126,6 +1332,8 @@ document.addEventListener('keydown', async (e) => {
     overlay.classList.add('hidden');
     currentSurpriseTask = null;
     document.getElementById('oracle-overlay').classList.add('hidden');
+    outfitOverlay.classList.add('hidden');
+    wardrobeAddOverlay.classList.add('hidden');
   }
 });
 
@@ -1283,6 +1491,22 @@ function initSortable(listId, category) {
     }
   });
 }
+
+// Wardrobe listeners
+document.getElementById('wardrobe-btn').addEventListener('click', showWardrobe);
+document.getElementById('wardrobe-back').addEventListener('click', showMain);
+document.getElementById('wardrobe-camera-btn').addEventListener('click', () => wardrobePhotoInput.click());
+wardrobePhotoInput.addEventListener('change', e => capturePhoto(e.target.files[0]));
+document.getElementById('wardrobe-analyze-btn').addEventListener('click', analyzePhotos);
+document.getElementById('wardrobe-save-btn').addEventListener('click', saveWardrobeItem);
+document.getElementById('wardrobe-add-x-btn').addEventListener('click', () => wardrobeAddOverlay.classList.add('hidden'));
+wardrobeAddOverlay.addEventListener('click', e => { if (e.target === wardrobeAddOverlay) wardrobeAddOverlay.classList.add('hidden'); });
+
+document.getElementById('suggest-outfit-btn').addEventListener('click', suggestOutfit);
+document.getElementById('outfit-x-btn').addEventListener('click', () => outfitOverlay.classList.add('hidden'));
+document.getElementById('outfit-respin-btn').addEventListener('click', suggestOutfit);
+document.getElementById('outfit-close-btn').addEventListener('click', () => outfitOverlay.classList.add('hidden'));
+outfitOverlay.addEventListener('click', e => { if (e.target === outfitOverlay) outfitOverlay.classList.add('hidden'); });
 
 // Init — show profile selector or resume stored profile
 (async () => {
