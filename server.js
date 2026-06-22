@@ -309,7 +309,7 @@ async function getRandomPynchon() {
       max_tokens: 200,
       messages: [{
         role: 'user',
-        content: 'Write a single brief quote (1–3 sentences) in the style of Thomas Pynchon about finishing a project or completing a piece of work. Make it sardonic, paranoid, literary — darkly funny with hints of entropy, hidden systems, or "They". Return only the quote, no attribution or preamble.'
+        content: 'Write a single complete, self-contained aphorism (1–3 sentences) in the style of Thomas Pynchon, on the theme of finishing a project. It must be a whole thought — no mid-sentence openings with an em-dash, no fragments, no trailing off. Sardonic, paranoid, literary; darkly funny; hints of entropy, hidden systems, or "They". Return only the text, no attribution, no preamble.'
       }]
     });
     return msg.content[0].text.trim();
@@ -559,13 +559,16 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
     // Auto-ascend at 100%
     if (task.progress >= 100) {
       logEvent('project_ascended', { taskId: task.id, text: task.text }, profile);
+      const reflection = await getRandomPynchon();
       data.olympus.push({
         id: task.id,
         text: task.text,
         completedAt: new Date().toISOString(),
-        reflection: await getRandomPynchon()
+        reflection
       });
       data.projects = data.projects.filter(t => t.id !== task.id);
+      writeTasks(data, profile);
+      return res.json({ ascended: true, reflection });
     }
   } else if (req.body.done !== undefined) {
     const wasDone = task.done;

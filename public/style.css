@@ -1366,7 +1366,6 @@ body.admin-mode .progress-btn:disabled {
 .celebration-canvas {
   display: block;
   width: 100%;
-  height: 140px;
 }
 
 .celebration-dismiss {
