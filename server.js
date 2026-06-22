@@ -75,6 +75,15 @@ function getLastSundayPT() {
   return `${y}-${m}-${d}`;
 }
 
+function getTodayPT() {
+  const now = new Date();
+  const ptDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+  const y = ptDate.getFullYear();
+  const m = String(ptDate.getMonth() + 1).padStart(2, '0');
+  const d = String(ptDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 
 const fallbackPynchonQuotes = [
@@ -211,6 +220,7 @@ function readTasks(profile) {
   if (!data.oracle) data.oracle = { text: '', source: '', preview: '' };
   if (data.oracle.preview === undefined) data.oracle.preview = '';
   if (data.lastDoneCleared === undefined) data.lastDoneCleared = null;
+  if (data.lastShoppingCleared === undefined) data.lastShoppingCleared = null;
   let changed = false;
   for (const project of data.projects) {
     if (!project.steps) project.steps = [];
@@ -259,6 +269,16 @@ function readTasks(profile) {
   } else if (data.lastDoneCleared !== lastSunday) {
     // No items to clear but still record the sweep so we don't re-check
     data.lastDoneCleared = lastSunday;
+    changed = true;
+  }
+
+  // Clear done shopping list items at the end of each PT day
+  const todayPT = getTodayPT();
+  if (data.lastShoppingCleared !== todayPT) {
+    if (data.shoppingList.some(i => i.done)) {
+      data.shoppingList = data.shoppingList.filter(i => !i.done);
+    }
+    data.lastShoppingCleared = todayPT;
     changed = true;
   }
 

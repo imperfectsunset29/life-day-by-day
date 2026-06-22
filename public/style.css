@@ -307,6 +307,22 @@ h1 {
   color: #f0e8e0;
 }
 
+textarea.task-text-input {
+  resize: none;
+  overflow: hidden;
+  line-height: 1.4;
+  min-height: 1.2em;
+}
+
+.task-item.editing {
+  align-items: flex-start;
+}
+
+.task-item.editing .task-checkbox,
+.task-item.editing .task-actions {
+  margin-top: 2px;
+}
+
 .task-actions {
   display: flex;
   gap: 4px;
