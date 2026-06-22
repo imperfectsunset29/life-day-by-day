@@ -698,17 +698,28 @@ function startEdit(category, id) {
   const textSpan = li.querySelector('.task-text');
   const currentText = task.text;
 
-  const input = document.createElement('input');
-  input.type = 'text';
+  const input = document.createElement('textarea');
   input.className = 'task-text-input';
   input.value = currentText;
+  input.rows = 1;
 
+  li.classList.add('editing');
   textSpan.replaceWith(input);
+
+  // Auto-size to show the full text
+  input.style.height = 'auto';
+  input.style.height = input.scrollHeight + 'px';
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = input.scrollHeight + 'px';
+  });
+
   input.focus();
   input.select();
   scrollToInput(input);
 
   const save = async () => {
+    li.classList.remove('editing');
     const newText = input.value.trim();
     if (newText && newText !== currentText) {
       await apiFetch(`${API}/tasks/${category}/${id}`, {
@@ -722,7 +733,7 @@ function startEdit(category, id) {
 
   input.addEventListener('blur', save);
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
     if (e.key === 'Escape') { input.value = currentText; input.blur(); }
   });
 }
