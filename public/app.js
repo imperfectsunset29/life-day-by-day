@@ -486,15 +486,22 @@ async function toggleTask(category, id) {
   const nowDone = !wasDone;
 
   // Optimistic DOM update — instant feedback before network round-trip
-  const li = document.querySelector(`#list-${category} li[data-id="${id}"]`);
-  if (li) {
-    const checkbox = li.querySelector('.task-checkbox');
-    if (nowDone) {
-      li.classList.add('done');
-      checkbox && checkbox.classList.add('checked');
-    } else {
-      li.classList.remove('done');
-      checkbox && checkbox.classList.remove('checked');
+  if (category === 'shoppingList') {
+    // Items move between sections, so update local state and re-render immediately
+    const t = tasks.shoppingList.find(t => t.id === id);
+    if (t) t.done = nowDone;
+    renderShoppingList();
+  } else {
+    const li = document.querySelector(`#list-${category} li[data-id="${id}"]`);
+    if (li) {
+      const checkbox = li.querySelector('.task-checkbox');
+      if (nowDone) {
+        li.classList.add('done');
+        checkbox && checkbox.classList.add('checked');
+      } else {
+        li.classList.remove('done');
+        checkbox && checkbox.classList.remove('checked');
+      }
     }
   }
 
@@ -508,6 +515,7 @@ async function toggleTask(category, id) {
   });
 
   await loadTasks();
+  if (category === 'shoppingList') renderShoppingList();
 
   if (category === 'oneOff' && !wasDone && tasks.oneOff.length === 0) {
     showOneOffCelebration();
@@ -871,32 +879,55 @@ function renderTreats() {
 // Render shopping list
 function renderShoppingList() {
   const list = document.getElementById('list-shoppingList');
+  const doneSection = document.getElementById('shopping-done-section');
+  const doneList = document.getElementById('list-shoppingListDone');
   list.innerHTML = '';
+  doneList.innerHTML = '';
 
-  if (!tasks.shoppingList || tasks.shoppingList.length === 0) {
+  const all = tasks.shoppingList || [];
+  const active = all.filter(i => !i.done);
+  const done = all.filter(i => i.done);
+
+  if (active.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty-state';
     li.textContent = 'Nothing here yet — add something to pick up';
     list.appendChild(li);
-    return;
+  } else {
+    for (const item of active) {
+      const li = document.createElement('li');
+      li.className = 'task-item';
+      li.dataset.id = item.id;
+      li.dataset.category = 'shoppingList';
+      li.innerHTML = `
+        <button class="task-checkbox" data-id="${item.id}" data-category="shoppingList"></button>
+        <span class="task-text">${escapeHtml(item.text)}</span>
+        <div class="task-actions">
+          <button class="task-action-btn edit" data-id="${item.id}" data-category="shoppingList" title="Edit">edit</button>
+          <button class="task-action-btn delete" data-id="${item.id}" data-category="shoppingList" title="Delete">delete</button>
+        </div>
+      `;
+      list.appendChild(li);
+    }
+    initSortable('list-shoppingList', 'shoppingList');
   }
 
-  for (const item of tasks.shoppingList) {
-    const li = document.createElement('li');
-    li.className = `task-item${item.done ? ' done' : ''}`;
-    li.dataset.id = item.id;
-    li.dataset.category = 'shoppingList';
-    li.innerHTML = `
-      <button class="task-checkbox${item.done ? ' checked' : ''}" data-id="${item.id}" data-category="shoppingList"></button>
-      <span class="task-text">${escapeHtml(item.text)}</span>
-      <div class="task-actions">
-        <button class="task-action-btn edit" data-id="${item.id}" data-category="shoppingList" title="Edit">edit</button>
-        <button class="task-action-btn delete" data-id="${item.id}" data-category="shoppingList" title="Delete">delete</button>
-      </div>
-    `;
-    list.appendChild(li);
+  if (done.length === 0) {
+    doneSection.classList.add('hidden');
+  } else {
+    doneSection.classList.remove('hidden');
+    for (const item of done) {
+      const li = document.createElement('li');
+      li.className = 'task-item';
+      li.dataset.id = item.id;
+      li.dataset.category = 'shoppingList';
+      li.innerHTML = `
+        <button class="task-checkbox checked" data-id="${item.id}" data-category="shoppingList"></button>
+        <span class="task-text">${escapeHtml(item.text)}</span>
+      `;
+      doneList.appendChild(li);
+    }
   }
-  initSortable('list-shoppingList', 'shoppingList');
 }
 
 // Render hard things
