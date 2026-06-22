@@ -393,16 +393,15 @@ async function updateProgress(id, delta) {
     li.querySelector('.progress-label').textContent = `${newProgress}%`;
   }
 
-  await apiFetch(`${API}/tasks/projects/${id}`, {
+  const putRes = await apiFetch(`${API}/tasks/projects/${id}`, {
     method: 'PUT',
     body: JSON.stringify({ progress: newProgress })
   });
 
-  // Full reload only needed if ascension may have fired
   if (newProgress >= 100) {
-    await loadTasks();
-    const ascended = tasks.olympus.find(t => t.id === id);
-    if (ascended) showCelebration(ascended.reflection);
+    const result = await putRes.json();
+    loadTasks(); // fire without await — re-renders in background behind overlay
+    if (result.reflection) showCelebration(result.reflection);
   }
 }
 
@@ -543,8 +542,32 @@ async function showOneOffCelebration() {
 function animateSandText(canvas, text) {
   const dpr = window.devicePixelRatio || 1;
   const W = canvas.clientWidth;
-  const H = canvas.clientHeight;
-  if (!W || !H) return;
+  if (!W) return;
+
+  const fontSize = 20;
+  const lineHeight = fontSize * 1.85;
+
+  // Word-wrap first so we can compute the required canvas height
+  const measure = Object.assign(document.createElement('canvas'), { width: 1, height: 1 }).getContext('2d');
+  measure.font = `italic ${fontSize}px "Instrument Serif", serif`;
+  const maxLineW = W - 48;
+  const words = text.split(' ');
+  const lines = [];
+  let cur = '';
+  for (const word of words) {
+    const test = cur ? cur + ' ' + word : word;
+    if (measure.measureText(test).width > maxLineW && cur) {
+      lines.push(cur);
+      cur = word;
+    } else {
+      cur = test;
+    }
+  }
+  if (cur) lines.push(cur);
+
+  const totalTextH = lines.length * lineHeight;
+  const H = totalTextH + lineHeight; // one line of vertical padding
+  canvas.style.height = H + 'px';
 
   canvas.width = W * dpr;
   canvas.height = H * dpr;
@@ -557,31 +580,11 @@ function animateSandText(canvas, text) {
   off.height = H * dpr;
   const octx = off.getContext('2d');
   octx.scale(dpr, dpr);
-
-  const fontSize = 20;
-  const lineHeight = fontSize * 1.85;
   octx.font = `italic ${fontSize}px "Instrument Serif", serif`;
   octx.textAlign = 'center';
   octx.textBaseline = 'alphabetic';
   octx.fillStyle = '#fff';
 
-  // Word-wrap
-  const words = text.split(' ');
-  const maxLineW = W - 48;
-  const lines = [];
-  let cur = '';
-  for (const word of words) {
-    const test = cur ? cur + ' ' + word : word;
-    if (octx.measureText(test).width > maxLineW && cur) {
-      lines.push(cur);
-      cur = word;
-    } else {
-      cur = test;
-    }
-  }
-  if (cur) lines.push(cur);
-
-  const totalTextH = lines.length * lineHeight;
   const topPad = (H - totalTextH) / 2;
   for (let i = 0; i < lines.length; i++) {
     octx.fillText(lines[i], W / 2, topPad + (i + 1) * lineHeight - fontSize * 0.2);
