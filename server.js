@@ -318,6 +318,36 @@ async function getRandomPynchon() {
   }
 }
 
+// Pre-generated quote queue — filled on startup and replenished after each use
+// so project ascension can respond instantly without waiting for the Claude API.
+const pynchonQueue = [];
+const QUEUE_TARGET = 2;
+let pynchonRefilling = false;
+
+async function refillPynchonQueue() {
+  if (!anthropic || pynchonRefilling) return;
+  pynchonRefilling = true;
+  try {
+    while (pynchonQueue.length < QUEUE_TARGET) {
+      pynchonQueue.push(await getRandomPynchon());
+    }
+  } catch {} finally {
+    pynchonRefilling = false;
+  }
+}
+
+async function getNextPynchon() {
+  if (pynchonQueue.length > 0) {
+    const quote = pynchonQueue.shift();
+    refillPynchonQueue().catch(() => {}); // replenish in background
+    return quote;
+  }
+  return getRandomPynchon(); // queue exhausted — generate on demand
+}
+
+// Warm the queue on startup
+refillPynchonQueue().catch(() => {});
+
 // Add a step to a project
 app.post('/api/tasks/projects/:id/steps', requireAdmin, (req, res) => {
   const profile = profileFrom(req);
@@ -559,7 +589,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
     // Auto-ascend at 100%
     if (task.progress >= 100) {
       logEvent('project_ascended', { taskId: task.id, text: task.text }, profile);
-      const reflection = await getRandomPynchon();
+      const reflection = await getNextPynchon();
       data.olympus.push({
         id: task.id,
         text: task.text,
