@@ -100,6 +100,38 @@ function parseJsonFromModel(text) {
   return JSON.parse(cleaned);
 }
 
+// WMO weather codes used by Open-Meteo — https://open-meteo.com/en/docs
+const WEATHER_CODES = {
+  0: 'clear sky', 1: 'mainly clear', 2: 'partly cloudy', 3: 'overcast',
+  45: 'fog', 48: 'depositing rime fog',
+  51: 'light drizzle', 53: 'moderate drizzle', 55: 'dense drizzle',
+  56: 'light freezing drizzle', 57: 'dense freezing drizzle',
+  61: 'slight rain', 63: 'moderate rain', 65: 'heavy rain',
+  66: 'light freezing rain', 67: 'heavy freezing rain',
+  71: 'slight snow', 73: 'moderate snow', 75: 'heavy snow', 77: 'snow grains',
+  80: 'slight rain showers', 81: 'moderate rain showers', 82: 'violent rain showers',
+  85: 'slight snow showers', 86: 'heavy snow showers',
+  95: 'thunderstorm', 96: 'thunderstorm with slight hail', 99: 'thunderstorm with heavy hail'
+};
+
+// Free, no-API-key weather lookup for the outfit suggester.
+async function fetchWeather(lat, lon) {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const current = data.current;
+    if (!current) return null;
+    return {
+      tempF: Math.round(current.temperature_2m),
+      description: WEATHER_CODES[current.weather_code] || 'unknown conditions'
+    };
+  } catch {
+    return null;
+  }
+}
+
 const fallbackPynchonQuotes = [
   "Another system dismantled from within. They said it couldn't be done, but They say a lot of things.",
   "The project is complete, which means of course that it was never really about the project at all.",
@@ -447,8 +479,11 @@ app.post('/api/wardrobe/analyze-photo', requireAdmin, async (req, res) => {
 app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
-  const { prompt } = req.body;
+  const { prompt, lat, lon } = req.body;
   if (!data.wardrobe || !data.wardrobe.length) return res.json({ items: [] });
+
+  const weather = (typeof lat === 'number' && typeof lon === 'number') ? await fetchWeather(lat, lon) : null;
+  const weatherLine = weather ? `Current weather at the user's location: ${weather.tempF}°F, ${weather.description}.` : '';
 
   if (!anthropic) {
     // Fallback: random pick per category
@@ -459,7 +494,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
         return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
       })
       .filter(Boolean);
-    return res.json({ items });
+    return res.json({ items, weather });
   }
 
   try {
@@ -472,13 +507,13 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
       max_tokens: 256,
       messages: [{
         role: 'user',
-        content: `You are a personal stylist. Wardrobe inventory:\n${inventory}\n\nBuild an outfit for: "${prompt}"\n\nPick the best combination — one item per relevant category, compatible patterns and seasons. Return ONLY a JSON array of item IDs (numbers). Raw JSON array only, no markdown.`
+        content: `You are a personal stylist. Wardrobe inventory:\n${inventory}\n\n${weatherLine}\n\nBuild an outfit for: "${prompt}"\n\nPick the best combination — one item per relevant category, compatible patterns and seasons${weather ? ', and appropriate for the current weather (temperature and precipitation/wind implied by the conditions)' : ''}. Return ONLY a JSON array of item IDs (numbers). Raw JSON array only, no markdown.`
       }]
     });
 
     const ids = parseJsonFromModel(message.content[0].text);
     const items = ids.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
-    res.json({ items });
+    res.json({ items, weather });
   } catch (err) {
     console.error('Outfit suggestion failed:', err);
     res.status(500).json({ error: err.message });
