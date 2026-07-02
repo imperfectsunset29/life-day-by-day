@@ -1142,6 +1142,7 @@ async function analyzePhotos() {
       body: JSON.stringify({ images: capturedPhotos })
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Analysis failed');
     if (data.text)     document.getElementById('wf-name').value     = data.text;
     if (data.brand)    document.getElementById('wf-brand').value    = data.brand;
     if (data.color)    document.getElementById('wf-color').value    = data.color;
@@ -1152,6 +1153,7 @@ async function analyzePhotos() {
     if (data.category) document.getElementById('wf-cat').value      = data.category;
   } catch (err) {
     console.error('Photo analysis failed:', err);
+    alert(`Couldn't analyze photos: ${err.message}`);
   } finally {
     analyzingMsg.classList.add('hidden');
     analyzeBtn.classList.remove('hidden');
