@@ -590,6 +590,17 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
 
   if (req.body.text !== undefined) task.text = req.body.text;
 
+  if (category === 'wardrobe') {
+    if (req.body.brand !== undefined) task.brand = req.body.brand;
+    if (req.body.color !== undefined) task.color = req.body.color;
+    if (req.body.material !== undefined) task.material = req.body.material;
+    if (req.body.pattern !== undefined) task.pattern = req.body.pattern;
+    if (req.body.occasion !== undefined) task.occasion = req.body.occasion;
+    if (req.body.season !== undefined) task.season = req.body.season;
+    if (req.body.wardrobeCategory !== undefined) task.wardrobeCategory = req.body.wardrobeCategory;
+    if (req.body.subcategory !== undefined) task.subcategory = req.body.subcategory;
+  }
+
   if (category === 'habits') {
     if (req.body.doneToday !== undefined) {
       task.doneToday = req.body.doneToday;

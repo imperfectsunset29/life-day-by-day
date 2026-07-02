@@ -53,6 +53,7 @@ const ONEOFF_LIMIT = 5;
 let currentSurpriseTask = null;
 let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO)
 let capturedPhotos = []; // [{ image: base64, mimeType }] — cleared after each wardrobe save
+let editingWardrobeId = null; // set while the add/edit modal is editing an existing item, else null
 let lastOutfitPrompt = '';
 
 
@@ -688,20 +689,20 @@ function animateSandText(canvas, text) {
 
 // Edit task
 function startEdit(category, id) {
+  if (category === 'wardrobe') {
+    openWardrobeEditModal(id);
+    return;
+  }
+
   const task = tasks[category] && tasks[category].find(t => t.id === id);
   if (!task) return;
 
-  // Wardrobe items live in per-category sublists — find the <li> by data attribute
   let li;
-  if (category === 'wardrobe') {
-    li = document.querySelector(`.task-item[data-id="${id}"][data-category="wardrobe"]`);
-  } else {
-    const list = document.getElementById(`list-${category}`);
-    if (!list) return;
-    for (const item of list.querySelectorAll('.task-item')) {
-      const editBtn = item.querySelector('.edit');
-      if (editBtn && Number(editBtn.dataset.id) === id) { li = item; break; }
-    }
+  const list = document.getElementById(`list-${category}`);
+  if (!list) return;
+  for (const item of list.querySelectorAll('.task-item')) {
+    const editBtn = item.querySelector('.edit');
+    if (editBtn && Number(editBtn.dataset.id) === id) { li = item; break; }
   }
 
   if (!li) return;
@@ -1195,6 +1196,7 @@ function toggleWardrobeCat(cat) {
 }
 
 function openWardrobeAddModal(wardrobeCat) {
+  editingWardrobeId = null;
   capturedPhotos = [];
   wardrobePhotoInput.value = '';
   document.getElementById('wf-name').value = '';
@@ -1209,6 +1211,32 @@ function openWardrobeAddModal(wardrobeCat) {
   document.getElementById('wardrobe-photo-count').textContent = '';
   document.getElementById('wardrobe-analyze-btn').classList.add('hidden');
   document.getElementById('wardrobe-analyzing-msg').classList.add('hidden');
+  document.getElementById('wardrobe-modal-label').textContent = 'Add item';
+  document.getElementById('wardrobe-save-btn').textContent = 'Save';
+  wardrobeAddOverlay.classList.remove('hidden');
+}
+
+function openWardrobeEditModal(id) {
+  const item = tasks.wardrobe.find(i => i.id === id);
+  if (!item) return;
+
+  editingWardrobeId = id;
+  capturedPhotos = [];
+  wardrobePhotoInput.value = '';
+  document.getElementById('wf-name').value = item.text;
+  document.getElementById('wf-brand').value = item.brand || '';
+  document.getElementById('wf-color').value = item.color || '';
+  document.getElementById('wf-material').value = item.material || '';
+  document.getElementById('wf-pattern').value = item.pattern || '';
+  document.getElementById('wf-occasion').value = item.occasion || '';
+  document.getElementById('wf-season').value = item.season || 'all';
+  document.getElementById('wf-cat').value = item.wardrobeCategory || 'tops';
+  populateSubcatOptions(item.wardrobeCategory || 'tops', item.subcategory);
+  document.getElementById('wardrobe-photo-count').textContent = '';
+  document.getElementById('wardrobe-analyze-btn').classList.add('hidden');
+  document.getElementById('wardrobe-analyzing-msg').classList.add('hidden');
+  document.getElementById('wardrobe-modal-label').textContent = 'Edit item';
+  document.getElementById('wardrobe-save-btn').textContent = 'Update';
   wardrobeAddOverlay.classList.remove('hidden');
 }
 
@@ -1264,21 +1292,31 @@ async function saveWardrobeItem() {
   const text = document.getElementById('wf-name').value.trim();
   if (!text) return;
 
-  await apiFetch(`${API}/tasks/wardrobe`, {
-    method: 'POST',
-    body: JSON.stringify({
-      text,
-      brand:           document.getElementById('wf-brand').value.trim(),
-      color:           document.getElementById('wf-color').value.trim(),
-      material:        document.getElementById('wf-material').value.trim(),
-      pattern:         document.getElementById('wf-pattern').value,
-      occasion:        document.getElementById('wf-occasion').value,
-      season:          document.getElementById('wf-season').value,
-      wardrobeCategory: document.getElementById('wf-cat').value,
-      subcategory:     document.getElementById('wf-subcat').value
-    })
-  });
+  const payload = {
+    text,
+    brand:           document.getElementById('wf-brand').value.trim(),
+    color:           document.getElementById('wf-color').value.trim(),
+    material:        document.getElementById('wf-material').value.trim(),
+    pattern:         document.getElementById('wf-pattern').value,
+    occasion:        document.getElementById('wf-occasion').value,
+    season:          document.getElementById('wf-season').value,
+    wardrobeCategory: document.getElementById('wf-cat').value,
+    subcategory:     document.getElementById('wf-subcat').value
+  };
 
+  if (editingWardrobeId) {
+    await apiFetch(`${API}/tasks/wardrobe/${editingWardrobeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  } else {
+    await apiFetch(`${API}/tasks/wardrobe`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  editingWardrobeId = null;
   capturedPhotos = [];
   wardrobeAddOverlay.classList.add('hidden');
   await loadTasks();
