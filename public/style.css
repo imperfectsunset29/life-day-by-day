@@ -1508,6 +1508,20 @@ body.admin-mode .wardrobe-add-btn { display: flex; }
   text-overflow: ellipsis;
 }
 
+.wardrobe-subcat-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(240, 232, 224, 0.22);
+  padding: 14px 2px 4px;
+}
+
+.wardrobe-subcat-label:first-child {
+  padding-top: 2px;
+}
+
 /* Wardrobe add modal */
 .wardrobe-add-content {
   text-align: left;

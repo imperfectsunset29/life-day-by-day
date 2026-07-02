@@ -1060,6 +1060,21 @@ function showWardrobe() {
 
 const WARDROBE_CATS = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
 const WARDROBE_CAT_LABELS = { tops: 'Top', bottoms: 'Bottom', shoes: 'Shoes', outerwear: 'Outerwear', accessories: 'Accessory' };
+const WARDROBE_SUBCATS = {
+  tops: ['T-shirts', 'Blouses & Shirts', 'Sweaters & Knits', 'Cardigans', 'Tanks & Camisoles', 'Other'],
+  bottoms: ['Jeans', 'Trousers & Pants', 'Skirts', 'Shorts', 'Leggings', 'Other'],
+  shoes: ['Sneakers', 'Boots', 'Heels', 'Flats & Loafers', 'Sandals', 'Other'],
+  outerwear: ['Coats', 'Jackets', 'Blazers', 'Vests', 'Other'],
+  accessories: ['Bags', 'Jewelry', 'Scarves', 'Belts', 'Hats', 'Other']
+};
+
+function populateSubcatOptions(cat, selected) {
+  const select = document.getElementById('wf-subcat');
+  const options = WARDROBE_SUBCATS[cat] || [];
+  select.innerHTML = '<option value="">Subcategory</option>' +
+    options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
+  select.value = options.includes(selected) ? selected : '';
+}
 
 const collapsedWardrobeCats = new Set();
 
@@ -1088,21 +1103,38 @@ function renderWardrobe() {
       continue;
     }
 
+    const subcats = WARDROBE_SUBCATS[cat] || [];
+    const grouped = new Map(subcats.map(sc => [sc, []]));
     for (const item of items) {
-      const li = document.createElement('li');
-      li.className = 'task-item wardrobe-row';
-      li.dataset.id = item.id;
-      li.dataset.category = 'wardrobe';
-      const meta = item.color || item.brand || '';
-      li.innerHTML = `
-        <span class="task-text">${escapeHtml(item.text)}</span>
-        ${meta ? `<span class="wardrobe-row-meta">${escapeHtml(meta)}</span>` : ''}
-        <div class="task-actions">
-          <button class="task-action-btn edit" data-id="${item.id}" data-category="wardrobe" title="Edit">edit</button>
-          <button class="task-action-btn delete" data-id="${item.id}" data-category="wardrobe" title="Delete">delete</button>
-        </div>
-      `;
-      list.appendChild(li);
+      const sc = subcats.includes(item.subcategory) ? item.subcategory : 'Other';
+      if (!grouped.has(sc)) grouped.set(sc, []);
+      grouped.get(sc).push(item);
+    }
+
+    for (const [sc, groupItems] of grouped) {
+      if (!groupItems.length) continue;
+
+      const subHeader = document.createElement('li');
+      subHeader.className = 'wardrobe-subcat-label';
+      subHeader.textContent = sc;
+      list.appendChild(subHeader);
+
+      for (const item of groupItems) {
+        const li = document.createElement('li');
+        li.className = 'task-item wardrobe-row';
+        li.dataset.id = item.id;
+        li.dataset.category = 'wardrobe';
+        const meta = item.color || item.brand || '';
+        li.innerHTML = `
+          <span class="task-text">${escapeHtml(item.text)}</span>
+          ${meta ? `<span class="wardrobe-row-meta">${escapeHtml(meta)}</span>` : ''}
+          <div class="task-actions">
+            <button class="task-action-btn edit" data-id="${item.id}" data-category="wardrobe" title="Edit">edit</button>
+            <button class="task-action-btn delete" data-id="${item.id}" data-category="wardrobe" title="Delete">delete</button>
+          </div>
+        `;
+        list.appendChild(li);
+      }
     }
   }
 }
@@ -1124,6 +1156,7 @@ function openWardrobeAddModal(wardrobeCat) {
   document.getElementById('wf-occasion').value = '';
   document.getElementById('wf-season').value = 'all';
   document.getElementById('wf-cat').value = wardrobeCat;
+  populateSubcatOptions(wardrobeCat);
   document.getElementById('wardrobe-photo-count').textContent = '';
   document.getElementById('wardrobe-analyze-btn').classList.add('hidden');
   document.getElementById('wardrobe-analyzing-msg').classList.add('hidden');
@@ -1168,6 +1201,7 @@ async function analyzePhotos() {
     if (data.occasion) document.getElementById('wf-occasion').value = data.occasion;
     if (data.season)   document.getElementById('wf-season').value   = data.season;
     if (data.category) document.getElementById('wf-cat').value      = data.category;
+    populateSubcatOptions(document.getElementById('wf-cat').value, data.subcategory);
   } catch (err) {
     console.error('Photo analysis failed:', err);
     alert(`Couldn't analyze photos: ${err.message}`);
@@ -1191,7 +1225,8 @@ async function saveWardrobeItem() {
       pattern:         document.getElementById('wf-pattern').value,
       occasion:        document.getElementById('wf-occasion').value,
       season:          document.getElementById('wf-season').value,
-      wardrobeCategory: document.getElementById('wf-cat').value
+      wardrobeCategory: document.getElementById('wf-cat').value,
+      subcategory:     document.getElementById('wf-subcat').value
     })
   });
 
@@ -1566,6 +1601,7 @@ document.getElementById('wardrobe-camera-btn').addEventListener('click', () => w
 wardrobePhotoInput.addEventListener('change', e => capturePhoto(e.target.files[0]));
 document.getElementById('wardrobe-analyze-btn').addEventListener('click', analyzePhotos);
 document.getElementById('wardrobe-save-btn').addEventListener('click', saveWardrobeItem);
+document.getElementById('wf-cat').addEventListener('change', e => populateSubcatOptions(e.target.value));
 document.getElementById('wardrobe-add-x-btn').addEventListener('click', () => wardrobeAddOverlay.classList.add('hidden'));
 wardrobeAddOverlay.addEventListener('click', e => { if (e.target === wardrobeAddOverlay) wardrobeAddOverlay.classList.add('hidden'); });
 

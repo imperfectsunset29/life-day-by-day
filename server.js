@@ -86,6 +86,14 @@ function getTodayPT() {
 
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 
+const WARDROBE_SUBCATS = {
+  tops: ['T-shirts', 'Blouses & Shirts', 'Sweaters & Knits', 'Cardigans', 'Tanks & Camisoles', 'Other'],
+  bottoms: ['Jeans', 'Trousers & Pants', 'Skirts', 'Shorts', 'Leggings', 'Other'],
+  shoes: ['Sneakers', 'Boots', 'Heels', 'Flats & Loafers', 'Sandals', 'Other'],
+  outerwear: ['Coats', 'Jackets', 'Blazers', 'Vests', 'Other'],
+  accessories: ['Bags', 'Jewelry', 'Scarves', 'Belts', 'Hats', 'Other']
+};
+
 // Claude sometimes wraps JSON replies in ```json fences despite instructions not to — strip before parsing.
 function parseJsonFromModel(text) {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
@@ -424,7 +432,7 @@ app.post('/api/wardrobe/analyze-photo', requireAdmin, async (req, res) => {
         role: 'user',
         content: [
           ...imageBlocks,
-          { type: 'text', text: 'These are photos of the same clothing item. Analyze them together for accuracy. Return ONLY a JSON object with these keys: category (one of: tops, bottoms, shoes, outerwear, accessories), brand (visible brand name or empty string), color (main color in 2-3 words), material (e.g. linen, denim, knit wool — infer from texture), pattern (one of: solid, stripes, plaid, floral, graphic, geometric, other), occasion (one of: casual, formal, sporty, evening, business), season (one of: summer, winter, spring, autumn, all), text (short descriptive name e.g. "white linen shirt"). Raw JSON only, no markdown.' }
+          { type: 'text', text: `These are photos of the same clothing item. Analyze them together for accuracy. Return ONLY a JSON object with these keys: category (one of: tops, bottoms, shoes, outerwear, accessories), subcategory (pick the single best match from the list for whichever category you chose above — ${Object.entries(WARDROBE_SUBCATS).map(([cat, subs]) => `${cat}: ${subs.join(', ')}`).join(' | ')}), brand (visible brand name or empty string), color (main color in 2-3 words), material (e.g. linen, denim, knit wool — infer from texture), pattern (one of: solid, stripes, plaid, floral, graphic, geometric, other), occasion (one of: casual, formal, sporty, evening, business), season (one of: summer, winter, spring, autumn, all), text (short descriptive name e.g. "white linen shirt"). Raw JSON only, no markdown.` }
         ]
       }]
     });
@@ -504,7 +512,7 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
     : category === 'projects'
     ? { id, text, progress: 0, createdAt }
     : category === 'wardrobe'
-    ? { id, text: body.text, brand: body.brand || '', color: body.color || '', material: body.material || '', pattern: body.pattern || '', occasion: body.occasion || '', season: body.season || 'all', wardrobeCategory: body.wardrobeCategory || 'tops', createdAt }
+    ? { id, text: body.text, brand: body.brand || '', color: body.color || '', material: body.material || '', pattern: body.pattern || '', occasion: body.occasion || '', season: body.season || 'all', wardrobeCategory: body.wardrobeCategory || 'tops', subcategory: body.subcategory || '', createdAt }
     : { id, text, done: false, createdAt };
   data[category].unshift(task);
   logEvent('task_created', { taskId: id, text, category }, profile);
