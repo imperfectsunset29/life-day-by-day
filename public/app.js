@@ -1059,11 +1059,13 @@ function showWardrobe() {
 
 // ============ Wardrobe ============
 
-const WARDROBE_CATS = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
-const WARDROBE_CAT_LABELS = { tops: 'Top', bottoms: 'Bottom', shoes: 'Shoes', outerwear: 'Outerwear', accessories: 'Accessory' };
+const WARDROBE_CATS = ['tops', 'bottoms', 'dresses', 'jumpsuitsRompers', 'shoes', 'outerwear', 'accessories'];
+const WARDROBE_CAT_LABELS = { tops: 'Top', bottoms: 'Bottom', dresses: 'Dress', jumpsuitsRompers: 'Jumpsuit/Romper', shoes: 'Shoes', outerwear: 'Outerwear', accessories: 'Accessory' };
 const WARDROBE_SUBCATS = {
   tops: ['T-shirts', 'Blouses & Shirts', 'Sweaters & Knits', 'Cardigans', 'Tanks & Camisoles', 'Other'],
   bottoms: ['Jeans', 'Trousers & Pants', 'Skirts', 'Shorts', 'Leggings', 'Other'],
+  dresses: ['Casual Dresses', 'Cocktail & Party', 'Formal & Evening', 'Maxi Dresses', 'Wrap Dresses', 'Other'],
+  jumpsuitsRompers: ['Jumpsuits', 'Rompers', 'Overalls', 'Other'],
   shoes: ['Sneakers', 'Boots', 'Heels', 'Flats & Loafers', 'Sandals', 'Other'],
   outerwear: ['Coats', 'Jackets', 'Blazers', 'Vests', 'Other'],
   accessories: ['Bags', 'Jewelry', 'Scarves', 'Belts', 'Hats', 'Other']
@@ -1085,6 +1087,17 @@ const WARDROBE_SUBCAT_KEYWORDS = {
     ['Skirts', ['skirt']],
     ['Shorts', ['short']],
     ['Leggings', ['legging']]
+  ],
+  dresses: [
+    ['Cocktail & Party', ['cocktail', 'party']],
+    ['Formal & Evening', ['formal', 'evening', 'gown']],
+    ['Maxi Dresses', ['maxi']],
+    ['Wrap Dresses', ['wrap']]
+  ],
+  jumpsuitsRompers: [
+    ['Jumpsuits', ['jumpsuit']],
+    ['Rompers', ['romper']],
+    ['Overalls', ['overall']]
   ],
   shoes: [
     ['Sneakers', ['sneaker', 'trainer']],

@@ -89,6 +89,8 @@ const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 const WARDROBE_SUBCATS = {
   tops: ['T-shirts', 'Blouses & Shirts', 'Sweaters & Knits', 'Cardigans', 'Tanks & Camisoles', 'Other'],
   bottoms: ['Jeans', 'Trousers & Pants', 'Skirts', 'Shorts', 'Leggings', 'Other'],
+  dresses: ['Casual Dresses', 'Cocktail & Party', 'Formal & Evening', 'Maxi Dresses', 'Wrap Dresses', 'Other'],
+  jumpsuitsRompers: ['Jumpsuits', 'Rompers', 'Overalls', 'Other'],
   shoes: ['Sneakers', 'Boots', 'Heels', 'Flats & Loafers', 'Sandals', 'Other'],
   outerwear: ['Coats', 'Jackets', 'Blazers', 'Vests', 'Other'],
   accessories: ['Bags', 'Jewelry', 'Scarves', 'Belts', 'Hats', 'Other']
@@ -464,7 +466,7 @@ app.post('/api/wardrobe/analyze-photo', requireAdmin, async (req, res) => {
         role: 'user',
         content: [
           ...imageBlocks,
-          { type: 'text', text: `These are photos of the same clothing item. Analyze them together for accuracy. Return ONLY a JSON object with these keys: category (one of: tops, bottoms, shoes, outerwear, accessories), subcategory (pick the single best match from the list for whichever category you chose above — ${Object.entries(WARDROBE_SUBCATS).map(([cat, subs]) => `${cat}: ${subs.join(', ')}`).join(' | ')}), brand (visible brand name or empty string), color (main color in 2-3 words), material (e.g. linen, denim, knit wool — infer from texture), pattern (one of: solid, stripes, plaid, floral, graphic, geometric, other), occasion (one of: casual, formal, sporty, evening, business), season (one of: summer, winter, spring, autumn, all), text (short descriptive name e.g. "white linen shirt"). Raw JSON only, no markdown.` }
+          { type: 'text', text: `These are photos of the same clothing item. Analyze them together for accuracy. Return ONLY a JSON object with these keys: category (one of: tops, bottoms, dresses, jumpsuitsRompers, shoes, outerwear, accessories), subcategory (pick the single best match from the list for whichever category you chose above — ${Object.entries(WARDROBE_SUBCATS).map(([cat, subs]) => `${cat}: ${subs.join(', ')}`).join(' | ')}), brand (visible brand name or empty string), color (main color in 2-3 words), material (e.g. linen, denim, knit wool — infer from texture), pattern (one of: solid, stripes, plaid, floral, graphic, geometric, other), occasion (one of: casual, formal, sporty, evening, business), season (one of: summer, winter, spring, autumn, all), text (short descriptive name e.g. "white linen shirt"). Raw JSON only, no markdown.` }
         ]
       }]
     });
@@ -487,7 +489,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
 
   if (!anthropic) {
     // Fallback: random pick per category
-    const cats = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
+    const cats = ['tops', 'bottoms', 'dresses', 'jumpsuitsRompers', 'shoes', 'outerwear', 'accessories'];
     const items = cats
       .map(cat => {
         const pool = data.wardrobe.filter(i => i.wardrobeCategory === cat);
