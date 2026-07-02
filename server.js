@@ -86,6 +86,12 @@ function getTodayPT() {
 
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 
+// Claude sometimes wraps JSON replies in ```json fences despite instructions not to — strip before parsing.
+function parseJsonFromModel(text) {
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  return JSON.parse(cleaned);
+}
+
 const fallbackPynchonQuotes = [
   "Another system dismantled from within. They said it couldn't be done, but They say a lot of things.",
   "The project is complete, which means of course that it was never really about the project at all.",
@@ -422,8 +428,9 @@ app.post('/api/wardrobe/analyze-photo', requireAdmin, async (req, res) => {
         ]
       }]
     });
-    res.json(JSON.parse(message.content[0].text));
+    res.json(parseJsonFromModel(message.content[0].text));
   } catch (err) {
+    console.error('Wardrobe photo analysis failed:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -461,10 +468,11 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
       }]
     });
 
-    const ids = JSON.parse(message.content[0].text);
+    const ids = parseJsonFromModel(message.content[0].text);
     const items = ids.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
     res.json({ items });
   } catch (err) {
+    console.error('Outfit suggestion failed:', err);
     res.status(500).json({ error: err.message });
   }
 });
