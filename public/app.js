@@ -987,6 +987,7 @@ async function selectProfile(profile) {
   adminPassword = localStorage.getItem(`adminPassword-${profile}`) || null;
   oneOffExpanded = false;
   expandedProjects.clear();
+  collapsedWardrobeCats.clear();
   document.getElementById('profile-btn').textContent = profile.toUpperCase();
   hideProfileSelector();
   applyAuthUI();
@@ -1060,12 +1061,24 @@ function showWardrobe() {
 const WARDROBE_CATS = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
 const WARDROBE_CAT_LABELS = { tops: 'Top', bottoms: 'Bottom', shoes: 'Shoes', outerwear: 'Outerwear', accessories: 'Accessory' };
 
+const collapsedWardrobeCats = new Set();
+
 function renderWardrobe() {
   for (const cat of WARDROBE_CATS) {
     const list = document.getElementById(`list-wardrobe-${cat}`);
+    const count = document.getElementById(`count-wardrobe-${cat}`);
+    const header = document.querySelector(`.wardrobe-cat-header[data-wardrobe-cat="${cat}"]`);
     if (!list) continue;
     list.innerHTML = '';
     const items = (tasks.wardrobe || []).filter(i => i.wardrobeCategory === cat);
+    const collapsed = collapsedWardrobeCats.has(cat);
+
+    if (count) count.textContent = `(${items.length})`;
+    if (header) {
+      const chevron = header.querySelector('.wardrobe-cat-chevron');
+      if (chevron) chevron.textContent = collapsed ? '▸' : '▾';
+    }
+    list.classList.toggle('hidden', collapsed);
 
     if (items.length === 0) {
       const li = document.createElement('li');
@@ -1077,15 +1090,13 @@ function renderWardrobe() {
 
     for (const item of items) {
       const li = document.createElement('li');
-      li.className = 'task-item wardrobe-item';
+      li.className = 'task-item wardrobe-row';
       li.dataset.id = item.id;
       li.dataset.category = 'wardrobe';
-      const meta = [item.brand, item.color, item.occasion].filter(Boolean).join(' · ');
+      const meta = item.color || item.brand || '';
       li.innerHTML = `
-        <div class="wardrobe-item-body">
-          <span class="task-text">${escapeHtml(item.text)}</span>
-          ${meta ? `<span class="wardrobe-item-meta">${escapeHtml(meta)}</span>` : ''}
-        </div>
+        <span class="task-text">${escapeHtml(item.text)}</span>
+        ${meta ? `<span class="wardrobe-row-meta">${escapeHtml(meta)}</span>` : ''}
         <div class="task-actions">
           <button class="task-action-btn edit" data-id="${item.id}" data-category="wardrobe" title="Edit">edit</button>
           <button class="task-action-btn delete" data-id="${item.id}" data-category="wardrobe" title="Delete">delete</button>
@@ -1094,6 +1105,12 @@ function renderWardrobe() {
       list.appendChild(li);
     }
   }
+}
+
+function toggleWardrobeCat(cat) {
+  if (collapsedWardrobeCats.has(cat)) collapsedWardrobeCats.delete(cat);
+  else collapsedWardrobeCats.add(cat);
+  renderWardrobe();
 }
 
 function openWardrobeAddModal(wardrobeCat) {
@@ -1311,6 +1328,9 @@ document.addEventListener('click', (e) => {
   }
   else if (target.classList.contains('wardrobe-add-btn')) {
     openWardrobeAddModal(target.dataset.wardrobeCat);
+  }
+  else if (target.closest('.wardrobe-cat-header')) {
+    toggleWardrobeCat(target.closest('.wardrobe-cat-header').dataset.wardrobeCat);
   }
   else if (target.classList.contains('step-toggle')) {
     const id = Number(target.dataset.id);
