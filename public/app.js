@@ -1323,6 +1323,22 @@ async function saveWardrobeItem() {
   renderWardrobe();
 }
 
+// Resolves to { lat, lon } or null if geolocation is unavailable, denied, or times out.
+// Races an explicit timeout alongside getCurrentPosition's own `timeout` option — some
+// browsers don't reliably fire it while a permission prompt is stuck unresolved.
+function getUserLocation() {
+  const geo = new Promise(resolve => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      () => resolve(null),
+      { timeout: 5000, maximumAge: 10 * 60 * 1000 }
+    );
+  });
+  const timeout = new Promise(resolve => setTimeout(() => resolve(null), 6000));
+  return Promise.race([geo, timeout]);
+}
+
 async function suggestOutfit() {
   const promptEl = document.getElementById('outfit-prompt-input');
   const prompt = (promptEl && promptEl.value.trim()) || lastOutfitPrompt;
@@ -1335,14 +1351,18 @@ async function suggestOutfit() {
   btn.disabled = true;
 
   try {
+    const location = await getUserLocation();
     const res = await fetch(`${API}/wardrobe/suggest-outfit`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, lat: location && location.lat, lon: location && location.lon })
     });
-    const { items } = await res.json();
+    const { items, weather } = await res.json();
 
     document.getElementById('outfit-prompt-echo').textContent = `"${prompt}"`;
+    const weatherEl = document.getElementById('outfit-weather');
+    weatherEl.textContent = weather ? `${weather.tempF}°F, ${weather.description}` : '';
+    weatherEl.classList.toggle('hidden', !weather);
 
     const container = document.getElementById('outfit-items');
     container.innerHTML = '';

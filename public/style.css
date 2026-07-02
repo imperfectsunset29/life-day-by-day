@@ -1618,6 +1618,14 @@ body.admin-mode .wardrobe-add-btn { display: flex; }
   font-style: italic;
   color: rgba(240, 232, 224, 0.32);
   font-size: 0.88rem;
+  margin-bottom: 6px;
+}
+
+.outfit-weather {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  color: rgba(181, 201, 154, 0.6);
   margin-bottom: 20px;
 }
 
