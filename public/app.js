@@ -1068,6 +1068,55 @@ const WARDROBE_SUBCATS = {
   accessories: ['Bags', 'Jewelry', 'Scarves', 'Belts', 'Hats', 'Other']
 };
 
+// Keyword fallback so items saved before subcategories existed (no item.subcategory)
+// still group sensibly, inferred from their name instead of all dumping into "Other".
+const WARDROBE_SUBCAT_KEYWORDS = {
+  tops: [
+    ['Cardigans', ['cardigan']],
+    ['T-shirts', ['t-shirt', 'tshirt', 'tee']],
+    ['Tanks & Camisoles', ['tank', 'cami']],
+    ['Sweaters & Knits', ['sweater', 'knit', 'turtleneck', 'pullover']],
+    ['Blouses & Shirts', ['blouse', 'shirt']]
+  ],
+  bottoms: [
+    ['Jeans', ['jean']],
+    ['Trousers & Pants', ['trouser', 'pant', 'slack']],
+    ['Skirts', ['skirt']],
+    ['Shorts', ['short']],
+    ['Leggings', ['legging']]
+  ],
+  shoes: [
+    ['Sneakers', ['sneaker', 'trainer']],
+    ['Boots', ['boot']],
+    ['Heels', ['heel', 'pump']],
+    ['Flats & Loafers', ['flat', 'loafer']],
+    ['Sandals', ['sandal']]
+  ],
+  outerwear: [
+    ['Coats', ['coat']],
+    ['Jackets', ['jacket']],
+    ['Blazers', ['blazer']],
+    ['Vests', ['vest']]
+  ],
+  accessories: [
+    ['Bags', ['bag', 'purse', 'tote', 'clutch']],
+    ['Jewelry', ['earring', 'necklace', 'ring', 'bracelet', 'jewelry']],
+    ['Scarves', ['scarf']],
+    ['Belts', ['belt']],
+    ['Hats', ['hat', 'cap', 'beanie']]
+  ]
+};
+
+function guessWardrobeSubcat(cat, text) {
+  const rules = WARDROBE_SUBCAT_KEYWORDS[cat];
+  if (!rules) return 'Other';
+  const lower = text.toLowerCase();
+  for (const [subcat, keywords] of rules) {
+    if (keywords.some(k => lower.includes(k))) return subcat;
+  }
+  return 'Other';
+}
+
 function populateSubcatOptions(cat, selected) {
   const select = document.getElementById('wf-subcat');
   const options = WARDROBE_SUBCATS[cat] || [];
@@ -1106,7 +1155,7 @@ function renderWardrobe() {
     const subcats = WARDROBE_SUBCATS[cat] || [];
     const grouped = new Map(subcats.map(sc => [sc, []]));
     for (const item of items) {
-      const sc = subcats.includes(item.subcategory) ? item.subcategory : 'Other';
+      const sc = subcats.includes(item.subcategory) ? item.subcategory : guessWardrobeSubcat(cat, item.text);
       if (!grouped.has(sc)) grouped.set(sc, []);
       grouped.get(sc).push(item);
     }
