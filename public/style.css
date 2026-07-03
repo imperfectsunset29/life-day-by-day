@@ -1417,6 +1417,15 @@ body.admin-mode .progress-btn:disabled {
 
 body.admin-mode .wardrobe-add-btn { display: flex; }
 
+.wardrobe-global-add-btn {
+  display: none;
+  width: 100%;
+  margin-bottom: 32px;
+  box-sizing: border-box;
+}
+
+body.admin-mode .wardrobe-global-add-btn { display: block; }
+
 .wardrobe-suggest-row {
   margin-bottom: 48px;
 }

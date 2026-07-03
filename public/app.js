@@ -68,6 +68,7 @@ const hardThingsView = document.getElementById('hard-things-view');
 const shoppingListView = document.getElementById('shopping-list-view');
 const wardrobeView = document.getElementById('wardrobe-view');
 const wardrobeAddOverlay = document.getElementById('wardrobe-add-overlay');
+const wardrobeGlobalAddBtn = document.getElementById('wardrobe-global-add-btn');
 const outfitOverlay = document.getElementById('outfit-overlay');
 const wardrobePhotoInput = document.getElementById('wardrobe-photo-input');
 const profileSelectorView = document.getElementById('profile-selector');
@@ -1208,6 +1209,8 @@ function toggleWardrobeCat(cat) {
   renderWardrobe();
 }
 
+// wardrobeCat: a category to preset (from a category's own + button), or null/undefined
+// to leave it for photo analysis to auto-detect (from the global "+ Add Garment" button).
 function openWardrobeAddModal(wardrobeCat) {
   editingWardrobeId = null;
   capturedPhotos = [];
@@ -1219,8 +1222,8 @@ function openWardrobeAddModal(wardrobeCat) {
   document.getElementById('wf-pattern').value = '';
   document.getElementById('wf-occasion').value = '';
   document.getElementById('wf-season').value = 'all';
-  document.getElementById('wf-cat').value = wardrobeCat;
-  populateSubcatOptions(wardrobeCat);
+  document.getElementById('wf-cat').value = wardrobeCat || '';
+  populateSubcatOptions(wardrobeCat || '');
   document.getElementById('wardrobe-photo-count').textContent = '';
   document.getElementById('wardrobe-analyze-btn').classList.add('hidden');
   document.getElementById('wardrobe-analyzing-msg').classList.add('hidden');
@@ -1717,6 +1720,7 @@ function initSortable(listId, category) {
 // Wardrobe listeners
 document.getElementById('wardrobe-btn').addEventListener('click', showWardrobe);
 document.getElementById('wardrobe-back').addEventListener('click', showMain);
+wardrobeGlobalAddBtn.addEventListener('click', () => openWardrobeAddModal(null));
 document.getElementById('wardrobe-camera-btn').addEventListener('click', () => wardrobePhotoInput.click());
 wardrobePhotoInput.addEventListener('change', e => capturePhoto(e.target.files[0]));
 document.getElementById('wardrobe-analyze-btn').addEventListener('click', analyzePhotos);
