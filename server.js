@@ -102,6 +102,27 @@ function parseJsonFromModel(text) {
   return JSON.parse(cleaned);
 }
 
+// Enforce outfit coherence regardless of what the model (or the no-AI fallback) picked:
+// no repeated item, at most one item per category, and a single one-piece garment
+// (dress or jumpsuit/romper) replaces top+bottom rather than joining them.
+const ONE_PIECE_CATEGORIES = ['dresses', 'jumpsuitsRompers'];
+function sanitizeOutfit(items) {
+  const seenIds = new Set();
+  const seenCats = new Set();
+  const deduped = items.filter(item => {
+    if (seenIds.has(item.id) || seenCats.has(item.wardrobeCategory)) return false;
+    seenIds.add(item.id);
+    seenCats.add(item.wardrobeCategory);
+    return true;
+  });
+  const onePiece = deduped.find(i => ONE_PIECE_CATEGORIES.includes(i.wardrobeCategory));
+  if (!onePiece) return deduped;
+  return deduped.filter(i =>
+    i === onePiece ||
+    (i.wardrobeCategory !== 'tops' && i.wardrobeCategory !== 'bottoms' && !ONE_PIECE_CATEGORIES.includes(i.wardrobeCategory))
+  );
+}
+
 // WMO weather codes used by Open-Meteo — https://open-meteo.com/en/docs
 const WEATHER_CODES = {
   0: 'clear sky', 1: 'mainly clear', 2: 'partly cloudy', 3: 'overcast',
@@ -496,7 +517,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
         return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
       })
       .filter(Boolean);
-    return res.json({ items, weather });
+    return res.json({ items: sanitizeOutfit(items), weather });
   }
 
   try {
@@ -509,13 +530,13 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
       max_tokens: 256,
       messages: [{
         role: 'user',
-        content: `You are a personal stylist. Wardrobe inventory:\n${inventory}\n\n${weatherLine}\n\nBuild an outfit for: "${prompt}"\n\nPick the best combination — one item per relevant category, compatible patterns and seasons${weather ? ', and appropriate for the current weather (temperature and precipitation/wind implied by the conditions)' : ''}. Return ONLY a JSON array of item IDs (numbers). Raw JSON array only, no markdown.`
+        content: `You are a personal stylist. Wardrobe inventory:\n${inventory}\n\n${weatherLine}\n\nBuild an outfit for: "${prompt}"\n\nPick the best combination: at most one item per category, never the same item twice, compatible patterns and seasons${weather ? ', and appropriate for the current weather (temperature and precipitation/wind implied by the conditions)' : ''}. A dress or jumpsuit/romper is a complete base layer — if you pick one, do not also pick a top or bottom. Otherwise pick one top and one bottom. Return ONLY a JSON array of item IDs (numbers). Raw JSON array only, no markdown.`
       }]
     });
 
     const ids = parseJsonFromModel(message.content[0].text);
     const items = ids.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
-    res.json({ items, weather });
+    res.json({ items: sanitizeOutfit(items), weather });
   } catch (err) {
     console.error('Outfit suggestion failed:', err);
     res.status(500).json({ error: err.message });
