@@ -1712,3 +1712,86 @@ body.admin-mode .wardrobe-global-add-btn { display: block; }
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 }
+
+/* ============ Dreams (Journal-style dated feed) ============ */
+
+.dream-feed {
+  padding-bottom: 72px; /* keep the last card clear of the floating add button */
+}
+
+.dream-month-header {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(181, 201, 154, 0.8);
+  margin-top: 24px;
+}
+
+.dream-month-header:first-child {
+  margin-top: 0;
+}
+
+.dream-card {
+  display: block;
+  padding: 18px 18px 14px;
+}
+
+.dream-card-title {
+  display: block;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: rgba(240, 232, 224, 0.9);
+  margin-bottom: 14px;
+  white-space: pre-wrap;
+}
+
+.dream-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dream-card-date {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: rgba(240, 232, 224, 0.4);
+}
+
+.dream-menu-btn {
+  font-size: 1rem;
+  line-height: 1;
+  padding: 2px 8px;
+  letter-spacing: 0;
+}
+
+#dreams-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 32px;
+  width: 56px;
+  height: 56px;
+  font-size: 1.6rem;
+  background: rgba(181, 201, 154, 0.85);
+  color: #1a0820;
+  border: 1px solid rgba(181, 201, 154, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 28px rgba(181, 201, 154, 0.3), 0 4px 20px rgba(0, 0, 0, 0.35);
+  z-index: 50;
+}
+
+#dreams-fab:hover {
+  background: rgba(196, 216, 168, 0.95);
+}
+
+@media (max-width: 480px) {
+  #dreams-fab {
+    width: 50px;
+    height: 50px;
+    font-size: 1.4rem;
+    right: 20px;
+    bottom: 24px;
+  }
+}

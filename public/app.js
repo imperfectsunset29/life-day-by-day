@@ -744,6 +744,7 @@ function startEdit(category, id) {
     }
     await loadTasks();
     if (category === 'wardrobe') renderWardrobe();
+    if (category === 'dreams') renderDreams();
   };
 
   input.addEventListener('blur', save);
@@ -782,7 +783,9 @@ async function addTask(category) {
     : category === 'dreams'
     ? `<input type="text" class="task-text-input" placeholder="New dream...">`
     : `<span class="task-checkbox"></span><input type="text" class="task-text-input" placeholder="New task...">`;
-  list.appendChild(li);
+  // Dreams render newest-first as a dated feed, so the composer belongs at the top, not the bottom.
+  if (category === 'dreams') list.prepend(li);
+  else list.appendChild(li);
 
   const input = li.querySelector('input');
   input.focus();
@@ -887,6 +890,20 @@ function renderTreats() {
   initSortable('list-treats', 'treats');
 }
 
+// Dreams render as a dated feed (Journal-app style), grouped by month, newest first —
+// so they're always sorted by createdAt rather than relying on stored array order.
+function formatDreamMonth(iso) {
+  if (!iso) return 'Undated';
+  const d = new Date(iso);
+  const opts = d.getFullYear() === new Date().getFullYear() ? { month: 'long' } : { month: 'long', year: 'numeric' };
+  return d.toLocaleDateString('en-US', opts);
+}
+
+function formatDreamDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
 // Render dreams
 function renderDreams() {
   const list = document.getElementById('list-dreams');
@@ -900,21 +917,32 @@ function renderDreams() {
     return;
   }
 
-  for (const dream of tasks.dreams) {
+  const sorted = [...tasks.dreams].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+  let currentMonth = null;
+  for (const dream of sorted) {
+    const monthLabel = formatDreamMonth(dream.createdAt);
+    if (monthLabel !== currentMonth) {
+      currentMonth = monthLabel;
+      const header = document.createElement('li');
+      header.className = 'dream-month-header';
+      header.textContent = monthLabel;
+      list.appendChild(header);
+    }
+
     const li = document.createElement('li');
-    li.className = 'task-item';
+    li.className = 'task-item dream-card';
     li.dataset.id = dream.id;
     li.dataset.category = 'dreams';
     li.innerHTML = `
-      <span class="task-text">${escapeHtml(dream.text)}</span>
-      <div class="task-actions">
-        <button class="task-action-btn edit" data-id="${dream.id}" data-category="dreams" title="Edit">edit</button>
-        <button class="task-action-btn delete" data-id="${dream.id}" data-category="dreams" title="Delete">delete</button>
+      <span class="task-text dream-card-title">${escapeHtml(dream.text)}</span>
+      <div class="dream-card-footer">
+        <span class="dream-card-date">${formatDreamDate(dream.createdAt)}</span>
+        <button class="task-action-btn edit dream-menu-btn" data-id="${dream.id}" data-category="dreams" title="More">⋯</button>
       </div>
     `;
     list.appendChild(li);
   }
-  initSortable('list-dreams', 'dreams');
 }
 
 // Render shopping list
@@ -1510,6 +1538,9 @@ document.addEventListener('click', (e) => {
 
   if (target.classList.contains('task-checkbox')) {
     toggleTask(target.dataset.category, Number(target.dataset.id));
+  }
+  else if (target.classList.contains('dream-menu-btn')) {
+    openActionDropdown(target);
   }
   else if (target.classList.contains('edit')) {
     if (window.innerWidth <= 480) {
