@@ -42,11 +42,12 @@ const categoryLabels = {
   projects: 'Project',
   treats: 'Treat',
   hardThings: 'Hard thing',
-  shoppingList: 'Shopping item'
+  shoppingList: 'Shopping item',
+  dreams: 'Dream'
 };
 
 // State
-let tasks = { oneOff: [], habits: [], projects: [], treats: [], hardThings: [], shoppingList: [], wardrobe: [], done: [], olympus: [] };
+let tasks = { oneOff: [], habits: [], projects: [], treats: [], hardThings: [], shoppingList: [], wardrobe: [], dreams: [], done: [], olympus: [] };
 const expandedProjects = new Set();
 let oneOffExpanded = false;
 const ONEOFF_LIMIT = 5;
@@ -67,6 +68,7 @@ const treatsView = document.getElementById('treats-view');
 const hardThingsView = document.getElementById('hard-things-view');
 const shoppingListView = document.getElementById('shopping-list-view');
 const wardrobeView = document.getElementById('wardrobe-view');
+const dreamsView = document.getElementById('dreams-view');
 const wardrobeAddOverlay = document.getElementById('wardrobe-add-overlay');
 const wardrobeGlobalAddBtn = document.getElementById('wardrobe-global-add-btn');
 const outfitOverlay = document.getElementById('outfit-overlay');
@@ -759,6 +761,7 @@ async function deleteTask(category, id) {
   if (category === 'hardThings') renderHardThings();
   if (category === 'shoppingList') renderShoppingList();
   if (category === 'wardrobe') renderWardrobe();
+  if (category === 'dreams') renderDreams();
 }
 
 // Add task
@@ -776,6 +779,8 @@ async function addTask(category) {
     ? `<input type="text" class="task-text-input" placeholder="New hard thing...">`
     : category === 'shoppingList'
     ? `<input type="text" class="task-text-input" placeholder="New item...">`
+    : category === 'dreams'
+    ? `<input type="text" class="task-text-input" placeholder="New dream...">`
     : `<span class="task-checkbox"></span><input type="text" class="task-text-input" placeholder="New task...">`;
   list.appendChild(li);
 
@@ -795,6 +800,7 @@ async function addTask(category) {
     if (category === 'treats') renderTreats();
     if (category === 'hardThings') renderHardThings();
     if (category === 'shoppingList') renderShoppingList();
+    if (category === 'dreams') renderDreams();
   };
 
   input.addEventListener('blur', save);
@@ -879,6 +885,36 @@ function renderTreats() {
     list.appendChild(li);
   }
   initSortable('list-treats', 'treats');
+}
+
+// Render dreams
+function renderDreams() {
+  const list = document.getElementById('list-dreams');
+  list.innerHTML = '';
+
+  if (!tasks.dreams || tasks.dreams.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty-state';
+    li.textContent = 'No dreams yet — add something worth wanting';
+    list.appendChild(li);
+    return;
+  }
+
+  for (const dream of tasks.dreams) {
+    const li = document.createElement('li');
+    li.className = 'task-item';
+    li.dataset.id = dream.id;
+    li.dataset.category = 'dreams';
+    li.innerHTML = `
+      <span class="task-text">${escapeHtml(dream.text)}</span>
+      <div class="task-actions">
+        <button class="task-action-btn edit" data-id="${dream.id}" data-category="dreams" title="Edit">edit</button>
+        <button class="task-action-btn delete" data-id="${dream.id}" data-category="dreams" title="Delete">delete</button>
+      </div>
+    `;
+    list.appendChild(li);
+  }
+  initSortable('list-dreams', 'dreams');
 }
 
 // Render shopping list
@@ -975,6 +1011,7 @@ function showProfileSelector() {
   hardThingsView.classList.add('hidden');
   shoppingListView.classList.add('hidden');
   wardrobeView.classList.add('hidden');
+  dreamsView.classList.add('hidden');
 }
 
 function hideProfileSelector() {
@@ -1009,6 +1046,7 @@ function hideAllViews() {
   hardThingsView.classList.add('hidden');
   shoppingListView.classList.add('hidden');
   wardrobeView.classList.add('hidden');
+  dreamsView.classList.add('hidden');
 }
 
 function showOlympus() {
@@ -1054,6 +1092,14 @@ function showWardrobe() {
   renderWardrobe();
   hideAllViews();
   wardrobeView.classList.remove('hidden');
+  document.body.classList.add('secondary-view');
+  window.scrollTo(0, 0);
+}
+
+function showDreams() {
+  renderDreams();
+  hideAllViews();
+  dreamsView.classList.remove('hidden');
   document.body.classList.add('secondary-view');
   window.scrollTo(0, 0);
 }
@@ -1420,7 +1466,7 @@ document.addEventListener('dblclick', (e) => {
   if (!li) return;
   e.preventDefault();
   if (!e.target.classList.contains('task-text')) return;
-  const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"], .edit[data-category="hardThings"], .edit[data-category="shoppingList"], .edit[data-category="wardrobe"]');
+  const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"], .edit[data-category="hardThings"], .edit[data-category="shoppingList"], .edit[data-category="wardrobe"], .edit[data-category="dreams"]');
   if (editBtn) startEdit(editBtn.dataset.category, Number(editBtn.dataset.id));
 });
 
@@ -1540,6 +1586,8 @@ document.getElementById('hard-things-btn').addEventListener('click', showHardThi
 document.getElementById('hard-things-back').addEventListener('click', showMain);
 document.getElementById('shopping-list-btn').addEventListener('click', showShoppingList);
 document.getElementById('shopping-list-back').addEventListener('click', showMain);
+document.getElementById('dreams-btn').addEventListener('click', showDreams);
+document.getElementById('dreams-back').addEventListener('click', showMain);
 
 // Close overlay on backdrop click
 overlay.addEventListener('click', async (e) => {
