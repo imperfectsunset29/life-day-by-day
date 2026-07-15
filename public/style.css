@@ -1551,6 +1551,16 @@ body.admin-mode .wardrobe-global-add-btn { display: block; }
   letter-spacing: 0.08em;
 }
 
+.dream-photo-preview {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 14px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
 .wardrobe-analyzing {
   font-family: 'Instrument Serif', serif;
   font-style: italic;
@@ -1736,6 +1746,15 @@ body.admin-mode .wardrobe-global-add-btn { display: block; }
 .dream-card {
   display: block;
   padding: 18px 18px 14px;
+}
+
+.dream-card-image {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: 14px;
+  margin-bottom: 14px;
 }
 
 .dream-card-title {
