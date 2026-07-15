@@ -311,6 +311,28 @@
     <button id="dreams-fab" class="add-btn dreams-fab" data-category="dreams" title="Add a dream">+</button>
   </main>
 
+  <!-- Dream add/edit overlay -->
+  <div id="dream-add-overlay" class="overlay hidden">
+    <div class="overlay-content wardrobe-add-content">
+      <button id="dream-add-x-btn" class="oracle-x-btn">&times;</button>
+      <p class="overlay-label" id="dream-modal-label">Add dream</p>
+
+      <input type="file" id="dream-photo-input" accept="image/*" capture="environment" style="display:none">
+
+      <div class="wardrobe-photo-controls">
+        <button id="dream-photo-btn" class="btn-secondary">Add photo</button>
+        <button id="dream-photo-remove-btn" class="btn-secondary hidden">Remove photo</button>
+      </div>
+      <img id="dream-photo-preview" class="dream-photo-preview hidden" alt="">
+
+      <input id="dream-text-input" class="task-text-input wardrobe-field-input" placeholder="What's the dream?" type="text">
+
+      <div class="overlay-actions">
+        <button id="dream-save-btn" class="btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="app-footer">© 2025 Valentina Calvache. All rights reserved.</footer>
 
   <!-- One-off celebration overlay -->

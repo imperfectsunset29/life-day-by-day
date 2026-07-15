@@ -56,6 +56,8 @@ let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO
 let capturedPhotos = []; // [{ image: base64, mimeType }] — cleared after each wardrobe save
 let editingWardrobeId = null; // set while the add/edit modal is editing an existing item, else null
 let lastOutfitPrompt = '';
+let editingDreamId = null; // set while the dream modal is editing an existing dream, else null
+let pendingDreamImage = ''; // data URI of the photo attached in the dream modal, '' if none
 
 
 // DOM refs
@@ -69,6 +71,8 @@ const hardThingsView = document.getElementById('hard-things-view');
 const shoppingListView = document.getElementById('shopping-list-view');
 const wardrobeView = document.getElementById('wardrobe-view');
 const dreamsView = document.getElementById('dreams-view');
+const dreamAddOverlay = document.getElementById('dream-add-overlay');
+const dreamPhotoInput = document.getElementById('dream-photo-input');
 const wardrobeAddOverlay = document.getElementById('wardrobe-add-overlay');
 const wardrobeGlobalAddBtn = document.getElementById('wardrobe-global-add-btn');
 const outfitOverlay = document.getElementById('outfit-overlay');
@@ -744,7 +748,6 @@ function startEdit(category, id) {
     }
     await loadTasks();
     if (category === 'wardrobe') renderWardrobe();
-    if (category === 'dreams') renderDreams();
   };
 
   input.addEventListener('blur', save);
@@ -780,12 +783,8 @@ async function addTask(category) {
     ? `<input type="text" class="task-text-input" placeholder="New hard thing...">`
     : category === 'shoppingList'
     ? `<input type="text" class="task-text-input" placeholder="New item...">`
-    : category === 'dreams'
-    ? `<input type="text" class="task-text-input" placeholder="New dream...">`
     : `<span class="task-checkbox"></span><input type="text" class="task-text-input" placeholder="New task...">`;
-  // Dreams render newest-first as a dated feed, so the composer belongs at the top, not the bottom.
-  if (category === 'dreams') list.prepend(li);
-  else list.appendChild(li);
+  list.appendChild(li);
 
   const input = li.querySelector('input');
   input.focus();
@@ -803,7 +802,6 @@ async function addTask(category) {
     if (category === 'treats') renderTreats();
     if (category === 'hardThings') renderHardThings();
     if (category === 'shoppingList') renderShoppingList();
-    if (category === 'dreams') renderDreams();
   };
 
   input.addEventListener('blur', save);
@@ -935,6 +933,7 @@ function renderDreams() {
     li.dataset.id = dream.id;
     li.dataset.category = 'dreams';
     li.innerHTML = `
+      ${dream.image ? `<img class="dream-card-image" src="${dream.image}" alt="">` : ''}
       <span class="task-text dream-card-title">${escapeHtml(dream.text)}</span>
       <div class="dream-card-footer">
         <span class="dream-card-date">${formatDreamDate(dream.createdAt)}</span>
@@ -943,6 +942,91 @@ function renderDreams() {
     `;
     list.appendChild(li);
   }
+}
+
+// Resizes/compresses an image file before it's stored as a data URI on a dream,
+// so a multi-MB phone photo doesn't bloat tasks.json.
+function resizeImageForStorage(file, maxDim = 900, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function setDreamPhotoPreview(dataUri) {
+  const preview = document.getElementById('dream-photo-preview');
+  const removeBtn = document.getElementById('dream-photo-remove-btn');
+  pendingDreamImage = dataUri || '';
+  if (pendingDreamImage) {
+    preview.src = pendingDreamImage;
+    preview.classList.remove('hidden');
+    removeBtn.classList.remove('hidden');
+  } else {
+    preview.src = '';
+    preview.classList.add('hidden');
+    removeBtn.classList.add('hidden');
+  }
+}
+
+function openDreamAddModal() {
+  editingDreamId = null;
+  dreamPhotoInput.value = '';
+  document.getElementById('dream-text-input').value = '';
+  setDreamPhotoPreview('');
+  document.getElementById('dream-modal-label').textContent = 'Add dream';
+  document.getElementById('dream-save-btn').textContent = 'Save';
+  dreamAddOverlay.classList.remove('hidden');
+}
+
+function openDreamEditModal(id) {
+  const dream = tasks.dreams.find(d => d.id === id);
+  if (!dream) return;
+
+  editingDreamId = id;
+  dreamPhotoInput.value = '';
+  document.getElementById('dream-text-input').value = dream.text;
+  setDreamPhotoPreview(dream.image || '');
+  document.getElementById('dream-modal-label').textContent = 'Edit dream';
+  document.getElementById('dream-save-btn').textContent = 'Update';
+  dreamAddOverlay.classList.remove('hidden');
+}
+
+async function saveDream() {
+  const text = document.getElementById('dream-text-input').value.trim();
+  if (!text) return;
+
+  const payload = { text, image: pendingDreamImage };
+
+  if (editingDreamId) {
+    await apiFetch(`${API}/tasks/dreams/${editingDreamId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  } else {
+    await apiFetch(`${API}/tasks/dreams`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  editingDreamId = null;
+  dreamAddOverlay.classList.add('hidden');
+  await loadTasks();
+  renderDreams();
 }
 
 // Render shopping list
@@ -1495,7 +1579,9 @@ document.addEventListener('dblclick', (e) => {
   e.preventDefault();
   if (!e.target.classList.contains('task-text')) return;
   const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"], .edit[data-category="hardThings"], .edit[data-category="shoppingList"], .edit[data-category="wardrobe"], .edit[data-category="dreams"]');
-  if (editBtn) startEdit(editBtn.dataset.category, Number(editBtn.dataset.id));
+  if (!editBtn) return;
+  if (editBtn.dataset.category === 'dreams') openDreamEditModal(Number(editBtn.dataset.id));
+  else startEdit(editBtn.dataset.category, Number(editBtn.dataset.id));
 });
 
 function closeActionDropdown() {
@@ -1516,7 +1602,12 @@ function openActionDropdown(editBtn) {
 
   const doEdit = document.createElement('button');
   doEdit.textContent = 'edit';
-  doEdit.addEventListener('click', (e) => { e.stopPropagation(); closeActionDropdown(); startEdit(category, id); });
+  doEdit.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeActionDropdown();
+    if (category === 'dreams') openDreamEditModal(id);
+    else startEdit(category, id);
+  });
 
   const doDelete = document.createElement('button');
   doDelete.textContent = 'delete';
@@ -1557,6 +1648,9 @@ document.addEventListener('click', (e) => {
   }
   else if (target.classList.contains('progress-btn') && !target.disabled) {
     updateProgress(Number(target.dataset.id), Number(target.dataset.delta));
+  }
+  else if (target.id === 'dreams-fab') {
+    openDreamAddModal();
   }
   else if (target.classList.contains('add-btn')) {
     addTask(target.dataset.category);
@@ -1619,6 +1713,17 @@ document.getElementById('shopping-list-btn').addEventListener('click', showShopp
 document.getElementById('shopping-list-back').addEventListener('click', showMain);
 document.getElementById('dreams-btn').addEventListener('click', showDreams);
 document.getElementById('dreams-back').addEventListener('click', showMain);
+document.getElementById('dream-photo-btn').addEventListener('click', () => dreamPhotoInput.click());
+dreamPhotoInput.addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setDreamPhotoPreview(await resizeImageForStorage(file));
+  dreamPhotoInput.value = '';
+});
+document.getElementById('dream-photo-remove-btn').addEventListener('click', () => setDreamPhotoPreview(''));
+document.getElementById('dream-save-btn').addEventListener('click', saveDream);
+document.getElementById('dream-add-x-btn').addEventListener('click', () => dreamAddOverlay.classList.add('hidden'));
+dreamAddOverlay.addEventListener('click', e => { if (e.target === dreamAddOverlay) dreamAddOverlay.classList.add('hidden'); });
 
 // Close overlay on backdrop click
 overlay.addEventListener('click', async (e) => {

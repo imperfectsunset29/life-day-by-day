@@ -566,8 +566,10 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
   const body = req.body;
   const task = category === 'habits'
     ? { id, text, doneToday: false, lastDoneDate: null, createdAt }
-    : category === 'treats' || category === 'hardThings' || category === 'dreams'
+    : category === 'treats' || category === 'hardThings'
     ? { id, text, createdAt }
+    : category === 'dreams'
+    ? { id, text, image: body.image || '', createdAt }
     : category === 'shoppingList'
     ? { id, text, done: false, createdAt }
     : category === 'projects'
@@ -650,6 +652,10 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
   if (!task) return res.status(404).json({ error: 'Task not found' });
 
   if (req.body.text !== undefined) task.text = req.body.text;
+
+  if (category === 'dreams') {
+    if (req.body.image !== undefined) task.image = req.body.image;
+  }
 
   if (category === 'wardrobe') {
     if (req.body.brand !== undefined) task.brand = req.body.brand;
