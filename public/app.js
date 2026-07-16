@@ -937,10 +937,7 @@ function renderDreams() {
       <span class="task-text dream-card-title">${escapeHtml(dream.text)}</span>
       <div class="dream-card-footer">
         <span class="dream-card-date">${formatDreamDate(dream.createdAt)}</span>
-        <div class="dream-card-footer-actions">
-          <button class="task-action-btn dream-photo-refresh-btn" data-id="${dream.id}" title="${dream.image ? 'Replace photo with a web search' : 'Find a photo with a web search'}">⟳</button>
-          <button class="task-action-btn edit dream-menu-btn" data-id="${dream.id}" data-category="dreams" title="More">⋯</button>
-        </div>
+        <button class="task-action-btn edit dream-menu-btn" data-id="${dream.id}" data-category="dreams" title="More">⋯</button>
       </div>
     `;
     list.appendChild(li);
@@ -1030,71 +1027,6 @@ async function saveDream() {
   dreamAddOverlay.classList.add('hidden');
   await loadTasks();
   renderDreams();
-}
-
-// Searches the web for a photo matching the dream's text (via the server's
-// web-search + web-fetch tool use) instead of requiring a manual upload.
-async function findDreamPhoto() {
-  const text = document.getElementById('dream-text-input').value.trim();
-  if (!text) { alert('Type the dream first, then find a photo.'); return; }
-
-  const btn = document.getElementById('dream-find-photo-btn');
-  const original = btn.textContent;
-  btn.textContent = 'Searching the web… (up to 45s)';
-  btn.disabled = true;
-  try {
-    const res = await apiFetch(`${API}/dreams/find-image`, {
-      method: 'POST',
-      body: JSON.stringify({ text })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Search failed');
-    if (data.imageUrl) setDreamPhotoPreview(data.imageUrl);
-    else alert("Couldn't find a photo for that — try uploading one instead.");
-  } catch (err) {
-    console.error('Dream photo search failed:', err);
-    alert(`Couldn't find a photo: ${err.message}`);
-  } finally {
-    btn.textContent = original;
-    btn.disabled = false;
-  }
-}
-
-// Per-card photo search — the ⟳ icon on a dream card. Runs one search at a time,
-// scoped to just that dream, so it's easy to tell exactly which one succeeded or failed.
-async function findPhotoForCard(id) {
-  const dream = tasks.dreams.find(d => d.id === id);
-  if (!dream) return;
-
-  const btn = document.querySelector(`.dream-photo-refresh-btn[data-id="${id}"]`);
-  if (btn) { btn.textContent = '…'; btn.disabled = true; btn.title = 'Searching the web… (up to 45s)'; }
-
-  try {
-    const res = await apiFetch(`${API}/dreams/find-image`, {
-      method: 'POST',
-      body: JSON.stringify({ text: dream.text })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Search failed');
-
-    if (data.imageUrl) {
-      await apiFetch(`${API}/tasks/dreams/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ image: data.imageUrl })
-      });
-      await loadTasks();
-      renderDreams();
-    } else {
-      alert(`Couldn't find a photo for "${dream.text}". Try uploading one manually via Edit.`);
-    }
-  } catch (err) {
-    console.error('Photo search failed for dream', id, err);
-    alert(`Couldn't find a photo for "${dream.text}": ${err.message}`);
-  } finally {
-    // If the search succeeded, renderDreams() already rebuilt this button — this is a
-    // harmless no-op on the old detached element in that case.
-    if (btn) { btn.textContent = '⟳'; btn.disabled = false; }
-  }
 }
 
 // Render shopping list
@@ -1701,9 +1633,6 @@ document.addEventListener('click', (e) => {
   else if (target.classList.contains('dream-menu-btn')) {
     openActionDropdown(target);
   }
-  else if (target.classList.contains('dream-photo-refresh-btn')) {
-    if (!target.disabled) findPhotoForCard(Number(target.dataset.id));
-  }
   else if (target.classList.contains('edit')) {
     if (window.innerWidth <= 480) {
       openActionDropdown(target);
@@ -1793,7 +1722,6 @@ dreamPhotoInput.addEventListener('change', async e => {
 });
 document.getElementById('dream-photo-remove-btn').addEventListener('click', () => setDreamPhotoPreview(''));
 document.getElementById('dream-save-btn').addEventListener('click', saveDream);
-document.getElementById('dream-find-photo-btn').addEventListener('click', findDreamPhoto);
 document.getElementById('dream-add-x-btn').addEventListener('click', () => dreamAddOverlay.classList.add('hidden'));
 dreamAddOverlay.addEventListener('click', e => { if (e.target === dreamAddOverlay) dreamAddOverlay.classList.add('hidden'); });
 
