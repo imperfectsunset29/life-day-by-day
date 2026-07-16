@@ -861,7 +861,8 @@ body.admin-mode .lock-btn:hover { color: #b5c99a; }
 .task-checkbox { pointer-events: none; cursor: default; }
 .task-action-btn.edit,
 .task-action-btn.delete,
-.task-action-btn.restore { display: none; }
+.task-action-btn.restore,
+.task-action-btn.dream-photo-refresh-btn { display: none; }
 .progress-btn { pointer-events: none; cursor: default; opacity: 0.3; }
 
 /* Restore in admin mode */
@@ -869,7 +870,8 @@ body.admin-mode .add-btn { display: flex; }
 body.admin-mode .task-checkbox { pointer-events: auto; cursor: pointer; }
 body.admin-mode .task-action-btn.edit,
 body.admin-mode .task-action-btn.delete,
-body.admin-mode .task-action-btn.restore { display: inline-block; }
+body.admin-mode .task-action-btn.restore,
+body.admin-mode .task-action-btn.dream-photo-refresh-btn { display: inline-block; }
 body.admin-mode .progress-btn { pointer-events: auto; cursor: pointer; opacity: 1; }
 
 @media (max-width: 480px) {
@@ -1780,8 +1782,21 @@ body.admin-mode .wardrobe-global-add-btn { display: block; }
   color: rgba(240, 232, 224, 0.4);
 }
 
+.dream-card-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .dream-menu-btn {
   font-size: 1rem;
+  line-height: 1;
+  padding: 2px 8px;
+  letter-spacing: 0;
+}
+
+.dream-photo-refresh-btn {
+  font-size: 0.85rem;
   line-height: 1;
   padding: 2px 8px;
   letter-spacing: 0;
@@ -1803,22 +1818,6 @@ body.admin-mode .wardrobe-global-add-btn { display: block; }
 
 #dreams-fab:hover {
   background: rgba(196, 216, 168, 0.95);
-}
-
-.dreams-fill-photos-btn {
-  display: none;
-  width: 100%;
-  margin-bottom: 24px;
-  box-sizing: border-box;
-}
-
-body.admin-mode .dreams-fill-photos-btn {
-  display: block;
-}
-
-/* JS toggles .hidden once there's nothing left to fill in — must out-specificity the admin-mode rule above. */
-body.admin-mode .dreams-fill-photos-btn.hidden {
-  display: none;
 }
 
 @media (max-width: 480px) {
