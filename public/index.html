@@ -307,6 +307,7 @@
       <h2 class="olympus-title">Dreams</h2>
     </div>
     <p class="olympus-subtitle">Things worth wanting, someday</p>
+    <button id="dreams-fill-photos-btn" class="btn-secondary add-btn dreams-fill-photos-btn hidden" title="Search the web for photos of dreams that don't have one yet">Fill in missing photos</button>
     <ul id="list-dreams" class="task-list dream-feed"></ul>
     <button id="dreams-fab" class="add-btn dreams-fab" data-category="dreams" title="Add a dream">+</button>
   </main>
@@ -317,15 +318,16 @@
       <button id="dream-add-x-btn" class="oracle-x-btn">&times;</button>
       <p class="overlay-label" id="dream-modal-label">Add dream</p>
 
+      <input id="dream-text-input" class="task-text-input wardrobe-field-input" placeholder="What's the dream?" type="text">
+
       <input type="file" id="dream-photo-input" accept="image/*" capture="environment" style="display:none">
 
       <div class="wardrobe-photo-controls">
         <button id="dream-photo-btn" class="btn-secondary">Add photo</button>
+        <button id="dream-find-photo-btn" class="btn-secondary">Find photo</button>
         <button id="dream-photo-remove-btn" class="btn-secondary hidden">Remove photo</button>
       </div>
       <img id="dream-photo-preview" class="dream-photo-preview hidden" alt="">
-
-      <input id="dream-text-input" class="task-text-input wardrobe-field-input" placeholder="What's the dream?" type="text">
 
       <div class="overlay-actions">
         <button id="dream-save-btn" class="btn-primary">Save</button>

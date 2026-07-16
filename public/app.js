@@ -907,6 +907,9 @@ function renderDreams() {
   const list = document.getElementById('list-dreams');
   list.innerHTML = '';
 
+  const missingPhotos = (tasks.dreams || []).some(d => !d.image);
+  document.getElementById('dreams-fill-photos-btn').classList.toggle('hidden', !missingPhotos);
+
   if (!tasks.dreams || tasks.dreams.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty-state';
@@ -1027,6 +1030,73 @@ async function saveDream() {
   dreamAddOverlay.classList.add('hidden');
   await loadTasks();
   renderDreams();
+}
+
+// Searches the web for a photo matching the dream's text (via the server's
+// web-search + web-fetch tool use) instead of requiring a manual upload.
+async function findDreamPhoto() {
+  const text = document.getElementById('dream-text-input').value.trim();
+  if (!text) { alert('Type the dream first, then find a photo.'); return; }
+
+  const btn = document.getElementById('dream-find-photo-btn');
+  const original = btn.textContent;
+  btn.textContent = 'Searching…';
+  btn.disabled = true;
+  try {
+    const res = await apiFetch(`${API}/dreams/find-image`, {
+      method: 'POST',
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Search failed');
+    if (data.imageUrl) setDreamPhotoPreview(data.imageUrl);
+    else alert("Couldn't find a photo for that — try uploading one instead.");
+  } catch (err) {
+    console.error('Dream photo search failed:', err);
+    alert(`Couldn't find a photo: ${err.message}`);
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+}
+
+// One-click backfill: finds a photo for every existing dream that doesn't have one yet.
+async function fillMissingDreamPhotos() {
+  const missing = (tasks.dreams || []).filter(d => !d.image);
+  if (!missing.length) return;
+
+  const btn = document.getElementById('dreams-fill-photos-btn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  let found = 0;
+
+  for (let i = 0; i < missing.length; i++) {
+    btn.textContent = `Finding photos… (${i + 1}/${missing.length})`;
+    try {
+      const res = await apiFetch(`${API}/dreams/find-image`, {
+        method: 'POST',
+        body: JSON.stringify({ text: missing[i].text })
+      });
+      const data = await res.json();
+      if (res.ok && data.imageUrl) {
+        await apiFetch(`${API}/tasks/dreams/${missing[i].id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ image: data.imageUrl })
+        });
+        found++;
+      }
+    } catch (err) {
+      console.error('Photo search failed for', missing[i].text, err);
+    }
+  }
+
+  btn.textContent = original;
+  btn.disabled = false;
+  await loadTasks();
+  renderDreams();
+  if (found < missing.length) {
+    alert(`Found photos for ${found} of ${missing.length} dreams. You can add the rest manually via Edit.`);
+  }
 }
 
 // Render shopping list
@@ -1722,6 +1792,8 @@ dreamPhotoInput.addEventListener('change', async e => {
 });
 document.getElementById('dream-photo-remove-btn').addEventListener('click', () => setDreamPhotoPreview(''));
 document.getElementById('dream-save-btn').addEventListener('click', saveDream);
+document.getElementById('dream-find-photo-btn').addEventListener('click', findDreamPhoto);
+document.getElementById('dreams-fill-photos-btn').addEventListener('click', fillMissingDreamPhotos);
 document.getElementById('dream-add-x-btn').addEventListener('click', () => dreamAddOverlay.classList.add('hidden'));
 dreamAddOverlay.addEventListener('click', e => { if (e.target === dreamAddOverlay) dreamAddOverlay.classList.add('hidden'); });
 

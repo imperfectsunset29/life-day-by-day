@@ -473,6 +473,34 @@ app.delete('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => 
   res.json({ success: true });
 });
 
+// Search the web for a photo matching a dream's text — returns an image URL, doesn't save it
+app.post('/api/dreams/find-image', requireAdmin, async (req, res) => {
+  if (!anthropic) return res.status(503).json({ error: 'AI not configured — set ANTHROPIC_API_KEY' });
+  const { text } = req.body;
+  if (!text || !text.trim()) return res.status(400).json({ error: 'No text provided' });
+  try {
+    const message = await anthropic.messages.create({
+      model: 'claude-opus-4-8',
+      max_tokens: 1024,
+      output_config: { effort: 'medium' },
+      tools: [
+        { type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
+        { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 3 }
+      ],
+      messages: [{
+        role: 'user',
+        content: `Find a real photo of: "${text}". Search the web, then fetch a page that links a direct, publicly hotlinkable image URL (ending in .jpg, .jpeg, .png, or .webp, or a recognizable CDN image URL) showing this item. Return ONLY a JSON object: {"imageUrl": "<the image URL, or an empty string if you can't find one>"}. No markdown, no commentary — raw JSON only.`
+      }]
+    });
+    const textBlock = message.content.find(b => b.type === 'text');
+    const result = textBlock ? parseJsonFromModel(textBlock.text) : { imageUrl: '' };
+    res.json({ imageUrl: result.imageUrl || '' });
+  } catch (err) {
+    console.error('Dream image search failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Analyze clothing photos with Claude vision — returns extracted metadata, discards images
 app.post('/api/wardrobe/analyze-photo', requireAdmin, async (req, res) => {
   if (!anthropic) return res.status(503).json({ error: 'AI not configured — set ANTHROPIC_API_KEY' });

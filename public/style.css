@@ -1805,6 +1805,18 @@ body.admin-mode .wardrobe-global-add-btn { display: block; }
   background: rgba(196, 216, 168, 0.95);
 }
 
+.dreams-fill-photos-btn {
+  width: 100%;
+  margin-bottom: 24px;
+  box-sizing: border-box;
+}
+
+/* JS toggles this once there's nothing left to fill in — must win over the
+   admin-mode display:flex rule that .add-btn otherwise applies. */
+#dreams-fill-photos-btn.hidden {
+  display: none !important;
+}
+
 @media (max-width: 480px) {
   #dreams-fab {
     width: 50px;
