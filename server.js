@@ -493,8 +493,20 @@ app.post('/api/dreams/find-image', requireAdmin, async (req, res) => {
       }]
     }, { timeout: 45000 });
     const textBlock = message.content.find(b => b.type === 'text');
-    const result = textBlock ? parseJsonFromModel(textBlock.text) : { imageUrl: '' };
-    res.json({ imageUrl: result.imageUrl || '' });
+    const rawText = textBlock ? textBlock.text : '';
+    console.log(`Dream image search for "${text}" — stop_reason: ${message.stop_reason}, tool calls: ${message.content.filter(b => b.type === 'server_tool_use').map(b => b.name).join(', ') || 'none'}`);
+
+    let imageUrl = '';
+    try {
+      imageUrl = parseJsonFromModel(rawText).imageUrl || '';
+    } catch {
+      // Model didn't return clean JSON (extra commentary, markdown, etc.) — fall back to
+      // pulling an image URL straight out of whatever text it did return.
+      const match = rawText.match(/https?:\/\/[^\s")]+\.(?:jpg|jpeg|png|webp|gif)[^\s")]*/i);
+      imageUrl = match ? match[0] : '';
+    }
+    if (imageUrl && !/^https?:\/\//i.test(imageUrl)) imageUrl = '';
+    res.json({ imageUrl });
   } catch (err) {
     console.error('Dream image search failed:', err);
     const timedOut = /timeout/i.test(err.message || '') || err.name === 'APIConnectionTimeoutError';

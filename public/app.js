@@ -907,9 +907,6 @@ function renderDreams() {
   const list = document.getElementById('list-dreams');
   list.innerHTML = '';
 
-  const missingPhotos = (tasks.dreams || []).some(d => !d.image);
-  document.getElementById('dreams-fill-photos-btn').classList.toggle('hidden', !missingPhotos);
-
   if (!tasks.dreams || tasks.dreams.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty-state';
@@ -940,7 +937,10 @@ function renderDreams() {
       <span class="task-text dream-card-title">${escapeHtml(dream.text)}</span>
       <div class="dream-card-footer">
         <span class="dream-card-date">${formatDreamDate(dream.createdAt)}</span>
-        <button class="task-action-btn edit dream-menu-btn" data-id="${dream.id}" data-category="dreams" title="More">⋯</button>
+        <div class="dream-card-footer-actions">
+          <button class="task-action-btn dream-photo-refresh-btn" data-id="${dream.id}" title="${dream.image ? 'Replace photo with a web search' : 'Find a photo with a web search'}">⟳</button>
+          <button class="task-action-btn edit dream-menu-btn" data-id="${dream.id}" data-category="dreams" title="More">⋯</button>
+        </div>
       </div>
     `;
     list.appendChild(li);
@@ -1060,62 +1060,40 @@ async function findDreamPhoto() {
   }
 }
 
-// One-click backfill: finds a photo for every existing dream that doesn't have one yet.
-// Runs a few searches at once instead of waiting for each dream's web search to finish
-// before starting the next — each search+fetch round trip takes several seconds on its own.
-async function fillMissingDreamPhotos() {
-  const missing = (tasks.dreams || []).filter(d => !d.image);
-  if (!missing.length) return;
+// Per-card photo search — the ⟳ icon on a dream card. Runs one search at a time,
+// scoped to just that dream, so it's easy to tell exactly which one succeeded or failed.
+async function findPhotoForCard(id) {
+  const dream = tasks.dreams.find(d => d.id === id);
+  if (!dream) return;
 
-  const btn = document.getElementById('dreams-fill-photos-btn');
-  const original = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = `Finding photos… (0/${missing.length}, up to 45s each)`;
-  let completed = 0;
-  let found = 0;
+  const btn = document.querySelector(`.dream-photo-refresh-btn[data-id="${id}"]`);
+  if (btn) { btn.textContent = '…'; btn.disabled = true; btn.title = 'Searching the web… (up to 45s)'; }
 
-  const CONCURRENCY = 3;
-  const queue = [...missing];
+  try {
+    const res = await apiFetch(`${API}/dreams/find-image`, {
+      method: 'POST',
+      body: JSON.stringify({ text: dream.text })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Search failed');
 
-  async function worker() {
-    let dream;
-    while ((dream = queue.shift())) {
-      try {
-        const res = await apiFetch(`${API}/dreams/find-image`, {
-          method: 'POST',
-          body: JSON.stringify({ text: dream.text })
-        });
-        const data = await res.json();
-        if (res.ok && data.imageUrl) {
-          await apiFetch(`${API}/tasks/dreams/${dream.id}`, {
-            method: 'PUT',
-            body: JSON.stringify({ image: data.imageUrl })
-          });
-          found++;
-        }
-      } catch (err) {
-        console.error('Photo search failed for', dream.text, err);
-      }
-      completed++;
-      btn.textContent = `Finding photos… (${completed}/${missing.length})`;
+    if (data.imageUrl) {
+      await apiFetch(`${API}/tasks/dreams/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ image: data.imageUrl })
+      });
+      await loadTasks();
+      renderDreams();
+    } else {
+      alert(`Couldn't find a photo for "${dream.text}". Try uploading one manually via Edit.`);
     }
-  }
-
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, missing.length) }, worker));
-
-  btn.textContent = original;
-  btn.disabled = false;
-  await loadTasks();
-  renderDreams();
-
-  // Always confirm the outcome — the button disappears once nothing is left to
-  // fill in, and a silent success would look identical to the button doing nothing.
-  if (found === missing.length) {
-    alert(`Found ${found === 1 ? 'a photo' : `photos for all ${found}`}!`);
-  } else if (found > 0) {
-    alert(`Found photos for ${found} of ${missing.length} dreams. You can add the rest manually via Edit.`);
-  } else {
-    alert(`Couldn't find ${missing.length === 1 ? 'a photo for that dream' : 'photos for any of those dreams'}. Try uploading one manually via Edit instead.`);
+  } catch (err) {
+    console.error('Photo search failed for dream', id, err);
+    alert(`Couldn't find a photo for "${dream.text}": ${err.message}`);
+  } finally {
+    // If the search succeeded, renderDreams() already rebuilt this button — this is a
+    // harmless no-op on the old detached element in that case.
+    if (btn) { btn.textContent = '⟳'; btn.disabled = false; }
   }
 }
 
@@ -1723,6 +1701,9 @@ document.addEventListener('click', (e) => {
   else if (target.classList.contains('dream-menu-btn')) {
     openActionDropdown(target);
   }
+  else if (target.classList.contains('dream-photo-refresh-btn')) {
+    if (!target.disabled) findPhotoForCard(Number(target.dataset.id));
+  }
   else if (target.classList.contains('edit')) {
     if (window.innerWidth <= 480) {
       openActionDropdown(target);
@@ -1813,7 +1794,6 @@ dreamPhotoInput.addEventListener('change', async e => {
 document.getElementById('dream-photo-remove-btn').addEventListener('click', () => setDreamPhotoPreview(''));
 document.getElementById('dream-save-btn').addEventListener('click', saveDream);
 document.getElementById('dream-find-photo-btn').addEventListener('click', findDreamPhoto);
-document.getElementById('dreams-fill-photos-btn').addEventListener('click', fillMissingDreamPhotos);
 document.getElementById('dream-add-x-btn').addEventListener('click', () => dreamAddOverlay.classList.add('hidden'));
 dreamAddOverlay.addEventListener('click', e => { if (e.target === dreamAddOverlay) dreamAddOverlay.classList.add('hidden'); });
 
