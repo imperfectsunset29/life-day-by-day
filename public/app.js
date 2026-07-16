@@ -1040,7 +1040,7 @@ async function findDreamPhoto() {
 
   const btn = document.getElementById('dream-find-photo-btn');
   const original = btn.textContent;
-  btn.textContent = 'Searching…';
+  btn.textContent = 'Searching the web… (up to 45s)';
   btn.disabled = true;
   try {
     const res = await apiFetch(`${API}/dreams/find-image`, {
@@ -1070,6 +1070,7 @@ async function fillMissingDreamPhotos() {
   const btn = document.getElementById('dreams-fill-photos-btn');
   const original = btn.textContent;
   btn.disabled = true;
+  btn.textContent = `Finding photos… (0/${missing.length}, up to 45s each)`;
   let completed = 0;
   let found = 0;
 

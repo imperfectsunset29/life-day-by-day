@@ -485,18 +485,22 @@ app.post('/api/dreams/find-image', requireAdmin, async (req, res) => {
       output_config: { effort: 'low' },
       tools: [
         { type: 'web_search_20260209', name: 'web_search', max_uses: 1 },
-        { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 1 }
+        { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 1, max_content_tokens: 3000 }
       ],
       messages: [{
         role: 'user',
         content: `Find a real photo of: "${text}". Do one web search, then fetch the single most likely result page for a direct, publicly hotlinkable image URL (ending in .jpg, .jpeg, .png, or .webp, or a recognizable CDN image URL) showing this item. Don't search or fetch again — use the first good page you find. Return ONLY a JSON object: {"imageUrl": "<the image URL, or an empty string if you can't find one>"}. No markdown, no commentary — raw JSON only.`
       }]
-    });
+    }, { timeout: 45000 });
     const textBlock = message.content.find(b => b.type === 'text');
     const result = textBlock ? parseJsonFromModel(textBlock.text) : { imageUrl: '' };
     res.json({ imageUrl: result.imageUrl || '' });
   } catch (err) {
     console.error('Dream image search failed:', err);
+    const timedOut = /timeout/i.test(err.message || '') || err.name === 'APIConnectionTimeoutError';
+    if (timedOut) {
+      return res.status(504).json({ error: 'Search took too long and timed out after 45s — try again, or add the photo manually.' });
+    }
     res.status(500).json({ error: err.message });
   }
 });
