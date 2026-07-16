@@ -1061,6 +1061,8 @@ async function findDreamPhoto() {
 }
 
 // One-click backfill: finds a photo for every existing dream that doesn't have one yet.
+// Runs a few searches at once instead of waiting for each dream's web search to finish
+// before starting the next — each search+fetch round trip takes several seconds on its own.
 async function fillMissingDreamPhotos() {
   const missing = (tasks.dreams || []).filter(d => !d.image);
   if (!missing.length) return;
@@ -1068,27 +1070,37 @@ async function fillMissingDreamPhotos() {
   const btn = document.getElementById('dreams-fill-photos-btn');
   const original = btn.textContent;
   btn.disabled = true;
+  let completed = 0;
   let found = 0;
 
-  for (let i = 0; i < missing.length; i++) {
-    btn.textContent = `Finding photos… (${i + 1}/${missing.length})`;
-    try {
-      const res = await apiFetch(`${API}/dreams/find-image`, {
-        method: 'POST',
-        body: JSON.stringify({ text: missing[i].text })
-      });
-      const data = await res.json();
-      if (res.ok && data.imageUrl) {
-        await apiFetch(`${API}/tasks/dreams/${missing[i].id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ image: data.imageUrl })
+  const CONCURRENCY = 3;
+  const queue = [...missing];
+
+  async function worker() {
+    let dream;
+    while ((dream = queue.shift())) {
+      try {
+        const res = await apiFetch(`${API}/dreams/find-image`, {
+          method: 'POST',
+          body: JSON.stringify({ text: dream.text })
         });
-        found++;
+        const data = await res.json();
+        if (res.ok && data.imageUrl) {
+          await apiFetch(`${API}/tasks/dreams/${dream.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ image: data.imageUrl })
+          });
+          found++;
+        }
+      } catch (err) {
+        console.error('Photo search failed for', dream.text, err);
       }
-    } catch (err) {
-      console.error('Photo search failed for', missing[i].text, err);
+      completed++;
+      btn.textContent = `Finding photos… (${completed}/${missing.length})`;
     }
   }
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, missing.length) }, worker));
 
   btn.textContent = original;
   btn.disabled = false;
