@@ -482,14 +482,14 @@ app.post('/api/dreams/find-image', requireAdmin, async (req, res) => {
     const message = await anthropic.messages.create({
       model: 'claude-opus-4-8',
       max_tokens: 1024,
-      output_config: { effort: 'medium' },
+      output_config: { effort: 'low' },
       tools: [
-        { type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
-        { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 3 }
+        { type: 'web_search_20260209', name: 'web_search', max_uses: 1 },
+        { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 1 }
       ],
       messages: [{
         role: 'user',
-        content: `Find a real photo of: "${text}". Search the web, then fetch a page that links a direct, publicly hotlinkable image URL (ending in .jpg, .jpeg, .png, or .webp, or a recognizable CDN image URL) showing this item. Return ONLY a JSON object: {"imageUrl": "<the image URL, or an empty string if you can't find one>"}. No markdown, no commentary — raw JSON only.`
+        content: `Find a real photo of: "${text}". Do one web search, then fetch the single most likely result page for a direct, publicly hotlinkable image URL (ending in .jpg, .jpeg, .png, or .webp, or a recognizable CDN image URL) showing this item. Don't search or fetch again — use the first good page you find. Return ONLY a JSON object: {"imageUrl": "<the image URL, or an empty string if you can't find one>"}. No markdown, no commentary — raw JSON only.`
       }]
     });
     const textBlock = message.content.find(b => b.type === 'text');
