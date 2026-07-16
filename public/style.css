@@ -1806,15 +1806,19 @@ body.admin-mode .wardrobe-global-add-btn { display: block; }
 }
 
 .dreams-fill-photos-btn {
+  display: none;
   width: 100%;
   margin-bottom: 24px;
   box-sizing: border-box;
 }
 
-/* JS toggles this once there's nothing left to fill in — must win over the
-   admin-mode display:flex rule that .add-btn otherwise applies. */
-#dreams-fill-photos-btn.hidden {
-  display: none !important;
+body.admin-mode .dreams-fill-photos-btn {
+  display: block;
+}
+
+/* JS toggles .hidden once there's nothing left to fill in — must out-specificity the admin-mode rule above. */
+body.admin-mode .dreams-fill-photos-btn.hidden {
+  display: none;
 }
 
 @media (max-width: 480px) {

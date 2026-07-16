@@ -1106,8 +1106,15 @@ async function fillMissingDreamPhotos() {
   btn.disabled = false;
   await loadTasks();
   renderDreams();
-  if (found < missing.length) {
+
+  // Always confirm the outcome — the button disappears once nothing is left to
+  // fill in, and a silent success would look identical to the button doing nothing.
+  if (found === missing.length) {
+    alert(`Found ${found === 1 ? 'a photo' : `photos for all ${found}`}!`);
+  } else if (found > 0) {
     alert(`Found photos for ${found} of ${missing.length} dreams. You can add the rest manually via Edit.`);
+  } else {
+    alert(`Couldn't find ${missing.length === 1 ? 'a photo for that dream' : 'photos for any of those dreams'}. Try uploading one manually via Edit instead.`);
   }
 }
 
