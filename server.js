@@ -473,50 +473,6 @@ app.delete('/api/tasks/projects/:id/steps/:stepId', requireAdmin, (req, res) => 
   res.json({ success: true });
 });
 
-// Search the web for a photo matching a dream's text — returns an image URL, doesn't save it
-app.post('/api/dreams/find-image', requireAdmin, async (req, res) => {
-  if (!anthropic) return res.status(503).json({ error: 'AI not configured — set ANTHROPIC_API_KEY' });
-  const { text } = req.body;
-  if (!text || !text.trim()) return res.status(400).json({ error: 'No text provided' });
-  try {
-    const message = await anthropic.messages.create({
-      model: 'claude-opus-4-8',
-      max_tokens: 1024,
-      output_config: { effort: 'low' },
-      tools: [
-        { type: 'web_search_20260209', name: 'web_search', max_uses: 1 },
-        { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 1, max_content_tokens: 3000 }
-      ],
-      messages: [{
-        role: 'user',
-        content: `Find a real photo of: "${text}". Do one web search, then fetch the single most likely result page for a direct, publicly hotlinkable image URL (ending in .jpg, .jpeg, .png, or .webp, or a recognizable CDN image URL) showing this item. Don't search or fetch again — use the first good page you find. Return ONLY a JSON object: {"imageUrl": "<the image URL, or an empty string if you can't find one>"}. No markdown, no commentary — raw JSON only.`
-      }]
-    }, { timeout: 45000 });
-    const textBlock = message.content.find(b => b.type === 'text');
-    const rawText = textBlock ? textBlock.text : '';
-    console.log(`Dream image search for "${text}" — stop_reason: ${message.stop_reason}, tool calls: ${message.content.filter(b => b.type === 'server_tool_use').map(b => b.name).join(', ') || 'none'}`);
-
-    let imageUrl = '';
-    try {
-      imageUrl = parseJsonFromModel(rawText).imageUrl || '';
-    } catch {
-      // Model didn't return clean JSON (extra commentary, markdown, etc.) — fall back to
-      // pulling an image URL straight out of whatever text it did return.
-      const match = rawText.match(/https?:\/\/[^\s")]+\.(?:jpg|jpeg|png|webp|gif)[^\s")]*/i);
-      imageUrl = match ? match[0] : '';
-    }
-    if (imageUrl && !/^https?:\/\//i.test(imageUrl)) imageUrl = '';
-    res.json({ imageUrl });
-  } catch (err) {
-    console.error('Dream image search failed:', err);
-    const timedOut = /timeout/i.test(err.message || '') || err.name === 'APIConnectionTimeoutError';
-    if (timedOut) {
-      return res.status(504).json({ error: 'Search took too long and timed out after 45s — try again, or add the photo manually.' });
-    }
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // Analyze clothing photos with Claude vision — returns extracted metadata, discards images
 app.post('/api/wardrobe/analyze-photo', requireAdmin, async (req, res) => {
   if (!anthropic) return res.status(503).json({ error: 'AI not configured — set ANTHROPIC_API_KEY' });
