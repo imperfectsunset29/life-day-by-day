@@ -214,7 +214,7 @@ function renderCategory(category, items) {
 
     li.innerHTML = `
       <button class="task-checkbox${isDone ? ' checked' : ''}" data-id="${task.id}" data-category="${category}"></button>
-      <span class="task-text">${escapeHtml(task.text)}</span>
+      <span class="task-text">${renderTaskText(task.text)}</span>
       <div class="task-actions">
         <button class="task-action-btn edit" data-id="${task.id}" data-category="${category}" title="Edit">edit</button>
         <button class="task-action-btn delete" data-id="${task.id}" data-category="${category}" title="Delete">delete</button>
@@ -284,7 +284,7 @@ function renderProjects() {
     li.innerHTML = `
       <div class="project-top">
         <button class="step-toggle" data-id="${task.id}" title="${isExpanded ? 'Collapse steps' : 'Expand steps'}">${isExpanded ? '▾' : '▸'}</button>
-        <span class="task-text">${escapeHtml(task.text)}</span>
+        <span class="task-text">${renderTaskText(task.text)}</span>
         <div class="task-actions">
           <button class="task-action-btn edit" data-id="${task.id}" data-category="projects" title="Edit">edit</button>
           <button class="task-action-btn delete" data-id="${task.id}" data-category="projects" title="Delete">delete</button>
@@ -433,7 +433,7 @@ function renderDone() {
     const dateLabel = daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo}d ago`;
 
     li.innerHTML = `
-      <span class="task-text">${escapeHtml(task.text)}</span>
+      <span class="task-text">${renderTaskText(task.text)}</span>
       <span class="done-date">${dateLabel}</span>
       <button class="task-action-btn restore" data-id="${task.id}" data-category="done" title="Restore">undo</button>
     `;
@@ -466,7 +466,7 @@ function renderOlympus() {
     card.className = 'olympus-card';
     card.innerHTML = `
       <div class="olympus-card-header">
-        <span class="olympus-card-title">${escapeHtml(entry.text)}</span>
+        <span class="olympus-card-title">${renderTaskText(entry.text)}</span>
         <span class="olympus-card-date">${date}</span>
       </div>
       <p class="olympus-card-reflection">"${escapeHtml(entry.reflection)}"</p>
@@ -481,6 +481,25 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// Renders item text as plain escaped text, unless the whole thing is a URL (e.g. a
+// pasted product/ad link with tracking params) — then it renders as a compact,
+// truncated link with a favicon instead of an unwrappable wall of text.
+function renderTaskText(text) {
+  const trimmed = text.trim();
+  let url = null;
+  if (/^https?:\/\//i.test(trimmed)) {
+    try { url = new URL(trimmed); } catch { /* not a valid URL, fall through */ }
+  }
+  if (!url) return escapeHtml(text);
+
+  const hostname = url.hostname.replace(/^www\./, '');
+  const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(hostname)}`;
+  return `<a class="task-link" href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(url.href)}">
+    <img class="task-link-favicon" src="${favicon}" alt="" loading="lazy" onerror="this.remove()">
+    <span class="task-link-domain">${escapeHtml(hostname)}</span>
+  </a>`;
 }
 
 // Toggle task done
@@ -877,7 +896,7 @@ function renderTreats() {
     li.dataset.id = treat.id;
     li.dataset.category = 'treats';
     li.innerHTML = `
-      <span class="task-text">${escapeHtml(treat.text)}</span>
+      <span class="task-text">${renderTaskText(treat.text)}</span>
       <div class="task-actions">
         <button class="task-action-btn edit" data-id="${treat.id}" data-category="treats" title="Edit">edit</button>
         <button class="task-action-btn delete" data-id="${treat.id}" data-category="treats" title="Delete">delete</button>
@@ -934,7 +953,7 @@ function renderDreams() {
     li.dataset.category = 'dreams';
     li.innerHTML = `
       ${dream.image ? `<img class="dream-card-image" src="${dream.image}" alt="">` : ''}
-      <span class="task-text dream-card-title">${escapeHtml(dream.text)}</span>
+      <span class="task-text dream-card-title">${renderTaskText(dream.text)}</span>
       <div class="dream-card-footer">
         <span class="dream-card-date">${formatDreamDate(dream.createdAt)}</span>
         <button class="task-action-btn edit dream-menu-btn" data-id="${dream.id}" data-category="dreams" title="More">⋯</button>
@@ -1054,7 +1073,7 @@ function renderShoppingList() {
       li.dataset.category = 'shoppingList';
       li.innerHTML = `
         <button class="task-checkbox" data-id="${item.id}" data-category="shoppingList"></button>
-        <span class="task-text">${escapeHtml(item.text)}</span>
+        <span class="task-text">${renderTaskText(item.text)}</span>
         <div class="task-actions">
           <button class="task-action-btn edit" data-id="${item.id}" data-category="shoppingList" title="Edit">edit</button>
           <button class="task-action-btn delete" data-id="${item.id}" data-category="shoppingList" title="Delete">delete</button>
@@ -1076,7 +1095,7 @@ function renderShoppingList() {
       li.dataset.category = 'shoppingList';
       li.innerHTML = `
         <button class="task-checkbox checked" data-id="${item.id}" data-category="shoppingList"></button>
-        <span class="task-text">${escapeHtml(item.text)}</span>
+        <span class="task-text">${renderTaskText(item.text)}</span>
       `;
       doneList.appendChild(li);
     }
@@ -1102,7 +1121,7 @@ function renderHardThings() {
     li.dataset.id = item.id;
     li.dataset.category = 'hardThings';
     li.innerHTML = `
-      <span class="task-text">${escapeHtml(item.text)}</span>
+      <span class="task-text">${renderTaskText(item.text)}</span>
       <div class="task-actions">
         <button class="task-action-btn edit" data-id="${item.id}" data-category="hardThings" title="Edit">edit</button>
         <button class="task-action-btn delete" data-id="${item.id}" data-category="hardThings" title="Delete">delete</button>
@@ -1348,7 +1367,7 @@ function renderWardrobe() {
         li.dataset.category = 'wardrobe';
         const meta = item.color || item.brand || '';
         li.innerHTML = `
-          <span class="task-text">${escapeHtml(item.text)}</span>
+          <span class="task-text">${renderTaskText(item.text)}</span>
           ${meta ? `<span class="wardrobe-row-meta">${escapeHtml(meta)}</span>` : ''}
           <div class="task-actions">
             <button class="task-action-btn edit" data-id="${item.id}" data-category="wardrobe" title="Edit">edit</button>
@@ -1554,7 +1573,7 @@ async function suggestOutfit() {
         row.innerHTML = `
           <span class="outfit-cat-label">${escapeHtml(WARDROBE_CAT_LABELS[item.wardrobeCategory] || item.wardrobeCategory)}</span>
           <div class="outfit-item-info">
-            <span class="outfit-item-text">${escapeHtml(item.text)}</span>
+            <span class="outfit-item-text">${renderTaskText(item.text)}</span>
             ${meta ? `<span class="outfit-item-meta">${escapeHtml(meta)}</span>` : ''}
           </div>
         `;
@@ -1577,7 +1596,7 @@ document.addEventListener('dblclick', (e) => {
   const li = e.target.closest('.task-item');
   if (!li) return;
   e.preventDefault();
-  if (!e.target.classList.contains('task-text')) return;
+  if (!e.target.closest('.task-text')) return;
   const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"], .edit[data-category="hardThings"], .edit[data-category="shoppingList"], .edit[data-category="wardrobe"], .edit[data-category="dreams"]');
   if (!editBtn) return;
   if (editBtn.dataset.category === 'dreams') openDreamEditModal(Number(editBtn.dataset.id));
