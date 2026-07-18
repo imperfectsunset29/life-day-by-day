@@ -502,25 +502,30 @@ app.post('/api/wardrobe/analyze-photo', requireAdmin, async (req, res) => {
 });
 
 // Suggest an outfit from the wardrobe given a free-text prompt
+// Random pick per category — used when there's no API key configured, and as a
+// fallback so a hiccup building the AI outfit still leaves the user with *something*
+// rather than an empty result that reads as "you have no clothes."
+function randomOutfitPick(wardrobe) {
+  const cats = ['tops', 'bottoms', 'dresses', 'jumpsuitsRompers', 'shoes', 'outerwear', 'accessories'];
+  return cats
+    .map(cat => {
+      const pool = wardrobe.filter(i => i.wardrobeCategory === cat);
+      return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+    })
+    .filter(Boolean);
+}
+
 app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { prompt, lat, lon } = req.body;
-  if (!data.wardrobe || !data.wardrobe.length) return res.json({ items: [] });
+  if (!data.wardrobe || !data.wardrobe.length) return res.json({ items: [], wardrobeEmpty: true });
 
   const weather = (typeof lat === 'number' && typeof lon === 'number') ? await fetchWeather(lat, lon) : null;
   const weatherLine = weather ? `Current weather at the user's location: ${weather.tempF}°F, ${weather.description}.` : '';
 
   if (!anthropic) {
-    // Fallback: random pick per category
-    const cats = ['tops', 'bottoms', 'dresses', 'jumpsuitsRompers', 'shoes', 'outerwear', 'accessories'];
-    const items = cats
-      .map(cat => {
-        const pool = data.wardrobe.filter(i => i.wardrobeCategory === cat);
-        return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
-      })
-      .filter(Boolean);
-    return res.json({ items: sanitizeOutfit(items), weather });
+    return res.json({ items: sanitizeOutfit(randomOutfitPick(data.wardrobe)), weather });
   }
 
   try {
@@ -537,8 +542,22 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
       }]
     });
 
-    const ids = parseJsonFromModel(message.content[0].text);
-    const items = ids.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
+    let ids;
+    try {
+      ids = parseJsonFromModel(message.content[0].text);
+    } catch {
+      // Model added commentary or otherwise didn't return clean JSON — pull the
+      // first bracketed array out of the text instead of failing the whole request.
+      const match = message.content[0].text.match(/\[[\s\d,]*\]/);
+      ids = match ? JSON.parse(match[0]) : [];
+    }
+
+    let items = ids.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
+    // The model picked nothing usable (bad IDs, or genuinely couldn't match the prompt) —
+    // fall back to a random pick rather than showing an empty "add clothes" result when
+    // the wardrobe isn't actually empty.
+    if (items.length === 0) items = randomOutfitPick(data.wardrobe);
+
     res.json({ items: sanitizeOutfit(items), weather });
   } catch (err) {
     console.error('Outfit suggestion failed:', err);
