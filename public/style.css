@@ -287,11 +287,42 @@ h1 {
 
 .task-text {
   flex: 1;
+  min-width: 0;
   font-size: 0.85rem;
   font-weight: 400;
   color: rgba(240, 232, 224, 0.88);
   letter-spacing: 0.01em;
   user-select: none;
+}
+
+/* A pasted link renders as a compact chip (favicon + domain) instead of the
+   raw, often huge, tracking-parameter-laden URL. */
+.task-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: #b5c99a;
+  text-decoration: none;
+}
+
+.task-link:hover .task-link-domain {
+  text-decoration: underline;
+}
+
+.task-link-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.task-link-domain {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-text-input {
