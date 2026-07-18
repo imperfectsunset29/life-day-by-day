@@ -546,6 +546,57 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   }
 });
 
+// Blocks requests to internal/private network addresses — this endpoint fetches
+// arbitrary user-supplied URLs, so it shouldn't be usable to probe internal services.
+function isPrivateHostname(hostname) {
+  const h = hostname.toLowerCase();
+  return h === 'localhost' || h === '0.0.0.0'
+    || /^127\./.test(h)
+    || /^10\./.test(h)
+    || /^192\.168\./.test(h)
+    || /^172\.(1[6-9]|2\d|3[01])\./.test(h)
+    || /^169\.254\./.test(h);
+}
+
+function decodeHtmlEntities(s) {
+  return s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+}
+
+// Fetches a linked page's title (and image, if any) so a pasted URL can show real
+// context instead of just its domain — plain HTTP fetch, no AI/paid API involved.
+app.get('/api/link-preview', requireAdmin, async (req, res) => {
+  const { url } = req.query;
+  let parsed;
+  try {
+    parsed = new URL(url);
+    if (!/^https?:$/.test(parsed.protocol)) throw new Error('bad protocol');
+  } catch {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+  if (isPrivateHostname(parsed.hostname)) return res.status(400).json({ error: 'Invalid URL' });
+
+  try {
+    const response = await fetch(parsed.href, {
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LifeDayByDayBot/1.0)' }
+    });
+    if (!response.ok) return res.json({ title: null, image: null });
+
+    const html = (await response.text()).slice(0, 200000);
+    const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
+    const titleTag = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const ogImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+
+    const title = ogTitle ? decodeHtmlEntities(ogTitle[1]).trim() : titleTag ? decodeHtmlEntities(titleTag[1]).trim() : null;
+    const image = ogImage ? ogImage[1].trim() : null;
+    res.json({ title, image });
+  } catch (err) {
+    console.error('Link preview failed for', url, err.message);
+    res.json({ title: null, image: null });
+  }
+});
+
 // Get all tasks
 app.get('/api/tasks', (req, res) => {
   const profile = profileFrom(req);

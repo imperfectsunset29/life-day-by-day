@@ -295,18 +295,18 @@ h1 {
   user-select: none;
 }
 
-/* A pasted link renders as a compact chip (favicon + domain) instead of the
-   raw, often huge, tracking-parameter-laden URL. */
+/* A pasted link renders as a compact chip (favicon + page title + domain) instead
+   of the raw, often huge, tracking-parameter-laden URL. */
 .task-link {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   color: #b5c99a;
   text-decoration: none;
 }
 
-.task-link:hover .task-link-domain {
+.task-link:hover .task-link-title {
   text-decoration: underline;
 }
 
@@ -317,12 +317,28 @@ h1 {
   flex-shrink: 0;
 }
 
-.task-link-domain {
+.task-link-text {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   flex: 1;
+}
+
+.task-link-title {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.task-link-domain {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: rgba(240, 232, 224, 0.35);
 }
 
 .task-text-input {

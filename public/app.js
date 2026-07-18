@@ -96,6 +96,7 @@ function render() {
   initSortable('list-oneOff', 'oneOff');
   initSortable('list-habits', 'habits');
   initSortable('list-projects', 'projects');
+  hydrateLinkPreviews();
 }
 
 function splitSentences(text) {
@@ -475,6 +476,7 @@ function renderOlympus() {
 
     list.appendChild(card);
   }
+  hydrateLinkPreviews();
 }
 
 function escapeHtml(text) {
@@ -486,6 +488,10 @@ function escapeHtml(text) {
 // Renders item text as plain escaped text, unless the whole thing is a URL (e.g. a
 // pasted product/ad link with tracking params) — then it renders as a compact,
 // truncated link with a favicon instead of an unwrappable wall of text.
+// Cache of fetched link previews for this session — url -> { title, image } | null.
+// Keeps repeated re-renders of the same link from re-fetching it every time.
+const linkPreviewCache = new Map();
+
 function renderTaskText(text) {
   const trimmed = text.trim();
   let url = null;
@@ -496,10 +502,53 @@ function renderTaskText(text) {
 
   const hostname = url.hostname.replace(/^www\./, '');
   const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(hostname)}`;
-  return `<a class="task-link" href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(url.href)}">
+  const cached = linkPreviewCache.get(url.href);
+  const title = cached && cached.title ? cached.title : '';
+
+  return `<a class="task-link" href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(title || url.href)}" data-link-url="${escapeHtml(url.href)}">
     <img class="task-link-favicon" src="${favicon}" alt="" loading="lazy" onerror="this.remove()">
-    <span class="task-link-domain">${escapeHtml(hostname)}</span>
+    <span class="task-link-text">
+      <span class="task-link-title">${escapeHtml(title || hostname)}</span>
+      ${title ? `<span class="task-link-domain">${escapeHtml(hostname)}</span>` : ''}
+    </span>
   </a>`;
+}
+
+// Fetches the real page title for any not-yet-cached link chip currently in the DOM,
+// then updates it in place. Call after any render that might have added a .task-link.
+function hydrateLinkPreviews() {
+  document.querySelectorAll('.task-link[data-link-url]').forEach(async (el) => {
+    const url = el.dataset.linkUrl;
+    if (linkPreviewCache.has(url)) {
+      applyLinkPreview(el, url, linkPreviewCache.get(url));
+      return;
+    }
+    if (el.dataset.hydrating) return;
+    el.dataset.hydrating = '1';
+    let data = null;
+    try {
+      const res = await apiFetch(`${API}/link-preview?url=${encodeURIComponent(url)}`);
+      data = res.ok ? await res.json() : null;
+    } catch (err) {
+      console.error('Link preview failed for', url, err);
+    }
+    linkPreviewCache.set(url, data);
+    applyLinkPreview(el, url, data);
+  });
+}
+
+function applyLinkPreview(el, url, data) {
+  if (!data || !data.title) return;
+  const titleEl = el.querySelector('.task-link-title');
+  if (titleEl) titleEl.textContent = data.title;
+  el.title = data.title;
+  if (!el.querySelector('.task-link-domain')) {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    const span = document.createElement('span');
+    span.className = 'task-link-domain';
+    span.textContent = hostname;
+    el.querySelector('.task-link-text').appendChild(span);
+  }
 }
 
 // Toggle task done
@@ -905,6 +954,7 @@ function renderTreats() {
     list.appendChild(li);
   }
   initSortable('list-treats', 'treats');
+  hydrateLinkPreviews();
 }
 
 // Dreams render as a dated feed (Journal-app style), grouped by month, newest first —
@@ -961,6 +1011,7 @@ function renderDreams() {
     `;
     list.appendChild(li);
   }
+  hydrateLinkPreviews();
 }
 
 // Resizes/compresses an image file before it's stored as a data URI on a dream,
@@ -1100,6 +1151,7 @@ function renderShoppingList() {
       doneList.appendChild(li);
     }
   }
+  hydrateLinkPreviews();
 }
 
 // Render hard things
@@ -1130,6 +1182,7 @@ function renderHardThings() {
     list.appendChild(li);
   }
   initSortable('list-hardThings', 'hardThings');
+  hydrateLinkPreviews();
 }
 
 // Profile selector
@@ -1378,6 +1431,7 @@ function renderWardrobe() {
       }
     }
   }
+  hydrateLinkPreviews();
 }
 
 function toggleWardrobeCat(cat) {
