@@ -102,6 +102,16 @@ function parseJsonFromModel(text) {
   return JSON.parse(cleaned);
 }
 
+// Turns an Anthropic API error into something a non-technical user can act on,
+// instead of the raw "400 {\"type\":\"error\",...}" JSON blob the SDK throws.
+function friendlyAnthropicError(err) {
+  const msg = err.message || '';
+  const usageLimit = msg.match(/reached your specified API usage limits.*?regain access on ([^."]+)/i);
+  if (usageLimit) return `Anthropic API usage limit reached — resets ${usageLimit[1].trim()}. Check console.anthropic.com to adjust it.`;
+  if (/rate_limit/i.test(msg) || err.status === 429) return 'Anthropic API is rate-limited right now — try again in a bit.';
+  return err.message;
+}
+
 // Enforce outfit coherence regardless of what the model (or the no-AI fallback) picked:
 // no repeated item, at most one item per category, and a single one-piece garment
 // (dress or jumpsuit/romper) replaces top+bottom rather than joining them.
@@ -497,7 +507,7 @@ app.post('/api/wardrobe/analyze-photo', requireAdmin, async (req, res) => {
     res.json(parseJsonFromModel(message.content[0].text));
   } catch (err) {
     console.error('Wardrobe photo analysis failed:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyAnthropicError(err) });
   }
 });
 
@@ -524,45 +534,44 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   const weather = (typeof lat === 'number' && typeof lon === 'number') ? await fetchWeather(lat, lon) : null;
   const weatherLine = weather ? `Current weather at the user's location: ${weather.tempF}°F, ${weather.description}.` : '';
 
-  if (!anthropic) {
-    return res.json({ items: sanitizeOutfit(randomOutfitPick(data.wardrobe)), weather });
-  }
-
-  try {
-    const inventory = data.wardrobe.map(i =>
-      `ID:${i.id} | ${i.wardrobeCategory} | ${i.brand ? i.brand + ' ' : ''}${i.text} | color:${i.color || ''} | ${i.material || ''} | pattern:${i.pattern || ''} | occasion:${i.occasion || ''} | season:${i.season || ''}`
-    ).join('\n');
-
-    const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 256,
-      messages: [{
-        role: 'user',
-        content: `You are a personal stylist. Wardrobe inventory:\n${inventory}\n\n${weatherLine}\n\nBuild an outfit for: "${prompt}"\n\nPick the best combination: at most one item per category, never the same item twice, compatible patterns and seasons${weather ? ', and appropriate for the current weather (temperature and precipitation/wind implied by the conditions)' : ''}. A dress or jumpsuit/romper is a complete base layer — if you pick one, do not also pick a top or bottom. Otherwise pick one top and one bottom. Return ONLY a JSON array of item IDs (numbers). Raw JSON array only, no markdown.`
-      }]
-    });
-
-    let ids;
+  // Try the AI stylist, but never let it be a hard failure — any problem (usage limits,
+  // rate limits, a bad network hiccup, an unparsable response) just falls back to a
+  // random pick so the user always gets *an* outfit rather than a raw error message.
+  let items = null;
+  if (anthropic) {
     try {
-      ids = parseJsonFromModel(message.content[0].text);
-    } catch {
-      // Model added commentary or otherwise didn't return clean JSON — pull the
-      // first bracketed array out of the text instead of failing the whole request.
-      const match = message.content[0].text.match(/\[[\s\d,]*\]/);
-      ids = match ? JSON.parse(match[0]) : [];
+      const inventory = data.wardrobe.map(i =>
+        `ID:${i.id} | ${i.wardrobeCategory} | ${i.brand ? i.brand + ' ' : ''}${i.text} | color:${i.color || ''} | ${i.material || ''} | pattern:${i.pattern || ''} | occasion:${i.occasion || ''} | season:${i.season || ''}`
+      ).join('\n');
+
+      const message = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 256,
+        messages: [{
+          role: 'user',
+          content: `You are a personal stylist. Wardrobe inventory:\n${inventory}\n\n${weatherLine}\n\nBuild an outfit for: "${prompt}"\n\nPick the best combination: at most one item per category, never the same item twice, compatible patterns and seasons${weather ? ', and appropriate for the current weather (temperature and precipitation/wind implied by the conditions)' : ''}. A dress or jumpsuit/romper is a complete base layer — if you pick one, do not also pick a top or bottom. Otherwise pick one top and one bottom. Return ONLY a JSON array of item IDs (numbers). Raw JSON array only, no markdown.`
+        }]
+      });
+
+      let ids;
+      try {
+        ids = parseJsonFromModel(message.content[0].text);
+      } catch {
+        // Model added commentary or otherwise didn't return clean JSON — pull the
+        // first bracketed array out of the text instead of failing the whole request.
+        const match = message.content[0].text.match(/\[[\s\d,]*\]/);
+        ids = match ? JSON.parse(match[0]) : [];
+      }
+      items = ids.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
+    } catch (err) {
+      console.error('AI outfit suggestion unavailable, falling back to random pick:', friendlyAnthropicError(err));
     }
-
-    let items = ids.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
-    // The model picked nothing usable (bad IDs, or genuinely couldn't match the prompt) —
-    // fall back to a random pick rather than showing an empty "add clothes" result when
-    // the wardrobe isn't actually empty.
-    if (items.length === 0) items = randomOutfitPick(data.wardrobe);
-
-    res.json({ items: sanitizeOutfit(items), weather });
-  } catch (err) {
-    console.error('Outfit suggestion failed:', err);
-    res.status(500).json({ error: err.message });
   }
+  // No AI configured, the AI call failed, or it picked nothing usable — random pick,
+  // rather than showing an empty "add clothes" result when the wardrobe has items.
+  if (!items || items.length === 0) items = randomOutfitPick(data.wardrobe);
+
+  res.json({ items: sanitizeOutfit(items), weather });
 });
 
 // Blocks requests to internal/private network addresses — this endpoint fetches
