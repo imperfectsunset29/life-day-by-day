@@ -1604,7 +1604,9 @@ async function suggestOutfit() {
       headers: authHeaders(),
       body: JSON.stringify({ prompt, lat: location && location.lat, lon: location && location.lon })
     });
-    const { items, weather } = await res.json();
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Outfit suggestion failed');
+    const { items, weather, wardrobeEmpty } = data;
 
     document.getElementById('outfit-prompt-echo').textContent = `"${prompt}"`;
     const weatherEl = document.getElementById('outfit-weather');
@@ -1617,7 +1619,9 @@ async function suggestOutfit() {
     if (!items || items.length === 0) {
       const p = document.createElement('p');
       p.className = 'outfit-empty';
-      p.textContent = 'Add some clothes first — or try a different prompt';
+      p.textContent = wardrobeEmpty
+        ? 'Add some clothes first — your wardrobe is empty'
+        : "Couldn't put together an outfit for that — try a different prompt";
       container.appendChild(p);
     } else {
       for (const item of items) {
@@ -1638,6 +1642,7 @@ async function suggestOutfit() {
     outfitOverlay.classList.remove('hidden');
   } catch (err) {
     console.error('Outfit suggestion failed:', err);
+    alert(`Couldn't get an outfit suggestion: ${err.message}`);
   } finally {
     btn.textContent = originalText;
     btn.disabled = false;
