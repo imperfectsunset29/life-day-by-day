@@ -492,14 +492,7 @@ function escapeHtml(text) {
 // Keeps repeated re-renders of the same link from re-fetching it every time.
 const linkPreviewCache = new Map();
 
-function renderTaskText(text) {
-  const trimmed = text.trim();
-  let url = null;
-  if (/^https?:\/\//i.test(trimmed)) {
-    try { url = new URL(trimmed); } catch { /* not a valid URL, fall through */ }
-  }
-  if (!url) return escapeHtml(text);
-
+function renderLinkChip(url) {
   const hostname = url.hostname.replace(/^www\./, '');
   const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(hostname)}`;
   const cached = linkPreviewCache.get(url.href);
@@ -512,6 +505,33 @@ function renderTaskText(text) {
       ${title ? `<span class="task-link-domain">${escapeHtml(hostname)}</span>` : ''}
     </span>
   </a>`;
+}
+
+// Renders item text as plain escaped text, except any URL found *anywhere* in it (not
+// just text that's nothing but a URL — e.g. a pasted "Product Name https://..." share)
+// which renders as a compact chip instead of an unwrappable raw link.
+function renderTaskText(text) {
+  const urlPattern = /https?:\/\/[^\s<]+/g;
+  const matches = [...text.matchAll(urlPattern)];
+  if (matches.length === 0) return escapeHtml(text);
+
+  let html = '';
+  let lastIndex = 0;
+  for (const match of matches) {
+    const rawUrl = match[0];
+    const cleanUrl = rawUrl.replace(/[.,;:!?)\]]+$/, ''); // strip likely trailing punctuation
+    const trailing = rawUrl.slice(cleanUrl.length);
+
+    let url;
+    try { url = new URL(cleanUrl); } catch { continue; } // not actually a valid URL — leave as plain text
+
+    html += escapeHtml(text.slice(lastIndex, match.index));
+    html += renderLinkChip(url);
+    html += escapeHtml(trailing);
+    lastIndex = match.index + rawUrl.length;
+  }
+  html += escapeHtml(text.slice(lastIndex));
+  return html;
 }
 
 // Fetches the real page title for any not-yet-cached link chip currently in the DOM,
