@@ -295,13 +295,16 @@ h1 {
   user-select: none;
 }
 
-/* A pasted link renders as a compact chip (favicon + page title + domain) instead
-   of the raw, often huge, tracking-parameter-laden URL. */
+/* A URL — whether it's the whole field or just part of a longer pasted line — renders
+   as a compact chip (favicon + page title + domain) instead of the raw, often huge,
+   tracking-parameter-laden link. inline-flex so it sits correctly mid-sentence when
+   there's surrounding text, not just when the link is the entire field. */
 .task-link {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  vertical-align: middle;
   gap: 8px;
-  min-width: 0;
+  max-width: 100%;
   color: #b5c99a;
   text-decoration: none;
 }
@@ -318,10 +321,10 @@ h1 {
 }
 
 .task-link-text {
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
   min-width: 0;
-  flex: 1;
+  max-width: 220px;
 }
 
 .task-link-title {
