@@ -492,17 +492,32 @@ function escapeHtml(text) {
 // Keeps repeated re-renders of the same link from re-fetching it every time.
 const linkPreviewCache = new Map();
 
+// Best-effort description pulled straight from the URL's path when the page's real
+// title isn't available (fetch blocked, no AI/paid API used) — e.g. a Farfetch link
+// like /shopping/prada-nylon-tote-bag-item-12345.aspx becomes "Prada Nylon Tote Bag Item".
+function urlSlugTitle(url) {
+  const segments = url.pathname.split('/').filter(Boolean);
+  if (segments.length === 0) return null;
+  let last = decodeURIComponent(segments[segments.length - 1]);
+  last = last.replace(/\.(html?|aspx|php|asp|jsp)$/i, '');
+  last = last.replace(/[-_+]+/g, ' ').trim();
+  last = last.replace(/\b\w*\d{4,}\w*\b/g, '').replace(/\s+/g, ' ').trim(); // drop SKU/ID-looking tokens
+  if (!last || last.length < 3) return null;
+  return last.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
 function renderLinkChip(url) {
   const hostname = url.hostname.replace(/^www\./, '');
   const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(hostname)}`;
   const cached = linkPreviewCache.get(url.href);
-  const title = cached && cached.title ? cached.title : '';
+  const title = (cached && cached.title) || urlSlugTitle(url) || '';
+  const showDomain = title && title.toLowerCase() !== hostname.toLowerCase();
 
   return `<a class="task-link" href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(title || url.href)}" data-link-url="${escapeHtml(url.href)}">
     <img class="task-link-favicon" src="${favicon}" alt="" loading="lazy" onerror="this.remove()">
     <span class="task-link-text">
       <span class="task-link-title">${escapeHtml(title || hostname)}</span>
-      ${title ? `<span class="task-link-domain">${escapeHtml(hostname)}</span>` : ''}
+      ${showDomain ? `<span class="task-link-domain">${escapeHtml(hostname)}</span>` : ''}
     </span>
   </a>`;
 }
