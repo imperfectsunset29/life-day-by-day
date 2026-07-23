@@ -642,12 +642,26 @@ async function showCelebration(quote) {
 }
 
 async function showOneOffCelebration() {
+  // Open the overlay immediately rather than waiting on the quote round-trip first —
+  // the panel appears right away, and the sand-text animation fills in once it arrives.
+  const el = document.getElementById('oneoff-celebration-overlay');
+  el.classList.remove('hidden');
+  await document.fonts.ready;
+
+  let quote = 'The list is empty. The world, improbably, persists.';
   try {
-    const data = await apiFetch(`${API}/quote/celebration`);
-    showCelebration(data.quote);
+    const res = await apiFetch(`${API}/quote/celebration`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.quote) quote = data.quote;
+    }
   } catch {
-    showCelebration('The list is empty. The world, improbably, persists.');
+    // network/auth failure — fall back to the default quote above
   }
+
+  requestAnimationFrame(() => {
+    animateSandText(el.querySelector('.celebration-canvas'), quote);
+  });
 }
 
 function animateSandText(canvas, text) {
