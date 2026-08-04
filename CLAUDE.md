@@ -82,6 +82,8 @@ Single breakpoint at `max-width: 480px` in `style.css`. When editing overlay or 
 
 **Back buttons:** Secondary views (Olympus, Treats, Hard Things, Shopping List) use `.back-btn` — a bare `‹` chevron via `::before`, no label, no border. Context makes navigation legible without naming it.
 
+**Floating nav:** A glass pill fixed at the bottom of every screen (`#floating-nav-dock` → `#floating-nav`), holding Home, Olympus, Wardrobe, Shopping, Dreams in that order. It collapses to a single circle showing the current view's icon, and expands on tap. Auto-collapses after `NAV_IDLE_MS` of no interaction, on any scroll, on a tap outside, and `NAV_SETTLE_MS` after a jump. Key functions in `app.js`: `expandNav()`, `collapseNav()`, `setActiveNav(key)`. `setActiveNav(null)` (Treats, Hard Things) highlights nothing and falls the collapsed circle back to Home. Adding a destination = one `.floating-nav-item` in `index.html` + one entry in `NAV_DESTINATIONS` + a `setActiveNav()` call in its `show*()` function. Five items is the comfortable ceiling at 390px; Treats and Hard Things stay as `.tertiary-link` text at the bottom of the main view. Anything `position: fixed` near the bottom (e.g. `#dreams-fab`) must sit above the pill, and `body` bottom padding must clear it.
+
 **Profile selector logo:** `logo.jpg` displayed at 200px with `mix-blend-mode: screen`, radial `mask-image` fade, and amber `drop-shadow` — the brain emerges from the dark gradient rather than sitting as a distinct image.
 
 ## App Icon & Visual Reference — Non-Negotiable

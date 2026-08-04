@@ -1245,11 +1245,13 @@ function showProfileSelector() {
   shoppingListView.classList.add('hidden');
   wardrobeView.classList.add('hidden');
   dreamsView.classList.add('hidden');
+  floatingNavDock.classList.add('hidden');
 }
 
 function hideProfileSelector() {
   profileSelectorView.classList.add('hidden');
   appHeader.classList.remove('hidden');
+  floatingNavDock.classList.remove('hidden');
 }
 
 async function selectProfile(profile) {
@@ -1287,6 +1289,7 @@ function showOlympus() {
   hideAllViews();
   olympusView.classList.remove('hidden');
   document.body.classList.add('secondary-view');
+  setActiveNav('olympus');
   window.scrollTo(0, 0);
 }
 
@@ -1295,6 +1298,7 @@ function showTreats() {
   hideAllViews();
   treatsView.classList.remove('hidden');
   document.body.classList.add('secondary-view');
+  setActiveNav(null);
   window.scrollTo(0, 0);
 }
 
@@ -1303,6 +1307,7 @@ function showHardThings() {
   hideAllViews();
   hardThingsView.classList.remove('hidden');
   document.body.classList.add('secondary-view');
+  setActiveNav(null);
   window.scrollTo(0, 0);
 }
 
@@ -1311,6 +1316,7 @@ function showShoppingList() {
   hideAllViews();
   shoppingListView.classList.remove('hidden');
   document.body.classList.add('secondary-view');
+  setActiveNav('shopping');
   window.scrollTo(0, 0);
 }
 
@@ -1318,6 +1324,7 @@ function showMain() {
   hideAllViews();
   mainView.classList.remove('hidden');
   document.body.classList.remove('secondary-view');
+  setActiveNav('home');
   window.scrollTo(0, 0);
 }
 
@@ -1326,6 +1333,7 @@ function showWardrobe() {
   hideAllViews();
   wardrobeView.classList.remove('hidden');
   document.body.classList.add('secondary-view');
+  setActiveNav('wardrobe');
   window.scrollTo(0, 0);
 }
 
@@ -1334,8 +1342,82 @@ function showDreams() {
   hideAllViews();
   dreamsView.classList.remove('hidden');
   document.body.classList.add('secondary-view');
+  setActiveNav('dreams');
   window.scrollTo(0, 0);
 }
+
+// ============ Floating collapsible nav ============
+//
+// The nav is a glass pill that lives at the bottom of every screen. Expanded it
+// shows all five destinations; collapsed it folds down to a single circle
+// showing the icon of wherever you currently are. It collapses on its own once
+// you stop touching it, and as soon as you start scrolling, so it stays out of
+// the way of the content. Tapping the circle opens it back up.
+
+const floatingNavDock = document.getElementById('floating-nav-dock');
+const floatingNav = document.getElementById('floating-nav');
+const NAV_IDLE_MS = 2600;      // how long an untouched open pill stays open
+const NAV_SETTLE_MS = 450;     // pause after a jump before folding away
+
+let navCollapseTimer = null;
+
+const NAV_DESTINATIONS = {
+  home: showMain,
+  olympus: showOlympus,
+  wardrobe: showWardrobe,
+  shopping: showShoppingList,
+  dreams: showDreams,
+};
+
+function collapseNav() {
+  clearTimeout(navCollapseTimer);
+  navCollapseTimer = null;
+  floatingNav.classList.add('collapsed');
+}
+
+// delay = ms of inactivity before it folds itself back up; null keeps it open.
+function expandNav(delay = NAV_IDLE_MS) {
+  clearTimeout(navCollapseTimer);
+  floatingNav.classList.remove('collapsed');
+  navCollapseTimer = delay === null ? null : setTimeout(collapseNav, delay);
+}
+
+// `key` is a NAV_DESTINATIONS key, or null for views that aren't in the nav
+// (Treats, Hard Things) — those show no highlight, and the collapsed circle
+// falls back to Home so there's always a way back.
+function setActiveNav(key) {
+  const items = floatingNav.querySelectorAll('.floating-nav-item');
+  items.forEach(item => {
+    const isActive = item.dataset.nav === key;
+    item.classList.toggle('active', isActive);
+    item.classList.toggle('collapsed-face', key ? isActive : item.dataset.nav === 'home');
+    item.setAttribute('aria-current', isActive ? 'page' : 'false');
+  });
+}
+
+floatingNav.addEventListener('click', e => {
+  // While collapsed the pill is a single button: any tap just opens it.
+  if (floatingNav.classList.contains('collapsed')) {
+    expandNav();
+    return;
+  }
+  const item = e.target.closest('.floating-nav-item');
+  if (!item) { expandNav(); return; }
+  const go = NAV_DESTINATIONS[item.dataset.nav];
+  if (go) go();
+  expandNav(NAV_SETTLE_MS);
+});
+
+// Scrolling means you're reading, not navigating — get out of the way.
+window.addEventListener('scroll', () => {
+  if (!floatingNav.classList.contains('collapsed')) collapseNav();
+}, { passive: true });
+
+// Tapping anywhere else closes it too.
+document.addEventListener('click', e => {
+  if (floatingNav.classList.contains('collapsed')) return;
+  if (!e.target.closest('#floating-nav')) collapseNav();
+});
 
 // ============ Wardrobe ============
 
@@ -1830,15 +1912,12 @@ document.getElementById('close-overlay-btn').addEventListener('click', async () 
   currentSurpriseTask = null;
 });
 document.getElementById('home-title').addEventListener('click', showMain);
-document.getElementById('olympus-btn').addEventListener('click', showOlympus);
 document.getElementById('olympus-back').addEventListener('click', showMain);
 document.getElementById('treats-btn').addEventListener('click', showTreats);
 document.getElementById('treats-back').addEventListener('click', showMain);
 document.getElementById('hard-things-btn').addEventListener('click', showHardThings);
 document.getElementById('hard-things-back').addEventListener('click', showMain);
-document.getElementById('shopping-list-btn').addEventListener('click', showShoppingList);
 document.getElementById('shopping-list-back').addEventListener('click', showMain);
-document.getElementById('dreams-btn').addEventListener('click', showDreams);
 document.getElementById('dreams-back').addEventListener('click', showMain);
 document.getElementById('dream-photo-btn').addEventListener('click', () => dreamPhotoInput.click());
 dreamPhotoInput.addEventListener('change', async e => {
@@ -2029,7 +2108,6 @@ function initSortable(listId, category) {
 }
 
 // Wardrobe listeners
-document.getElementById('wardrobe-btn').addEventListener('click', showWardrobe);
 document.getElementById('wardrobe-back').addEventListener('click', showMain);
 wardrobeGlobalAddBtn.addEventListener('click', () => openWardrobeAddModal(null));
 document.getElementById('wardrobe-camera-btn').addEventListener('click', () => wardrobePhotoInput.click());
