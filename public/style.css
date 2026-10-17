@@ -1592,19 +1592,18 @@ body.admin-mode .wardrobe-add-btn { display: flex; }
   display: none;
 }
 
-body.admin-mode .wardrobe-global-add-btn { display: inline-block; }
+body.admin-mode .wardrobe-global-add-btn { display: block; width: 100%; }
 
 .wardrobe-suggest-row {
   margin-bottom: 64px;
 }
 
-/* "My closet" subheader: title left, Add garment right */
+/* "My closet" subheader, with Add garment spanning its own line beneath */
 .wardrobe-closet-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 16px;
-  min-height: 40px;
   margin-bottom: 24px;
 }
 
