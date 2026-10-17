@@ -1590,13 +1590,30 @@ body.admin-mode .wardrobe-add-btn { display: flex; }
 
 .wardrobe-global-add-btn {
   display: none;
-  margin-bottom: 32px;
 }
 
 body.admin-mode .wardrobe-global-add-btn { display: inline-block; }
 
 .wardrobe-suggest-row {
-  margin-bottom: 40px;
+  margin-bottom: 64px;
+}
+
+/* "My closet" subheader: title left, Add garment right */
+.wardrobe-closet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  margin-bottom: 24px;
+}
+
+.wardrobe-closet-title {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: #f0e8e0;
+  line-height: 1.2;
 }
 
 .wardrobe-prompt-input {
