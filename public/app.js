@@ -1329,6 +1329,8 @@ function showMain() {
 }
 
 function showWardrobe() {
+  // Every visit starts fully expanded; collapsing only lasts for the current visit
+  collapsedWardrobeCats.clear();
   renderWardrobe();
   hideAllViews();
   wardrobeView.classList.remove('hidden');
