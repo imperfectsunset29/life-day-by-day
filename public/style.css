@@ -24,7 +24,8 @@ body {
   max-width: 640px;
   margin: 0 auto;
   /* Bottom padding clears the floating nav so content never hides behind it */
-  padding: 48px 24px calc(120px + env(safe-area-inset-bottom));
+  /* Top padding clears the iOS status bar (and its blur) when installed to the home screen */
+  padding: calc(48px + env(safe-area-inset-top)) 24px calc(120px + env(safe-area-inset-bottom));
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   opacity: 0;
@@ -958,7 +959,7 @@ textarea.task-text-input {
 /* Mobile */
 @media (max-width: 480px) {
   body {
-    padding: 56px 20px calc(112px + env(safe-area-inset-bottom));
+    padding: calc(32px + env(safe-area-inset-top)) 20px calc(112px + env(safe-area-inset-bottom));
   }
 
   header {

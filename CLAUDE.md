@@ -80,6 +80,8 @@ Single breakpoint at `max-width: 480px` in `style.css`. When editing overlay or 
 
 New overlays should reuse `.overlay` / `.overlay-content` to inherit these guards.
 
+**Status bar clearance — don't remove.** Installed to the home screen, the app draws under the iOS status bar (`black-translucent` + `viewport-fit=cover`), and iOS 26 blurs that strip. `body` top padding is therefore `calc(… + env(safe-area-inset-top))` so page titles start below the blur. Anything new pinned to the top must add `env(safe-area-inset-top)` too.
+
 ## Visual Identity — Non-Negotiable
 
 - **Palette:** Near-black (`#130518`) radial gradient background with plum/indigo blooms, warm ivory `#f0e8e0` text, sage green `#b5c99a` accents, warm amber `#c8a87a` for highlights
