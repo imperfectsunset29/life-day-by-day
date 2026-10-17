@@ -88,12 +88,12 @@ New overlays should reuse `.overlay` / `.overlay-content` to inherit these guard
 - **Feel:** Prada FW21 remains the colour and atmosphere reference — deep plum, warm ivory, sage green, editorial restraint. The geometry shifts from flat squares to Liquid Glass, but the palette and tone do not change.
 
 **Button hierarchy — non-negotiable.** Emphasis follows how central an action is to the screen, not how often it's built. At most **one** primary per screen or overlay.
-- **Primary — `.btn-primary`** (filled sage pill with glow): the action the screen exists for. Wardrobe → "What should I wear?"; overlays → the confirming action ("Got it", "Love it", "Save").
+- **Primary — `.btn-primary`** (filled sage pill with glow): the action the screen exists for. Home → "Surprise me"; Wardrobe → "What should I wear?"; overlays → the confirming action ("Got it", "Love it", "Save").
 - **Secondary — `.btn-secondary`** (glass pill): alternatives next to the primary ("Re-spin", "Cancel", "Add photo").
 - **Tertiary — `.btn-tertiary`** (ghost pill: no fill, no glow, dim ivory text): maintenance/admin actions such as "+ Add garment". Never sage-filled.
 - Icon-only adds (`.add-btn`, `.wardrobe-add-btn`), edit links and `.back-btn` sit below tertiary.
 - Buttons hug their label — no `width: 100%`. Size signals nothing; fill and glow carry the hierarchy.
-- `.surprise-btn` is the home header chip only; don't reuse it as a general button.
+- No one-off button classes. Every button is one of the three tiers (plus icon-only/back).
 
 **App header is Home-only.** The `#header` block (LIFE title, profile switcher, Surprise me, lock) shows only on the main view. Every `show*()` for a secondary view adds `body.secondary-view`, which hides `#header`; the view's own title (`.olympus-header`) is the page header. New views must add `secondary-view` too.
 
