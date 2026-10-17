@@ -402,15 +402,25 @@ async function updateProgress(id, delta) {
     li.querySelector('.progress-label').textContent = `${newProgress}%`;
   }
 
+  // At 100% the server writes a fresh quote, which takes a moment — open the
+  // overlay now so the finish feels instant, and let the quote fill in when it lands.
+  if (newProgress >= 100) openCelebrationOverlay();
+
   const putRes = await apiFetch(`${API}/tasks/projects/${id}`, {
     method: 'PUT',
     body: JSON.stringify({ progress: newProgress })
   });
 
   if (newProgress >= 100) {
-    const result = await putRes.json();
+    let reflection = 'It is finished, which is more than most things can say.';
+    try {
+      const result = await putRes.json();
+      if (result.reflection) reflection = result.reflection;
+    } catch {
+      // keep the default line above
+    }
     loadTasks(); // fire without await — re-renders in background behind overlay
-    if (result.reflection) showCelebration(result.reflection);
+    showCelebration(reflection);
   }
 }
 
@@ -632,6 +642,14 @@ async function toggleTask(category, id) {
   }
 }
 
+function openCelebrationOverlay() {
+  const el = document.getElementById('oneoff-celebration-overlay');
+  // Wipe the previous quote so it doesn't flash while the new one is on its way
+  const canvas = el.querySelector('.celebration-canvas');
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  el.classList.remove('hidden');
+}
+
 async function showCelebration(quote) {
   const el = document.getElementById('oneoff-celebration-overlay');
   el.classList.remove('hidden');
@@ -645,7 +663,7 @@ async function showOneOffCelebration() {
   // Open the overlay immediately rather than waiting on the quote round-trip first —
   // the panel appears right away, and the sand-text animation fills in once it arrives.
   const el = document.getElementById('oneoff-celebration-overlay');
-  el.classList.remove('hidden');
+  openCelebrationOverlay();
   await document.fonts.ready;
 
   let quote = 'The list is empty. The world, improbably, persists.';

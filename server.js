@@ -381,54 +381,80 @@ function logEvent(type, payload, profile) {
   fs.writeFileSync(file, JSON.stringify(events, null, 2));
 }
 
-async function getRandomPynchon() {
-  if (!anthropic) {
-    return fallbackPynchonQuotes[Math.floor(Math.random() * fallbackPynchonQuotes.length)];
-  }
+// ---- Pynchon quotes (project ascension + one-off celebration) ----
+// Repetition comes from asking the same question the same way every time, so each request
+// gets: the specific thing that was finished, a randomly drawn angle, and the recent quotes
+// it must not echo. The house motifs (entropy, "They", hidden systems) are a palette to
+// draw from occasionally, not a checklist every quote has to tick.
+
+// Each angle is a different doorway into the same voice — one is drawn at random per quote.
+const PYNCHON_ANGLES = [
+  'a dispatch from a secret postal service that has been tracking this project',
+  'a line from a song a minor character bursts into, complete with an absurd detail',
+  'a footnote from the official history of some company that does not quite exist',
+  'a rule from a paranoid\'s private rulebook',
+  'the trajectory of something launched — and where it actually came down',
+  'an overheard bit of conversation in a bar at 3 a.m. between two people who know too much',
+  'an inventory of strange objects left behind after the work was done',
+  'a radio announcer reporting the finish as though it were weather or traffic',
+  'a mid-century bureaucratic memo, stamped and countersigned, approving the finish',
+  'a scientist\'s lab note recording an anomaly that turns out to be you',
+  'the view from a minor saint, a lightbulb, or another unlikely witness',
+  'a misprinted map in which this finished thing is marked as a place',
+  'a bit of vaudeville or a slapstick routine that turns suddenly tender',
+  'a conspiracy theory explaining why this, of all things, got done',
+  'the moment just after the finish, rendered with absurd, precise physical detail',
+  'an elegy that keeps getting interrupted by something ridiculous',
+];
+
+const recentCelebrationQuotes = { vc: [], fg: [] }; // in-memory; one-off quotes aren't persisted
+
+function pickRandom(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function buildPynchonPrompt({ occasion, subject, avoid }) {
+  const angle = pickRandom(PYNCHON_ANGLES);
+  const avoidBlock = avoid.length
+    ? `\n\nThese recent quotes have already been used. Yours must share none of their images, openings, sentence shapes, or key words:\n${avoid.map(q => `- ${q}`).join('\n')}`
+    : '';
+  return `Write one short aphorism (1–3 sentences) in the voice of Thomas Pynchon, marking this moment: ${occasion}${subject ? ` The thing finished was: "${subject}". Let it shape the quote obliquely — a specific detail, not a summary.` : ''}
+
+Come at it through this angle: ${angle}.
+
+The register is sardonic, paranoid, literary, darkly funny, and it should land as a small reward for the person who finished. Surprise is the priority: reach for concrete, unexpected images over stock gestures. Do not lean on the default moves (the word "entropy", a capitalized "They", "And yet.", "Filed under", "somewhere a bell rings"); use one only if it's genuinely fresh here. Make it a complete thought — no em-dash openings, no fragments, no trailing off.${avoidBlock}
+
+Return only the quote, with no attribution or preamble.`;
+}
+
+async function generatePynchon({ occasion, subject, avoid, fallbacks }) {
+  const freshFallback = () => {
+    const unused = fallbacks.filter(q => !avoid.includes(q));
+    return pickRandom(unused.length ? unused : fallbacks);
+  };
+  if (!anthropic) return freshFallback();
   try {
     const msg = await anthropic.messages.create({
       model: 'claude-opus-4-8',
-      max_tokens: 200,
-      messages: [{
-        role: 'user',
-        content: 'Write a single complete, self-contained aphorism (1–3 sentences) in the style of Thomas Pynchon, on the theme of finishing a project. It must be a whole thought — no mid-sentence openings with an em-dash, no fragments, no trailing off. Sardonic, paranoid, literary; darkly funny; hints of entropy, hidden systems, or "They". Return only the text, no attribution, no preamble.'
-      }]
+      max_tokens: 300,
+      messages: [{ role: 'user', content: buildPynchonPrompt({ occasion, subject, avoid }) }]
     });
-    return msg.content[0].text.trim();
+    const text = msg.content.find(b => b.type === 'text');
+    return (text && text.text.trim().replace(/^["“]|["”]$/g, '')) || freshFallback();
   } catch {
-    return fallbackPynchonQuotes[Math.floor(Math.random() * fallbackPynchonQuotes.length)];
+    return freshFallback();
   }
 }
 
-// Pre-generated quote queue — filled on startup and replenished after each use
-// so project ascension can respond instantly without waiting for the Claude API.
-const pynchonQueue = [];
-const QUEUE_TARGET = 2;
-let pynchonRefilling = false;
-
-async function refillPynchonQueue() {
-  if (!anthropic || pynchonRefilling) return;
-  pynchonRefilling = true;
-  try {
-    while (pynchonQueue.length < QUEUE_TARGET) {
-      pynchonQueue.push(await getRandomPynchon());
-    }
-  } catch {} finally {
-    pynchonRefilling = false;
-  }
+function getProjectReflection(projectText, data) {
+  const avoid = (data.olympus || []).map(o => o.reflection).filter(Boolean).slice(-12);
+  return generatePynchon({
+    occasion: 'a project has just been carried all the way to 100% and ascends to Olympus.',
+    subject: projectText,
+    avoid,
+    fallbacks: fallbackPynchonQuotes
+  });
 }
-
-async function getNextPynchon() {
-  if (pynchonQueue.length > 0) {
-    const quote = pynchonQueue.shift();
-    refillPynchonQueue().catch(() => {}); // replenish in background
-    return quote;
-  }
-  return getRandomPynchon(); // queue exhausted — generate on demand
-}
-
-// Warm the queue on startup
-refillPynchonQueue().catch(() => {});
 
 // Add a step to a project
 app.post('/api/tasks/projects/:id/steps', requireAdmin, (req, res) => {
@@ -695,28 +721,23 @@ app.put('/api/oracle', requireAdmin, (req, res) => {
 });
 
 // Generate a one-off celebration quote
+const fallbackCelebrationQuotes = [
+  'The list is empty. The world, improbably, persists.',
+  'All tasks resolved. The entropy was only deferred.',
+  'You have named the knowable things and done them. The rest were never on the list.',
+];
+
 app.get('/api/quote/celebration', async (req, res) => {
-  if (!anthropic) {
-    const fallback = [
-      'The list is empty. The world, improbably, persists.',
-      'All tasks resolved. The entropy was only deferred.',
-      'You have named the knowable things and done them. The rest were never on the list.',
-    ];
-    return res.json({ quote: fallback[Math.floor(Math.random() * fallback.length)] });
-  }
-  try {
-    const msg = await anthropic.messages.create({
-      model: 'claude-opus-4-8',
-      max_tokens: 150,
-      messages: [{
-        role: 'user',
-        content: 'Write a single brief quote (1–3 sentences) in the style of Thomas Pynchon about having cleared every item from a to-do list. Make it sardonic, paranoid, literary — darkly funny with hints of entropy, hidden systems, or "They". Return only the quote, no attribution or preamble.'
-      }]
-    });
-    res.json({ quote: msg.content[0].text.trim() });
-  } catch {
-    res.json({ quote: 'The list is empty. The world, improbably, persists.' });
-  }
+  const profile = profileFrom(req);
+  const recent = recentCelebrationQuotes[profile] || (recentCelebrationQuotes[profile] = []);
+  const quote = await generatePynchon({
+    occasion: 'every single item on a to-do list has just been cleared.',
+    avoid: recent,
+    fallbacks: fallbackCelebrationQuotes
+  });
+  recent.push(quote);
+  if (recent.length > 12) recent.shift();
+  res.json({ quote });
 });
 
 // Update a task
@@ -762,7 +783,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
     // Auto-ascend at 100%
     if (task.progress >= 100) {
       logEvent('project_ascended', { taskId: task.id, text: task.text }, profile);
-      const reflection = await getNextPynchon();
+      const reflection = await getProjectReflection(task.text, data);
       data.olympus.push({
         id: task.id,
         text: task.text,

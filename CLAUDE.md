@@ -45,7 +45,9 @@ tasks.json           → All persistent data (auto-created on first run)
 - **Olympus:** Ascended projects. Restoring resets progress to 0; steps not restored.
 - **Surprise Me:** `currentSurpriseTask` tracks the last spin. "I'll do it" marks oneOff/habit done; Treats/Hard Things close without checking off.
 
-**Quote style — non-negotiable:** Both the one-off celebration quote (`GET /api/quote/celebration`, shown when all one-offs are cleared) and the project ascension quote (`reflection` field, shown when a project hits 100%) must be Pynchon-style: sardonic, paranoid, literary, darkly funny — hints of entropy, hidden systems, "They". No plain/minimalist/dry register for either.
+**Quote style — non-negotiable:** Both the one-off celebration quote (`GET /api/quote/celebration`, shown when all one-offs are cleared) and the project ascension quote (`reflection` field, shown when a project hits 100%) must be Pynchon-style: sardonic, paranoid, literary, darkly funny. No plain/minimalist/dry register for either.
+
+**Quote freshness — non-negotiable.** Finishing should feel rewarding, so every quote must feel new. Entropy, hidden systems and "They" are a palette to draw from occasionally, never a checklist. `generatePynchon()` in `server.js` builds each prompt from three parts. The project's name gives specificity. A random entry from `PYNCHON_ANGLES` sets the doorway. The recent quotes go in as a do-not-echo list: the last 12 Olympus reflections, or for one-offs an in-memory list of the last 12 celebration quotes per profile. Don't reintroduce a pre-generated queue: it can't know the project or what was just said. The frontend opens the celebration overlay immediately and fills the quote in when it arrives.
 
 ## Oracle
 
