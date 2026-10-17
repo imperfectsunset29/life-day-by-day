@@ -96,12 +96,12 @@ New overlays should reuse `.overlay` / `.overlay-content` to inherit these guard
 - **Secondary — `.btn-secondary`** (glass pill): alternatives next to the primary ("Re-spin", "Cancel", "Add photo").
 - **Tertiary — `.btn-tertiary`** (ghost pill: no fill, no glow, dim ivory text): maintenance/admin actions such as "+ Add garment". Never sage-filled.
 - Icon-only adds (`.add-btn`, `.wardrobe-add-btn`), edit links and `.back-btn` sit below tertiary.
-- Buttons hug their label by default; fill and glow carry the hierarchy, not size. Exception: Wardrobe's "+ Add garment" spans its own line under "My closet".
+- Buttons hug their label — never `width: 100%`. Size signals nothing; fill and glow carry the hierarchy. To give a button its own line, change its alignment, not its width.
 - No one-off button classes. Every button is one of the three tiers (plus icon-only/back).
 
 **App header is Home-only.** The `#header` block (LIFE title, profile switcher, Surprise me, lock) shows only on the main view. Every `show*()` for a secondary view adds `body.secondary-view`, which hides `#header`; the view's own title (`.olympus-header`) is the page header. New views must add `secondary-view` too.
 
-**Wardrobe IA.** Two sections, top to bottom: (1) outfit picker — prompt input + "What should I wear?" primary; (2) "My closet" — `.wardrobe-closet-header` with the serif subheader, then "+ Add garment" (tertiary, admin-only) spanning its own full line beneath it, then the categories. Categories start collapsed on every visit; saving a garment expands its category.
+**Wardrobe IA.** Two sections, top to bottom: (1) outfit picker — prompt input + "What should I wear?" primary; (2) "My closet" — `.wardrobe-closet-header` with the serif subheader, then "+ Add garment" (tertiary, admin-only) on its own line beneath it, aligned right, then the categories. Categories start collapsed on every visit; saving a garment expands its category.
 
 **Back buttons:** Secondary views (Olympus, Treats, Hard Things, Shopping List) use `.back-btn` — a bare `‹` chevron via `::before`, no label, no border. Context makes navigation legible without naming it.
 
