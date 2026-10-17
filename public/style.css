@@ -44,6 +44,12 @@ header {
   gap: 0;
 }
 
+/* App header (LIFE, profile, Surprise me, lock) belongs to Home only.
+   Secondary views use their own title as the page header. */
+body.secondary-view #header {
+  display: none;
+}
+
 .header-title-row {
   display: flex;
   justify-content: space-between;
