@@ -73,6 +73,13 @@ nextId:     number                                   // shared counter for tasks
 
 Single breakpoint at `max-width: 480px` in `style.css`. When editing overlay or button styles, always audit the mobile block too — it reduces card padding but does not automatically scale button padding or font sizes.
 
+**iOS auto-zoom guard — don't remove.** Inputs use text smaller than 16px, which makes iOS Safari zoom in on focus and stay zoomed, so overlays (e.g. Today's Outfit) spill off the right edge. Prevented by:
+- `maximum-scale=1.0` in the viewport meta in `index.html` (iOS still allows pinch-zoom; Android loses it).
+- `html { overflow-x: clip; text-size-adjust: 100% }`. Nothing can scroll the page sideways.
+- `.overlay` uses `inset: 0` (not `100vw`/`100vh`); `.overlay-content` caps at `max-height: 90dvh` with `overflow-y: auto`.
+
+New overlays should reuse `.overlay` / `.overlay-content` to inherit these guards.
+
 ## Visual Identity — Non-Negotiable
 
 - **Palette:** Near-black (`#130518`) radial gradient background with plum/indigo blooms, warm ivory `#f0e8e0` text, sage green `#b5c99a` accents, warm amber `#c8a87a` for highlights
