@@ -1329,8 +1329,8 @@ function showMain() {
 }
 
 function showWardrobe() {
-  // Every visit starts fully expanded; collapsing only lasts for the current visit
-  collapsedWardrobeCats.clear();
+  // Every visit starts fully collapsed; expanding only lasts for the current visit
+  WARDROBE_CATS.forEach(cat => collapsedWardrobeCats.add(cat));
   renderWardrobe();
   hideAllViews();
   wardrobeView.classList.remove('hidden');
@@ -1699,6 +1699,8 @@ async function saveWardrobeItem() {
   editingWardrobeId = null;
   capturedPhotos = [];
   wardrobeAddOverlay.classList.add('hidden');
+  // Open the saved garment's category so it doesn't disappear into a collapsed list
+  collapsedWardrobeCats.delete(payload.wardrobeCategory);
   await loadTasks();
   renderWardrobe();
 }
