@@ -64,7 +64,11 @@ hardThings: { id, text }
 done:       { id, text, completedAt }                // ISO string
 olympus:    { id, text, completedAt, reflection }    // Pynchon quote
 oracle:     { text, source, preview }                // single object, not an array
-nextId:     number                                   // shared counter for tasks and steps
+wardrobe:   { id, text, brand, color, material, pattern, occasion, season, wardrobeCategory, subcategory,
+              origin, acquired, memory,                // optional, user-written: where it's from, when, a one-line memory
+              dossier, createdAt }                     // dossier: { text, wearCount, generatedAt } — cached AI file
+wearLog:    { id, date, wornAt, itemIds, prompt, weather } // one entry per "Love it"; date is the PT habit-day
+nextId:     number                                   // shared counter for tasks, steps and wear entries
 ```
 
 ## Render Scope
@@ -101,7 +105,14 @@ New overlays should reuse `.overlay` / `.overlay-content` to inherit these guard
 
 **App header is Home-only.** The `#header` block (LIFE title, profile switcher, Surprise me, lock) shows only on the main view. Every `show*()` for a secondary view adds `body.secondary-view`, which hides `#header`; the view's own title (`.olympus-header`) is the page header. New views must add `secondary-view` too.
 
-**Wardrobe IA.** Two sections, top to bottom: (1) outfit picker — prompt input + "What should I wear?" primary; (2) "My closet" — `.wardrobe-closet-header` with the serif subheader, then "+ Add garment" (tertiary, admin-only) on its own line beneath it, aligned right, then the categories. Categories start collapsed on every visit; saving a garment expands its category.
+**Wardrobe IA.** Two sections, top to bottom: (1) outfit picker — prompt input + "What should I wear?" primary; (2) "My closet" — `.wardrobe-closet-header` with the serif subheader, then "+ Add garment" (tertiary, admin-only) on its own line beneath it, aligned right, then the categories. Categories start collapsed on every visit; saving a garment expands its category. Under the title, `#wardrobe-closet-line` shows a quiet summary (pieces · colors · most loyal).
+
+**Wardrobe history.** "Love it" on a suggested outfit is the only way wears are recorded (`POST /api/wardrobe/wear`, admin-only). Re-spin and × record nothing. Everything else is derived on request by `computeWardrobeStats()` in `server.js` (`GET /api/wardrobe/stats`), never stored:
+- **Rows:** show "worn 3 wks ago" in place of color, or a ghosted italic "never worn".
+- **Garment card:** tapping a row opens `#garment-overlay`, showing wear count, "Usually seen with" (pieces worn together at least `FRIEND_MIN_TOGETHER` times), "Its story" (the last `WEAR_STORY_LENGTH` wears with prompt and weather), origin/memory, and the dossier.
+- **Rotation nudge:** the outfit stylist sees each piece's wear history and is told to favor neglected pieces when two fit equally well.
+
+**Dossier:** a Pynchon-voiced one-liner written from the garment's real history (`POST /api/wardrobe/:id/dossier`). It's cached on the item and only rewritten after the garment has been worn again. Viewers see the cached one; only admin can write a new one. It renders in amber, the card's inner light. Wardrobe rows have no dblclick-to-edit; edit from the card's Edit button or the row's edit link.
 
 **Back buttons:** Secondary views (Olympus, Treats, Hard Things, Shopping List) use `.back-btn` — a bare `‹` chevron via `::before`, no label, no border. Context makes navigation legible without naming it.
 

@@ -299,6 +299,7 @@ function readTasks(profile) {
   if (!data.shoppingList) data.shoppingList = [];
   if (!data.wardrobe) data.wardrobe = [];
   if (!data.dreams) data.dreams = [];
+  if (!data.wearLog) data.wearLog = [];
   if (!data.oracle) data.oracle = { text: '', source: '', preview: '' };
   if (data.oracle.preview === undefined) data.oracle.preview = '';
   if (data.lastDoneCleared === undefined) data.lastDoneCleared = null;
@@ -566,16 +567,19 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   let items = null;
   if (anthropic) {
     try {
-      const inventory = data.wardrobe.map(i =>
-        `ID:${i.id} | ${i.wardrobeCategory} | ${i.brand ? i.brand + ' ' : ''}${i.text} | color:${i.color || ''} | ${i.material || ''} | pattern:${i.pattern || ''} | occasion:${i.occasion || ''} | season:${i.season || ''}`
-      ).join('\n');
+      const stats = computeWardrobeStats(data);
+      const inventory = data.wardrobe.map(i => {
+        const st = stats.items[i.id];
+        const worn = st.timesWorn ? `worn:${st.timesWorn}x, last:${st.lastWorn}` : 'worn:never';
+        return `ID:${i.id} | ${i.wardrobeCategory} | ${i.brand ? i.brand + ' ' : ''}${i.text} | color:${i.color || ''} | ${i.material || ''} | pattern:${i.pattern || ''} | occasion:${i.occasion || ''} | season:${i.season || ''} | ${worn}`;
+      }).join('\n');
 
       const message = await anthropic.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 256,
         messages: [{
           role: 'user',
-          content: `You are a personal stylist. Wardrobe inventory:\n${inventory}\n\n${weatherLine}\n\nBuild an outfit for: "${prompt}"\n\nPick the best combination: at most one item per category, never the same item twice, compatible patterns and seasons${weather ? ', and appropriate for the current weather (temperature and precipitation/wind implied by the conditions)' : ''}. A dress or jumpsuit/romper is a complete base layer — if you pick one, do not also pick a top or bottom. Otherwise pick one top and one bottom. Return ONLY a JSON array of item IDs (numbers). Raw JSON array only, no markdown.`
+          content: `You are a personal stylist. Wardrobe inventory:\n${inventory}\n\n${weatherLine}\n\nBuild an outfit for: "${prompt}"\n\nPick the best combination: at most one item per category, never the same item twice, compatible patterns and seasons${weather ? ', and appropriate for the current weather (temperature and precipitation/wind implied by the conditions)' : ''}. A dress or jumpsuit/romper is a complete base layer — if you pick one, do not also pick a top or bottom. Otherwise pick one top and one bottom. When two pieces suit the prompt about equally well, favor the one worn least recently (or never) so the whole closet stays in rotation. Return ONLY a JSON array of item IDs (numbers). Raw JSON array only, no markdown.`
         }]
       });
 
@@ -598,6 +602,143 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   if (!items || items.length === 0) items = randomOutfitPick(data.wardrobe);
 
   res.json({ items: sanitizeOutfit(items), weather });
+});
+
+// ---- Wardrobe history: wear log, stats, dossier ----
+// "Love it" on a suggested outfit records a wear. Everything else (last worn, times worn,
+// best friends, a garment's story, the closet line) is derived from that log on request.
+
+const WEAR_STORY_LENGTH = 3;   // recent wears shown on a garment's card
+const FRIEND_MIN_TOGETHER = 2; // worn together at least this often to count as friends
+
+function daysAgo(dateStr) {
+  const then = new Date(`${dateStr}T12:00:00`);
+  const now = new Date(`${getHabitDay()}T12:00:00`);
+  return Math.round((now - then) / 86400000);
+}
+
+function computeWardrobeStats(data) {
+  const items = {};
+  for (const item of data.wardrobe) {
+    items[item.id] = { timesWorn: 0, lastWorn: null, daysSinceWorn: null, friends: [], story: [] };
+  }
+  const together = {}; // id -> { otherId -> count }
+
+  // Oldest first, so the last write for each item is its most recent wear
+  for (const wear of data.wearLog) {
+    const ids = wear.itemIds.filter(id => items[id]);
+    for (const id of ids) {
+      const st = items[id];
+      st.timesWorn++;
+      st.lastWorn = wear.date;
+      st.story.unshift({ date: wear.date, prompt: wear.prompt, weather: wear.weather });
+      together[id] = together[id] || {};
+      for (const other of ids) {
+        if (other !== id) together[id][other] = (together[id][other] || 0) + 1;
+      }
+    }
+  }
+
+  for (const [id, st] of Object.entries(items)) {
+    st.story = st.story.slice(0, WEAR_STORY_LENGTH);
+    if (st.lastWorn) st.daysSinceWorn = daysAgo(st.lastWorn);
+    st.friends = Object.entries(together[id] || {})
+      .filter(([, n]) => n >= FRIEND_MIN_TOGETHER)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 2)
+      .map(([otherId, n]) => ({ id: Number(otherId), count: n }));
+  }
+
+  const colors = new Set(data.wardrobe.map(i => (i.color || '').trim().toLowerCase()).filter(Boolean));
+  let mostLoyal = null;
+  for (const item of data.wardrobe) {
+    const n = items[item.id].timesWorn;
+    if (n === 0) continue;
+    const best = mostLoyal && items[mostLoyal.id];
+    // Ties go to whichever was worn most recently
+    if (!best || n > best.timesWorn || (n === best.timesWorn && items[item.id].lastWorn > best.lastWorn)) mostLoyal = item;
+  }
+
+  return {
+    items,
+    summary: {
+      pieces: data.wardrobe.length,
+      colors: colors.size,
+      mostLoyal: mostLoyal ? { id: mostLoyal.id, text: mostLoyal.text } : null
+    }
+  };
+}
+
+app.get('/api/wardrobe/stats', (req, res) => {
+  res.json(computeWardrobeStats(readTasks(profileFrom(req))));
+});
+
+// Records a worn outfit (from "Love it")
+app.post('/api/wardrobe/wear', requireAdmin, (req, res) => {
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
+  const known = new Set(data.wardrobe.map(i => i.id));
+  const itemIds = (Array.isArray(req.body.itemIds) ? req.body.itemIds : []).map(Number).filter(id => known.has(id));
+  if (!itemIds.length) return res.status(400).json({ error: 'No known garments in outfit' });
+
+  const wear = {
+    id: data.nextId++,
+    date: getHabitDay(),
+    wornAt: new Date().toISOString(),
+    itemIds,
+    prompt: typeof req.body.prompt === 'string' ? req.body.prompt.slice(0, 200) : '',
+    weather: typeof req.body.weather === 'string' ? req.body.weather.slice(0, 100) : ''
+  };
+  data.wearLog.push(wear);
+  writeTasks(data, profile);
+  logEvent('outfit_worn', { itemIds, prompt: wear.prompt }, profile);
+  res.json(wear);
+});
+
+// A one-line, Pynchon-voiced file on a garment, written from its real history. Cached on the
+// item and only rewritten once the garment has been worn again since the last one was written.
+app.post('/api/wardrobe/:id/dossier', requireAdmin, async (req, res) => {
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
+  const item = data.wardrobe.find(i => i.id === Number(req.params.id));
+  if (!item) return res.status(404).json({ error: 'Garment not found' });
+
+  const stats = computeWardrobeStats(data);
+  const st = stats.items[item.id];
+  if (item.dossier && item.dossier.wearCount === st.timesWorn) return res.json({ dossier: item.dossier.text });
+  if (!anthropic) return res.json({ dossier: null });
+
+  const nameOf = id => (data.wardrobe.find(i => i.id === id) || {}).text;
+  const facts = [
+    `Garment: ${[item.brand, item.text].filter(Boolean).join(' ')} (${[item.color, item.material, item.pattern].filter(Boolean).join(', ')})`,
+    st.timesWorn ? `Worn ${st.timesWorn} time(s); last on ${st.lastWorn}` : 'Never worn yet',
+    st.friends.length ? `Most often worn with: ${st.friends.map(f => `${nameOf(f.id)} (${f.count}x)`).join('; ')}` : '',
+    st.story.length ? `Recent outings (the wearer's own words): ${st.story.map(w => `"${w.prompt}"${w.weather ? ` at ${w.weather}` : ''}`).join('; ')}` : '',
+    item.origin ? `Origin: ${item.origin}` : '',
+    item.acquired ? `Acquired: ${item.acquired}` : '',
+    item.memory ? `The wearer's memory of it: ${item.memory}` : ''
+  ].filter(Boolean).join('\n');
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-opus-4-8',
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: `Write a one- or two-sentence dossier entry on this garment, in the voice of Thomas Pynchon: as if a paranoid, half-amused intelligence service has been keeping a file on it. Sardonic, literary, affectionate underneath. Build it only from the facts below, using at least one specific detail. If it has never been worn, treat that as its own small mystery. Avoid stock moves like the word "entropy" or a capitalized "They" unless they're genuinely fresh here.\n\n${facts}\n\nReturn only the entry, with no title, label or quotes.`
+      }]
+    });
+    const text = msg.content.find(b => b.type === 'text');
+    const dossier = text ? text.text.trim().replace(/^["“]|["”]$/g, '') : null;
+    if (dossier) {
+      item.dossier = { text: dossier, wearCount: st.timesWorn, generatedAt: new Date().toISOString() };
+      writeTasks(data, profile);
+    }
+    res.json({ dossier });
+  } catch (err) {
+    console.error('Dossier unavailable:', friendlyAnthropicError(err));
+    res.json({ dossier: item.dossier ? item.dossier.text : null });
+  }
 });
 
 // Blocks requests to internal/private network addresses — this endpoint fetches
@@ -680,7 +821,7 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
     : category === 'projects'
     ? { id, text, progress: 0, createdAt }
     : category === 'wardrobe'
-    ? { id, text: body.text, brand: body.brand || '', color: body.color || '', material: body.material || '', pattern: body.pattern || '', occasion: body.occasion || '', season: body.season || 'all', wardrobeCategory: body.wardrobeCategory || 'tops', subcategory: body.subcategory || '', createdAt }
+    ? { id, text: body.text, brand: body.brand || '', color: body.color || '', material: body.material || '', pattern: body.pattern || '', occasion: body.occasion || '', season: body.season || 'all', wardrobeCategory: body.wardrobeCategory || 'tops', subcategory: body.subcategory || '', origin: body.origin || '', acquired: body.acquired || '', memory: body.memory || '', createdAt }
     : { id, text, done: false, createdAt };
   data[category].unshift(task);
   logEvent('task_created', { taskId: id, text, category }, profile);
@@ -766,6 +907,9 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
     if (req.body.season !== undefined) task.season = req.body.season;
     if (req.body.wardrobeCategory !== undefined) task.wardrobeCategory = req.body.wardrobeCategory;
     if (req.body.subcategory !== undefined) task.subcategory = req.body.subcategory;
+    if (req.body.origin !== undefined) task.origin = req.body.origin;
+    if (req.body.acquired !== undefined) task.acquired = req.body.acquired;
+    if (req.body.memory !== undefined) task.memory = req.body.memory;
   }
 
   if (category === 'habits') {

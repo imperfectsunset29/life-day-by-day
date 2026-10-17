@@ -210,7 +210,10 @@
     </div>
 
     <div class="wardrobe-closet-header">
-      <h3 class="wardrobe-closet-title">My closet</h3>
+      <div>
+        <h3 class="wardrobe-closet-title">My closet</h3>
+        <p id="wardrobe-closet-line" class="wardrobe-closet-line"></p>
+      </div>
       <button id="wardrobe-global-add-btn" class="btn-tertiary wardrobe-global-add-btn">+ Add Garment</button>
     </div>
 
@@ -399,10 +402,29 @@
           <option value="accessories">Accessories</option>
         </select>
         <select id="wf-subcat" class="wardrobe-cat-select"></select>
+        <p class="wf-section-label">Its story (optional)</p>
+        <input id="wf-origin"   class="task-text-input wardrobe-field-input" placeholder="Where it's from: a gift, vintage, Kyoto…" type="text">
+        <input id="wf-acquired" class="task-text-input wardrobe-field-input" placeholder="When you got it (e.g. spring 2023)" type="text">
+        <input id="wf-memory"   class="task-text-input wardrobe-field-input" placeholder="A memory, in one line" type="text">
       </div>
 
       <div class="overlay-actions">
         <button id="wardrobe-save-btn" class="btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Garment card overlay: a garment's history, friends, story and dossier -->
+  <div id="garment-overlay" class="overlay hidden">
+    <div class="overlay-content garment-overlay-content">
+      <button id="garment-x-btn" class="oracle-x-btn">&times;</button>
+      <p id="garment-cat" class="overlay-label"></p>
+      <h3 id="garment-title" class="garment-title"></h3>
+      <p id="garment-meta" class="garment-meta"></p>
+      <p id="garment-dossier" class="garment-dossier hidden"></p>
+      <div id="garment-sections"></div>
+      <div class="overlay-actions">
+        <button id="garment-edit-btn" class="btn-secondary">Edit</button>
       </div>
     </div>
   </div>

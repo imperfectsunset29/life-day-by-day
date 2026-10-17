@@ -1607,6 +1607,149 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   margin-bottom: 24px;
 }
 
+.wardrobe-closet-line {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 0.9rem;
+  color: rgba(240, 232, 224, 0.35);
+  margin-top: 4px;
+}
+
+.wardrobe-closet-line:empty {
+  display: none;
+}
+
+.wf-section-label {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(181, 201, 154, 0.55);
+  padding: 20px 0 4px;
+}
+
+/* Garment card overlay */
+.garment-overlay-content {
+  text-align: left;
+}
+
+.garment-title {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 1.7rem;
+  font-weight: 400;
+  line-height: 1.15;
+  color: #f0e8e0;
+  margin-bottom: 6px;
+}
+
+.garment-meta {
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: rgba(240, 232, 224, 0.35);
+  margin-bottom: 20px;
+}
+
+.garment-meta:empty {
+  display: none;
+}
+
+/* The dossier is the card's inner light — amber, like the fissure in logo.jpg */
+.garment-dossier {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: rgba(200, 168, 122, 0.9);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  background: rgba(200, 168, 122, 0.06);
+  border: 1px solid rgba(200, 168, 122, 0.16);
+  border-radius: 14px;
+}
+
+.garment-dossier.loading {
+  color: rgba(200, 168, 122, 0.4);
+}
+
+.garment-section {
+  padding: 12px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.garment-section-label {
+  font-size: 0.5rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(181, 201, 154, 0.6);
+  margin-bottom: 6px;
+}
+
+.garment-section-text {
+  font-size: 0.8rem;
+  color: rgba(240, 232, 224, 0.75);
+  line-height: 1.5;
+}
+
+.garment-section-text.never-worn {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: rgba(240, 232, 224, 0.4);
+}
+
+.garment-count {
+  color: rgba(240, 232, 224, 0.3);
+  font-size: 0.7rem;
+  margin-left: 4px;
+}
+
+.garment-story-row {
+  display: flex;
+  gap: 12px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  padding: 2px 0;
+}
+
+.garment-story-date {
+  flex-shrink: 0;
+  min-width: 44px;
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(240, 232, 224, 0.3);
+  padding-top: 3px;
+}
+
+.garment-story-text {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: rgba(240, 232, 224, 0.75);
+}
+
+.garment-story-weather {
+  font-family: 'Inter', sans-serif;
+  font-style: normal;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: rgba(181, 201, 154, 0.5);
+  margin-left: 4px;
+}
+
+.garment-memory {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: rgba(240, 232, 224, 0.6);
+  margin-top: 4px;
+}
+
+.garment-overlay-content .overlay-actions {
+  margin-top: 20px;
+}
+
 .wardrobe-closet-title {
   font-family: 'Instrument Serif', Georgia, serif;
   font-size: 1.5rem;
@@ -1700,6 +1843,19 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Never-worn pieces read as ghosts — present, but not yet part of the story */
+.wardrobe-row-meta.never-worn {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 0.8rem;
+  letter-spacing: 0;
+  color: rgba(240, 232, 224, 0.22);
+}
+
+.wardrobe-row {
+  cursor: pointer;
 }
 
 .wardrobe-subcat-label {

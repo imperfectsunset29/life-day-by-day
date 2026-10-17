@@ -56,6 +56,8 @@ let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO
 let capturedPhotos = []; // [{ image: base64, mimeType }] — cleared after each wardrobe save
 let editingWardrobeId = null; // set while the add/edit modal is editing an existing item, else null
 let lastOutfitPrompt = '';
+let currentOutfit = null;  // { itemIds, prompt, weather } for the outfit on screen — "Love it" records it as worn
+let wardrobeStats = null;  // from /api/wardrobe/stats: per-garment wear history + closet summary
 let editingDreamId = null; // set while the dream modal is editing an existing dream, else null
 let pendingDreamImage = ''; // data URI of the photo attached in the dream modal, '' if none
 
@@ -1280,6 +1282,8 @@ async function selectProfile(profile) {
   oneOffExpanded = false;
   expandedProjects.clear();
   collapsedWardrobeCats.clear();
+  wardrobeStats = null;
+  currentOutfit = null;
   document.getElementById('profile-btn').textContent = profile.toUpperCase();
   hideProfileSelector();
   applyAuthUI();
@@ -1350,6 +1354,7 @@ function showWardrobe() {
   // Every visit starts fully collapsed; expanding only lasts for the current visit
   WARDROBE_CATS.forEach(cat => collapsedWardrobeCats.add(cat));
   renderWardrobe();
+  refreshWardrobeStats();
   hideAllViews();
   wardrobeView.classList.remove('hidden');
   document.body.classList.add('secondary-view');
@@ -1569,10 +1574,12 @@ function renderWardrobe() {
         li.className = 'task-item wardrobe-row';
         li.dataset.id = item.id;
         li.dataset.category = 'wardrobe';
-        const meta = item.color || item.brand || '';
+        const st = wardrobeStats && wardrobeStats.items[item.id];
+        const meta = st ? wornLabel(st) : (item.color || item.brand || '');
+        const metaClass = st && !st.timesWorn ? 'wardrobe-row-meta never-worn' : 'wardrobe-row-meta';
         li.innerHTML = `
           <span class="task-text">${renderTaskText(item.text)}</span>
-          ${meta ? `<span class="wardrobe-row-meta">${escapeHtml(meta)}</span>` : ''}
+          ${meta ? `<span class="${metaClass}">${escapeHtml(meta)}</span>` : ''}
           <div class="task-actions">
             <button class="task-action-btn edit" data-id="${item.id}" data-category="wardrobe" title="Edit">edit</button>
             <button class="task-action-btn delete" data-id="${item.id}" data-category="wardrobe" title="Delete">delete</button>
@@ -1582,7 +1589,138 @@ function renderWardrobe() {
       }
     }
   }
+  renderClosetLine();
   hydrateLinkPreviews();
+}
+
+// ---- Wardrobe history (wear log, garment card, dossier) ----
+
+async function refreshWardrobeStats() {
+  try {
+    const res = await fetch(`${API}/wardrobe/stats`, { headers: authHeaders() });
+    if (!res.ok) return;
+    wardrobeStats = await res.json();
+    renderWardrobe();
+  } catch {
+    // stats are decoration — rows fall back to color/brand without them
+  }
+}
+
+function wornAgo(days) {
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) { const w = Math.round(days / 7); return `${w} wk${w > 1 ? 's' : ''} ago`; }
+  if (days < 365) { const m = Math.round(days / 30); return `${m} mo ago`; }
+  return 'over a year ago';
+}
+
+function wornLabel(st) {
+  return st.timesWorn ? `worn ${wornAgo(st.daysSinceWorn)}` : 'never worn';
+}
+
+function formatWearDate(dateStr) {
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function renderClosetLine() {
+  const el = document.getElementById('wardrobe-closet-line');
+  if (!el) return;
+  const pieces = (tasks.wardrobe || []).length;
+  if (!pieces) { el.textContent = ''; return; }
+  const parts = [`${pieces} piece${pieces === 1 ? '' : 's'}`];
+  if (wardrobeStats) {
+    const { colors, mostLoyal } = wardrobeStats.summary;
+    if (colors) parts.push(`${colors} color${colors === 1 ? '' : 's'}`);
+    if (mostLoyal) parts.push(`most loyal: ${mostLoyal.text}`);
+  }
+  el.textContent = parts.join(' · ');
+}
+
+function openGarmentCard(id) {
+  const item = (tasks.wardrobe || []).find(i => i.id === id);
+  if (!item) return;
+  const st = wardrobeStats && wardrobeStats.items[id];
+  const nameOf = otherId => ((tasks.wardrobe || []).find(i => i.id === otherId) || {}).text;
+
+  document.getElementById('garment-cat').textContent = WARDROBE_CAT_LABELS[item.wardrobeCategory] || item.wardrobeCategory;
+  document.getElementById('garment-title').textContent = item.text;
+  document.getElementById('garment-meta').textContent = [item.brand, item.color, item.material, item.pattern].filter(Boolean).join(' · ');
+
+  const sections = document.getElementById('garment-sections');
+  sections.innerHTML = '';
+  const addSection = (label, html) => {
+    const div = document.createElement('div');
+    div.className = 'garment-section';
+    div.innerHTML = `<p class="garment-section-label">${label}</p>${html}`;
+    sections.appendChild(div);
+  };
+
+  if (st) {
+    addSection('Wear', st.timesWorn
+      ? `<p class="garment-section-text">Worn ${st.timesWorn} time${st.timesWorn === 1 ? '' : 's'}, last ${escapeHtml(wornAgo(st.daysSinceWorn))}</p>`
+      : `<p class="garment-section-text never-worn">Never worn. Yet.</p>`);
+    if (st.friends.length) {
+      addSection('Usually seen with', st.friends
+        .map(f => `<p class="garment-section-text">${escapeHtml(nameOf(f.id) || 'something since given away')} <span class="garment-count">${f.count}×</span></p>`).join(''));
+    }
+    if (st.story.length) {
+      addSection('Its story', st.story.map(w => `
+        <p class="garment-story-row">
+          <span class="garment-story-date">${escapeHtml(formatWearDate(w.date))}</span>
+          <span class="garment-story-text">${w.prompt ? `“${escapeHtml(w.prompt)}”` : 'an unrecorded occasion'}${w.weather ? ` <span class="garment-story-weather">${escapeHtml(w.weather)}</span>` : ''}</span>
+        </p>`).join(''));
+    }
+  }
+
+  const origin = [item.origin, item.acquired].filter(Boolean).join(' · ');
+  if (origin || item.memory) {
+    addSection('Origin', `${origin ? `<p class="garment-section-text">${escapeHtml(origin)}</p>` : ''}${item.memory ? `<p class="garment-memory">${escapeHtml(item.memory)}</p>` : ''}`);
+  }
+
+  const editBtn = document.getElementById('garment-edit-btn');
+  editBtn.dataset.id = id;
+  editBtn.parentElement.classList.toggle('hidden', !isAdmin());
+
+  loadGarmentDossier(item);
+  garmentOverlay.classList.remove('hidden');
+}
+
+async function loadGarmentDossier(item) {
+  const el = document.getElementById('garment-dossier');
+  const show = text => {
+    el.textContent = text || '';
+    el.classList.toggle('hidden', !text);
+    el.classList.remove('loading');
+  };
+  // Viewers see whatever file already exists; writing a new one is admin-only
+  if (!isAdmin()) return show(item.dossier && item.dossier.text);
+
+  el.textContent = 'Consulting the file…';
+  el.classList.add('loading');
+  el.classList.remove('hidden');
+  try {
+    const res = await apiFetch(`${API}/wardrobe/${item.id}/dossier`, { method: 'POST' });
+    const data = await res.json();
+    // Ignore a late answer if the card has since been closed or moved to another garment
+    if (garmentOverlay.classList.contains('hidden') || Number(document.getElementById('garment-edit-btn').dataset.id) !== item.id) return;
+    show(data.dossier);
+    if (data.dossier) item.dossier = { ...(item.dossier || {}), text: data.dossier };
+  } catch {
+    show(item.dossier && item.dossier.text);
+  }
+}
+
+async function recordOutfitWorn() {
+  if (!currentOutfit || !isAdmin()) return;
+  const outfit = currentOutfit;
+  currentOutfit = null; // one "Love it" = one wear
+  try {
+    await apiFetch(`${API}/wardrobe/wear`, { method: 'POST', body: JSON.stringify(outfit) });
+    await refreshWardrobeStats();
+  } catch {
+    // not worth interrupting the moment over — the outfit just isn't logged
+  }
 }
 
 function toggleWardrobeCat(cat) {
@@ -1604,6 +1742,9 @@ function openWardrobeAddModal(wardrobeCat) {
   document.getElementById('wf-pattern').value = '';
   document.getElementById('wf-occasion').value = '';
   document.getElementById('wf-season').value = 'all';
+  document.getElementById('wf-origin').value = '';
+  document.getElementById('wf-acquired').value = '';
+  document.getElementById('wf-memory').value = '';
   document.getElementById('wf-cat').value = wardrobeCat || '';
   populateSubcatOptions(wardrobeCat || '');
   document.getElementById('wardrobe-photo-count').textContent = '';
@@ -1628,6 +1769,9 @@ function openWardrobeEditModal(id) {
   document.getElementById('wf-pattern').value = item.pattern || '';
   document.getElementById('wf-occasion').value = item.occasion || '';
   document.getElementById('wf-season').value = item.season || 'all';
+  document.getElementById('wf-origin').value = item.origin || '';
+  document.getElementById('wf-acquired').value = item.acquired || '';
+  document.getElementById('wf-memory').value = item.memory || '';
   document.getElementById('wf-cat').value = item.wardrobeCategory || 'tops';
   populateSubcatOptions(item.wardrobeCategory || 'tops', item.subcategory);
   document.getElementById('wardrobe-photo-count').textContent = '';
@@ -1699,7 +1843,10 @@ async function saveWardrobeItem() {
     occasion:        document.getElementById('wf-occasion').value,
     season:          document.getElementById('wf-season').value,
     wardrobeCategory: document.getElementById('wf-cat').value,
-    subcategory:     document.getElementById('wf-subcat').value
+    subcategory:     document.getElementById('wf-subcat').value,
+    origin:          document.getElementById('wf-origin').value.trim(),
+    acquired:        document.getElementById('wf-acquired').value.trim(),
+    memory:          document.getElementById('wf-memory').value.trim()
   };
 
   if (editingWardrobeId) {
@@ -1721,6 +1868,7 @@ async function saveWardrobeItem() {
   collapsedWardrobeCats.delete(payload.wardrobeCategory);
   await loadTasks();
   renderWardrobe();
+  refreshWardrobeStats();
 }
 
 // Resolves to { lat, lon } or null if geolocation is unavailable, denied, or times out.
@@ -1760,6 +1908,9 @@ async function suggestOutfit() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Outfit suggestion failed');
     const { items, weather, wardrobeEmpty } = data;
+    currentOutfit = items && items.length
+      ? { itemIds: items.map(i => i.id), prompt, weather: weather ? `${weather.tempF}°F, ${weather.description}` : '' }
+      : null;
 
     document.getElementById('outfit-prompt-echo').textContent = `"${prompt}"`;
     const weatherEl = document.getElementById('outfit-weather');
@@ -1809,7 +1960,7 @@ document.addEventListener('dblclick', (e) => {
   if (!li) return;
   e.preventDefault();
   if (!e.target.closest('.task-text')) return;
-  const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"], .edit[data-category="hardThings"], .edit[data-category="shoppingList"], .edit[data-category="wardrobe"], .edit[data-category="dreams"]');
+  const editBtn = li.querySelector('.edit[data-category="oneOff"], .edit[data-category="treats"], .edit[data-category="hardThings"], .edit[data-category="shoppingList"], .edit[data-category="dreams"]');
   if (!editBtn) return;
   if (editBtn.dataset.category === 'dreams') openDreamEditModal(Number(editBtn.dataset.id));
   else startEdit(editBtn.dataset.category, Number(editBtn.dataset.id));
@@ -1888,6 +2039,9 @@ document.addEventListener('click', (e) => {
   }
   else if (target.classList.contains('wardrobe-add-btn')) {
     openWardrobeAddModal(target.dataset.wardrobeCat);
+  }
+  else if (target.closest('.wardrobe-row') && !target.closest('.task-actions') && !target.closest('a')) {
+    openGarmentCard(Number(target.closest('.wardrobe-row').dataset.id));
   }
   else if (target.closest('.wardrobe-cat-header')) {
     toggleWardrobeCat(target.closest('.wardrobe-cat-header').dataset.wardrobeCat);
@@ -2143,7 +2297,20 @@ wardrobeAddOverlay.addEventListener('click', e => { if (e.target === wardrobeAdd
 document.getElementById('suggest-outfit-btn').addEventListener('click', suggestOutfit);
 document.getElementById('outfit-x-btn').addEventListener('click', () => outfitOverlay.classList.add('hidden'));
 document.getElementById('outfit-respin-btn').addEventListener('click', suggestOutfit);
-document.getElementById('outfit-close-btn').addEventListener('click', () => outfitOverlay.classList.add('hidden'));
+document.getElementById('outfit-close-btn').addEventListener('click', () => {
+  outfitOverlay.classList.add('hidden');
+  recordOutfitWorn();
+});
+
+const garmentOverlay = document.getElementById('garment-overlay');
+document.getElementById('garment-x-btn').addEventListener('click', () => garmentOverlay.classList.add('hidden'));
+garmentOverlay.addEventListener('click', (e) => {
+  if (e.target === garmentOverlay) garmentOverlay.classList.add('hidden');
+});
+document.getElementById('garment-edit-btn').addEventListener('click', (e) => {
+  garmentOverlay.classList.add('hidden');
+  openWardrobeEditModal(Number(e.currentTarget.dataset.id));
+});
 outfitOverlay.addEventListener('click', e => { if (e.target === outfitOverlay) outfitOverlay.classList.add('hidden'); });
 
 // Init — show profile selector or resume stored profile
