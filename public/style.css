@@ -757,6 +757,32 @@ textarea.task-text-input {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Tertiary: maintenance actions (add, manage). Ghost pill — no fill, no glow. */
+.btn-tertiary {
+  padding: 12px 28px;
+  border-radius: 100px;
+  font-size: 0.6rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  background: transparent;
+  color: rgba(240, 232, 224, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.btn-tertiary:hover {
+  color: rgba(240, 232, 224, 0.75);
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+}
+
 /* Treat overlay label */
 .overlay-label.treat-label {
   color: rgba(255, 55, 95, 0.9);
@@ -988,6 +1014,11 @@ textarea.task-text-input {
   .btn-primary, .btn-secondary {
     padding: 10px 20px;
     font-size: 0.6rem;
+  }
+
+  .btn-tertiary {
+    padding: 10px 20px;
+    font-size: 0.56rem;
   }
 
   .done-section .restore {
@@ -1590,7 +1621,11 @@ body.admin-mode .wardrobe-add-btn { display: flex; }
 body.admin-mode .wardrobe-global-add-btn { display: block; }
 
 .wardrobe-suggest-row {
-  margin-bottom: 48px;
+  margin-bottom: 40px;
+}
+
+.wardrobe-suggest-btn {
+  width: 100%;
 }
 
 .wardrobe-prompt-input {
