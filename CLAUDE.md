@@ -84,6 +84,7 @@ All data is plain JSON on the Railway volume (`/app/data`): `tasks*.json` per pr
 - **Self-repair:** if a data file can't be parsed, `readDataFile()` sets it aside as `*.damaged-<time>` and restores the newest valid snapshot (start of that day's state).
 - **Volume check:** if `/app/data` is missing on Railway, the server logs a loud `STORAGE WARNING`; data would otherwise vanish on the next deploy. `GET /api/health` reports `persistent`, the latest snapshot, and counts (projects, olympus, garments, wears, wishlist).
 - **Never hold data across an `await`:** read, change, write in one go. If a route must wait (e.g. the ascension quote), re-read with `readTasks()` after the wait and apply the change to the fresh copy, or edits made meanwhile are overwritten.
+- **Dream photos are files, not data:** a dream's `image` is a URL like `/media/vc/dreams/<id>-<random>.jpg`, served read-only from `/app/data/media/`. `saveDreamImage()` turns an uploaded data URI into a file (a URL passed back is kept as-is, `''` removes the photo). Photos aren't deleted with their dream: the daily `sweepMedia()` removes a file only when it's over a day old and neither the current data nor any snapshot refers to it, so restoring a snapshot keeps its photos. Never store base64 images in a data file again.
 - **Wardrobe audit trail:** garment edits log `garment_edited` with each changed field (`from`→`to`); deleting a garment logs the whole item, so it can be rebuilt from the activity log. Wears log `outfit_worn`.
 
 ## Render Scope
@@ -176,6 +177,5 @@ Rule of thumb: **tap-to-edit is appropriate when there is no competing single-ta
 
 ## Next Steps
 
-- [ ] **Add a backup button** to the UI so `/api/backup` can be triggered with auth headers from within the app.
 - [ ] **Update Live Status on Notion page** each session. Format: `X projects active. Y ascensions. Olympus holds N.`
 - [ ] **Append to The Chronicle** when a meaningful decision is made. Prune Notion to 3, append full log to `project_chronicle_log.md`.

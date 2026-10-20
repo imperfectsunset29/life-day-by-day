@@ -50,3 +50,7 @@ Garments gained optional origin, acquired and memory fields.
 ## 2026-10-20 — Data gets safeguards
 **Decision:** Saves became all-or-nothing (write a temp file, then swap it in). Each profile gets a daily snapshot, kept for 14 days. A damaged data file restores itself from the newest snapshot, and a missing Railway volume triggers a loud warning. Wardrobe changes are now fully tracked: every garment edit is logged field by field, and deleted garments are kept whole in the activity log.
 **Why:** There was exactly one copy of everything, overwritten in place. Finishing a project also silently undid any change made while its quote was being written (a bug introduced by on-demand quotes, now fixed). The wardrobe, built up by hand over time, is the hardest data to recreate.
+
+## 2026-10-20 — Dream photos move out of the data file; no backup button
+**Decision:** Dream photos are now stored as image files on the volume, and the data file holds only a link to each one. Existing photos were moved out automatically. Orphaned photos are swept daily, but only once no snapshot still refers to them. The planned in-app backup button was dropped.
+**Why:** Each photo added ~100 KB to a file that's read and rewritten on every tap, so the app would slow as dreams accumulated. Daily snapshots and self-repair already cover what a manual backup button was for.

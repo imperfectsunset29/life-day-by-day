@@ -72,6 +72,50 @@ function snapshotIfDue(profile) {
   }
 }
 
+// ---- Media: dream photos live as files on the volume, not inside the data file ----
+// A dream's `image` holds a URL like /media/vc/dreams/123-a1b2c3.jpg. Files are never
+// deleted the moment a dream is: sweepMedia() (daily, off the save path) removes a photo
+// only once it's over a day old and neither the current data nor any snapshot refers to
+// it, so restoring a snapshot keeps its photos and a just-saved photo is never swept.
+const MEDIA_DIR = path.join(DATA_DIR, 'media');
+
+function saveDreamImage(profile, dreamId, image) {
+  if (typeof image !== 'string' || !image.startsWith('data:image/')) return image || ''; // '' or an existing /media URL
+  const match = image.match(/^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/);
+  if (!match) return '';
+  const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+  const name = `${dreamId}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const dir = path.join(MEDIA_DIR, profile, 'dreams');
+  fs.mkdirSync(dir, { recursive: true });
+  const tmp = path.join(dir, `${name}.tmp`);
+  fs.writeFileSync(tmp, Buffer.from(match[2], 'base64'));
+  fs.renameSync(tmp, path.join(dir, name));
+  return `/media/${profile}/dreams/${name}`;
+}
+
+function sweepMedia(profile) {
+  const dir = path.join(MEDIA_DIR, profile, 'dreams');
+  if (!fs.existsSync(dir)) return;
+  const sources = [getTasksFile(profile), ...snapshotsFor(profile).map(n => path.join(SNAPSHOT_DIR, n))];
+  const referenced = new Set();
+  for (const file of sources) {
+    try {
+      for (const m of fs.readFileSync(file, 'utf8').matchAll(/\/media\/[a-z]+\/dreams\/([\w.-]+)/g)) referenced.add(m[1]);
+    } catch {}
+  }
+  const dayAgo = Date.now() - 86400000;
+  for (const name of fs.readdirSync(dir)) {
+    const file = path.join(dir, name);
+    if (!referenced.has(name) && fs.statSync(file).mtimeMs < dayAgo) fs.unlinkSync(file);
+  }
+}
+
+function sweepAllMedia() {
+  for (const profile of Object.keys(TASKS_FILES)) {
+    try { sweepMedia(profile); } catch (err) { console.error(`Media sweep for ${profile} failed:`, err.message); }
+  }
+}
+
 // Reads a profile's data file. If it can't be parsed, the damaged file is set aside
 // and the newest snapshot that does parse is restored in its place.
 function readDataFile(file, profile) {
@@ -101,6 +145,7 @@ function profileFrom(req) {
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/media', express.static(MEDIA_DIR, { maxAge: '30d', immutable: true })); // names never change, so cache hard
 
 if (!process.env.ADMIN_PASSWORD) console.warn('WARNING: ADMIN_PASSWORD not set — VC running in dev mode.');
 if (!process.env.FG_ADMIN_PASSWORD) console.warn('WARNING: FG_ADMIN_PASSWORD not set — FG running in dev mode.');
@@ -438,6 +483,14 @@ function readTasks(profile) {
     data.shoppingList = data.shoppingList.filter(i => !isWant(i));
     data.shoppingSplit = true;
     changed = true;
+  }
+
+  // Dream photos used to be stored inline as base64 — move each one out to a file
+  for (const dream of data.dreams) {
+    if (typeof dream.image === 'string' && dream.image.startsWith('data:image/')) {
+      dream.image = saveDreamImage(profile || 'vc', dream.id, dream.image);
+      changed = true;
+    }
   }
 
   // Garment dossiers were removed — drop any cached ones still stored on garments
@@ -861,7 +914,7 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
     : category === 'treats' || category === 'hardThings'
     ? { id, text, createdAt }
     : category === 'dreams'
-    ? { id, text, image: body.image || '', createdAt }
+    ? { id, text, image: saveDreamImage(profile, id, body.image), createdAt }
     : category === 'shoppingList'
     ? { id, text, done: false, createdAt }
     : category === 'wishlist'
@@ -981,7 +1034,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
   if (req.body.text !== undefined) task.text = req.body.text;
 
   if (category === 'dreams') {
-    if (req.body.image !== undefined) task.image = req.body.image;
+    if (req.body.image !== undefined) task.image = saveDreamImage(profile, task.id, req.body.image);
   }
 
   if (category === 'wishlist') {
@@ -1189,6 +1242,9 @@ app.get('/api/backup', requireAdmin, (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(JSON.stringify(data, null, 2));
 });
+
+sweepAllMedia();
+setInterval(sweepAllMedia, 86400000);
 
 app.listen(PORT, () => {
   console.log(`LIFE (day by day) running at http://localhost:${PORT}`);
