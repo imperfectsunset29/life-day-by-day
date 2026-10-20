@@ -2065,16 +2065,24 @@ function getUserLocation() {
   return Promise.race([geo, timeout]);
 }
 
+// The label is fixed rather than read back from the button: a second request started
+// mid-flight (e.g. a quick Re-spin) used to read "Asking…" and restore that instead.
+const SUGGEST_OUTFIT_LABEL = 'What should I wear?';
+let outfitRequestInFlight = false;
+
 async function suggestOutfit() {
+  if (outfitRequestInFlight) return; // one request at a time — Re-spin taps while asking are ignored
   const promptEl = document.getElementById('outfit-prompt-input');
   const prompt = (promptEl && promptEl.value.trim()) || lastOutfitPrompt;
   if (!prompt) return;
   lastOutfitPrompt = prompt;
 
+  outfitRequestInFlight = true;
   const btn = document.getElementById('suggest-outfit-btn');
-  const originalText = btn.textContent;
+  const respinBtn = document.getElementById('outfit-respin-btn');
   btn.textContent = 'Asking…';
   btn.disabled = true;
+  respinBtn.disabled = true;
 
   try {
     const location = await getUserLocation();
@@ -2126,8 +2134,10 @@ async function suggestOutfit() {
     console.error('Outfit suggestion failed:', err);
     alert(`Couldn't get an outfit suggestion: ${err.message}`);
   } finally {
-    btn.textContent = originalText;
+    btn.textContent = SUGGEST_OUTFIT_LABEL;
     btn.disabled = false;
+    respinBtn.disabled = false;
+    outfitRequestInFlight = false;
   }
 }
 
