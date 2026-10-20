@@ -42,12 +42,13 @@ const categoryLabels = {
   projects: 'Project',
   treats: 'Treat',
   hardThings: 'Hard thing',
-  shoppingList: 'Shopping item',
+  shoppingList: 'Errand',
+  wishlist: 'Wish',
   dreams: 'Dream'
 };
 
 // State
-let tasks = { oneOff: [], habits: [], projects: [], treats: [], hardThings: [], shoppingList: [], wardrobe: [], dreams: [], done: [], olympus: [] };
+let tasks = { oneOff: [], habits: [], projects: [], treats: [], hardThings: [], shoppingList: [], wishlist: [], acquired: [], wardrobe: [], dreams: [], done: [], olympus: [] };
 const expandedProjects = new Set();
 let oneOffExpanded = false;
 const ONEOFF_LIMIT = 5;
@@ -637,7 +638,7 @@ async function toggleTask(category, id) {
   });
 
   await loadTasks();
-  if (category === 'shoppingList') renderShoppingList();
+  if (SHOPPING_CATS.includes(category)) renderShoppingList();
 
   if (category === 'oneOff' && !wasDone && tasks.oneOff.length === 0) {
     showOneOffCelebration();
@@ -837,6 +838,10 @@ function startEdit(category, id) {
     openWardrobeEditModal(id);
     return;
   }
+  if (category === 'wishlist') {
+    openWishEditModal(id);
+    return;
+  }
 
   const task = tasks[category] && tasks[category].find(t => t.id === id);
   if (!task) return;
@@ -900,7 +905,7 @@ async function deleteTask(category, id) {
   await loadTasks();
   if (category === 'treats') renderTreats();
   if (category === 'hardThings') renderHardThings();
-  if (category === 'shoppingList') renderShoppingList();
+  if (SHOPPING_CATS.includes(category)) renderShoppingList();
   if (category === 'wardrobe') renderWardrobe();
   if (category === 'dreams') renderDreams();
 }
@@ -919,7 +924,9 @@ async function addTask(category) {
     : category === 'hardThings'
     ? `<input type="text" class="task-text-input" placeholder="New hard thing...">`
     : category === 'shoppingList'
-    ? `<input type="text" class="task-text-input" placeholder="New item...">`
+    ? `<input type="text" class="task-text-input" placeholder="New errand...">`
+    : category === 'wishlist'
+    ? `<input type="text" class="task-text-input" placeholder="Something you want, or paste a link...">`
     : `<span class="task-checkbox"></span><input type="text" class="task-text-input" placeholder="New task...">`;
   list.appendChild(li);
 
@@ -938,7 +945,7 @@ async function addTask(category) {
     await loadTasks();
     if (category === 'treats') renderTreats();
     if (category === 'hardThings') renderHardThings();
-    if (category === 'shoppingList') renderShoppingList();
+    if (SHOPPING_CATS.includes(category)) renderShoppingList();
   };
 
   input.addEventListener('blur', save);
@@ -1195,6 +1202,7 @@ function renderShoppingList() {
         <button class="task-checkbox" data-id="${item.id}" data-category="shoppingList"></button>
         <span class="task-text">${renderTaskText(item.text)}</span>
         <div class="task-actions">
+          <button class="task-action-btn move" data-id="${item.id}" data-category="shoppingList" title="Move to wishlist">→ wishlist</button>
           <button class="task-action-btn edit" data-id="${item.id}" data-category="shoppingList" title="Edit">edit</button>
           <button class="task-action-btn delete" data-id="${item.id}" data-category="shoppingList" title="Delete">delete</button>
         </div>
@@ -1220,7 +1228,177 @@ function renderShoppingList() {
       doneList.appendChild(li);
     }
   }
+  renderWishlist();
+  renderAcquired();
   hydrateLinkPreviews();
+}
+
+// ---- Wishlist (longer-term wants) and the Acquired archive ----
+
+const SHOPPING_CATS = ['shoppingList', 'wishlist', 'acquired'];
+let acquiredExpanded = false;
+let openWishId = null;       // wish shown in the wish card
+let lastAcquired = null;     // the wish just bought, for "Add to wardrobe"
+
+function renderWishlist() {
+  const list = document.getElementById('list-wishlist');
+  list.innerHTML = '';
+  const wishes = tasks.wishlist || [];
+  if (wishes.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty-state';
+    li.textContent = 'Nothing here yet — add something you want';
+    list.appendChild(li);
+    return;
+  }
+  for (const wish of wishes) {
+    const li = document.createElement('li');
+    li.className = 'task-item wish-row';
+    li.dataset.id = wish.id;
+    li.dataset.category = 'wishlist';
+    li.innerHTML = `
+      <div class="wish-row-body">
+        <span class="task-text">${renderTaskText(wish.text)}</span>
+        ${wish.note ? `<span class="wish-row-note">${escapeHtml(wish.note)}</span>` : ''}
+      </div>
+      <div class="task-actions">
+        <button class="task-action-btn move" data-id="${wish.id}" data-category="wishlist" title="Move to errands">→ errands</button>
+        <button class="task-action-btn edit" data-id="${wish.id}" data-category="wishlist" title="Edit">edit</button>
+        <button class="task-action-btn delete" data-id="${wish.id}" data-category="wishlist" title="Delete">delete</button>
+      </div>
+    `;
+    list.appendChild(li);
+  }
+  initSortable('list-wishlist', 'wishlist');
+}
+
+function renderAcquired() {
+  const section = document.getElementById('acquired-section');
+  const list = document.getElementById('list-acquired');
+  const items = (tasks.acquired || []).slice().reverse(); // newest first
+  section.classList.toggle('hidden', items.length === 0);
+  document.getElementById('count-acquired').textContent = `(${items.length})`;
+  document.getElementById('acquired-chevron').textContent = acquiredExpanded ? '▾' : '▸';
+  list.classList.toggle('hidden', !acquiredExpanded);
+  list.innerHTML = '';
+  for (const item of items) {
+    const li = document.createElement('li');
+    li.className = 'task-item acquired-row';
+    li.dataset.id = item.id;
+    li.dataset.category = 'acquired';
+    li.innerHTML = `
+      <span class="task-text">${renderTaskText(item.text)}</span>
+      <span class="acquired-row-meta">${escapeHtml(`wanted ${wantedFor(item.createdAt, item.acquiredAt)} · ${formatShortDate(item.acquiredAt)}`)}</span>
+      <div class="task-actions">
+        <button class="task-action-btn delete" data-id="${item.id}" data-category="acquired" title="Delete">delete</button>
+      </div>
+    `;
+    list.appendChild(li);
+  }
+}
+
+function wantedFor(fromIso, toIso) {
+  const days = Math.max(0, Math.round((new Date(toIso) - new Date(fromIso)) / 86400000));
+  if (days === 0) return 'less than a day';
+  if (days === 1) return '1 day';
+  if (days < 14) return `${days} days`;
+  if (days < 60) return `${Math.round(days / 7)} weeks`;
+  if (days < 730) return `${Math.round(days / 30)} months`;
+  return `${Math.round(days / 365)} years`;
+}
+
+function formatShortDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// A readable name for a wish: its link's page title if we have one, else the text
+function wishDisplayName(text) {
+  const match = text.match(/https?:\/\/[^\s<]+/);
+  if (!match) return text;
+  const rest = text.replace(match[0], '').trim();
+  if (rest) return rest;
+  const cached = linkPreviewCache.get(match[0].replace(/[.,;:!?)\]]+$/, ''));
+  if (cached && cached.title) return cached.title;
+  try { return urlSlugTitle(new URL(match[0])) || new URL(match[0]).hostname.replace(/^www\./, ''); }
+  catch { return text; }
+}
+
+function openWishCard(id) {
+  const wish = (tasks.wishlist || []).find(w => w.id === id);
+  if (!wish) return;
+  openWishId = id;
+  document.getElementById('wish-label').textContent = 'Wishlist';
+  // Title is a plain name; the link (if any) sits beneath it as a normal chip
+  document.getElementById('wish-title').textContent = wishDisplayName(wish.text);
+  const link = wish.text.match(/https?:\/\/[^\s<]+/);
+  document.getElementById('wish-link').innerHTML = link ? renderTaskText(link[0]) : '';
+  const note = document.getElementById('wish-note');
+  note.textContent = wish.note || '';
+  note.classList.toggle('hidden', !wish.note);
+  document.getElementById('wish-since').textContent = `On your list since ${formatShortDate(wish.createdAt)}`;
+  document.getElementById('wish-actions').classList.toggle('hidden', !isAdmin());
+  document.getElementById('wish-acquired-actions').classList.add('hidden');
+  wishOverlay.classList.remove('hidden');
+  hydrateLinkPreviews();
+}
+
+async function markWishBought() {
+  const wish = (tasks.wishlist || []).find(w => w.id === openWishId);
+  if (!wish) return;
+  const res = await apiFetch(`${API}/wishlist/${wish.id}/acquire`, { method: 'POST' });
+  if (!res.ok) return;
+  lastAcquired = await res.json();
+
+  // The card becomes the moment of acquiring: how long it was wanted, and a door to the Wardrobe
+  document.getElementById('wish-label').textContent = 'Acquired';
+  document.getElementById('wish-since').textContent = `Wanted for ${wantedFor(lastAcquired.createdAt, lastAcquired.acquiredAt)}. It's yours now.`;
+  document.getElementById('wish-actions').classList.add('hidden');
+  document.getElementById('wish-acquired-actions').classList.remove('hidden');
+  await loadTasks();
+  renderShoppingList();
+}
+
+function addAcquiredToWardrobe() {
+  if (!lastAcquired) return;
+  wishOverlay.classList.add('hidden');
+  openWardrobeAddModal();
+  const match = lastAcquired.text.match(/https?:\/\/[^\s<]+/);
+  let origin = 'from the wishlist';
+  if (match) {
+    try { origin = new URL(match[0]).hostname.replace(/^www\./, ''); } catch {}
+  }
+  document.getElementById('wf-name').value = wishDisplayName(lastAcquired.text);
+  document.getElementById('wf-origin').value = origin;
+  document.getElementById('wf-acquired').value = new Date(lastAcquired.acquiredAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  if (lastAcquired.note) document.getElementById('wf-memory').value = lastAcquired.note;
+}
+
+function openWishEditModal(id) {
+  const wish = (tasks.wishlist || []).find(w => w.id === id);
+  if (!wish) return;
+  openWishId = id;
+  document.getElementById('we-text').value = wish.text;
+  document.getElementById('we-note').value = wish.note || '';
+  wishEditOverlay.classList.remove('hidden');
+}
+
+async function saveWishEdit() {
+  const text = document.getElementById('we-text').value.trim();
+  const note = document.getElementById('we-note').value.trim();
+  if (!text) return;
+  await apiFetch(`${API}/tasks/wishlist/${openWishId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ text, note })
+  });
+  wishEditOverlay.classList.add('hidden');
+  await loadTasks();
+  renderShoppingList();
+}
+
+async function moveShoppingItem(id, to) {
+  await apiFetch(`${API}/shopping/move`, { method: 'POST', body: JSON.stringify({ id, to }) });
+  await loadTasks();
+  renderShoppingList();
 }
 
 // Render hard things
@@ -1997,6 +2175,13 @@ function openActionDropdown(editBtn) {
   doDelete.addEventListener('click', (e) => { e.stopPropagation(); closeActionDropdown(); deleteTask(category, id); });
 
   dropdown.appendChild(doEdit);
+  if (category === 'shoppingList' || category === 'wishlist') {
+    const to = category === 'shoppingList' ? 'wishlist' : 'shoppingList';
+    const doMove = document.createElement('button');
+    doMove.textContent = to === 'wishlist' ? 'move to wishlist' : 'move to errands';
+    doMove.addEventListener('click', (e) => { e.stopPropagation(); closeActionDropdown(); moveShoppingItem(id, to); });
+    dropdown.appendChild(doMove);
+  }
   dropdown.appendChild(doDelete);
   document.body.appendChild(dropdown);
 }
@@ -2039,6 +2224,16 @@ document.addEventListener('click', (e) => {
   }
   else if (target.classList.contains('wardrobe-add-btn')) {
     openWardrobeAddModal(target.dataset.wardrobeCat);
+  }
+  else if (target.classList.contains('move')) {
+    moveShoppingItem(Number(target.dataset.id), target.dataset.category === 'shoppingList' ? 'wishlist' : 'shoppingList');
+  }
+  else if (target.closest('.wish-row') && !target.closest('.task-actions') && !target.closest('a')) {
+    openWishCard(Number(target.closest('.wish-row').dataset.id));
+  }
+  else if (target.closest('.acquired-header')) {
+    acquiredExpanded = !acquiredExpanded;
+    renderAcquired();
   }
   else if (target.closest('.wardrobe-row') && !target.closest('.task-actions') && !target.closest('a')) {
     openGarmentCard(Number(target.closest('.wardrobe-row').dataset.id));
@@ -2300,6 +2495,25 @@ document.getElementById('outfit-respin-btn').addEventListener('click', suggestOu
 document.getElementById('outfit-close-btn').addEventListener('click', () => {
   outfitOverlay.classList.add('hidden');
   recordOutfitWorn();
+});
+
+const wishOverlay = document.getElementById('wish-overlay');
+const wishEditOverlay = document.getElementById('wish-edit-overlay');
+document.getElementById('wish-x-btn').addEventListener('click', () => wishOverlay.classList.add('hidden'));
+document.getElementById('wish-done-btn').addEventListener('click', () => wishOverlay.classList.add('hidden'));
+wishOverlay.addEventListener('click', (e) => { if (e.target === wishOverlay) wishOverlay.classList.add('hidden'); });
+document.getElementById('wish-bought-btn').addEventListener('click', markWishBought);
+document.getElementById('wish-to-wardrobe-btn').addEventListener('click', addAcquiredToWardrobe);
+document.getElementById('wish-edit-btn').addEventListener('click', () => {
+  wishOverlay.classList.add('hidden');
+  openWishEditModal(openWishId);
+});
+document.getElementById('wish-edit-x-btn').addEventListener('click', () => wishEditOverlay.classList.add('hidden'));
+wishEditOverlay.addEventListener('click', (e) => { if (e.target === wishEditOverlay) wishEditOverlay.classList.add('hidden'); });
+document.getElementById('we-save-btn').addEventListener('click', saveWishEdit);
+document.getElementById('we-move-btn').addEventListener('click', () => {
+  wishEditOverlay.classList.add('hidden');
+  moveShoppingItem(openWishId, 'shoppingList');
 });
 
 const garmentOverlay = document.getElementById('garment-overlay');

@@ -300,6 +300,8 @@ function readTasks(profile) {
   if (!data.wardrobe) data.wardrobe = [];
   if (!data.dreams) data.dreams = [];
   if (!data.wearLog) data.wearLog = [];
+  if (!data.wishlist) data.wishlist = [];
+  if (!data.acquired) data.acquired = [];
   if (!data.oracle) data.oracle = { text: '', source: '', preview: '' };
   if (data.oracle.preview === undefined) data.oracle.preview = '';
   if (data.lastDoneCleared === undefined) data.lastDoneCleared = null;
@@ -352,6 +354,18 @@ function readTasks(profile) {
   } else if (data.lastDoneCleared !== lastSunday) {
     // No items to clear but still record the sweep so we don't re-check
     data.lastDoneCleared = lastSunday;
+    changed = true;
+  }
+
+  // One-time split of the old single shopping list: anything with a link was a want,
+  // not an errand, so it moves to the wishlist. Everything else stays in errands.
+  if (!data.shoppingSplit) {
+    const isWant = i => !i.done && /https?:\/\/\S+/i.test(i.text);
+    for (const item of data.shoppingList.filter(isWant)) {
+      data.wishlist.push({ id: item.id, text: item.text, note: '', createdAt: item.createdAt || new Date().toISOString() });
+    }
+    data.shoppingList = data.shoppingList.filter(i => !isWant(i));
+    data.shoppingSplit = true;
     changed = true;
   }
 
@@ -804,7 +818,7 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
   const data = readTasks(profile);
   const { category } = req.params;
   const { text } = req.body;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wardrobe', 'dreams'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wishlist', 'wardrobe', 'dreams'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const id = data.nextId++;
@@ -818,6 +832,8 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
     ? { id, text, image: body.image || '', createdAt }
     : category === 'shoppingList'
     ? { id, text, done: false, createdAt }
+    : category === 'wishlist'
+    ? { id, text, note: '', createdAt }
     : category === 'projects'
     ? { id, text, progress: 0, createdAt }
     : category === 'wardrobe'
@@ -835,11 +851,48 @@ app.put('/api/tasks/:category/reorder', requireAdmin, (req, res) => {
   const data = readTasks(profile);
   const { category } = req.params;
   const { ids } = req.body;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wardrobe', 'dreams'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wishlist', 'wardrobe', 'dreams'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const items = data[category];
   data[category] = ids.map(id => items.find(t => t.id === Number(id))).filter(Boolean);
+  writeTasks(data, profile);
+  res.json({ success: true });
+});
+
+// ---- Shopping: errands (shoppingList) and wishlist ----
+
+// Bought a wish: it moves to the Acquired archive, remembering how long it was wanted
+app.post('/api/wishlist/:id/acquire', requireAdmin, (req, res) => {
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
+  const wish = data.wishlist.find(w => w.id === Number(req.params.id));
+  if (!wish) return res.status(404).json({ error: 'Wish not found' });
+
+  const acquiredAt = new Date().toISOString();
+  const entry = { id: wish.id, text: wish.text, note: wish.note || '', createdAt: wish.createdAt, acquiredAt };
+  data.acquired.push(entry);
+  data.wishlist = data.wishlist.filter(w => w.id !== wish.id);
+  writeTasks(data, profile);
+  logEvent('wish_acquired', { taskId: wish.id, text: wish.text }, profile);
+  res.json(entry);
+});
+
+// Moves an item between errands and the wishlist (it keeps its id and text)
+app.post('/api/shopping/move', requireAdmin, (req, res) => {
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
+  const id = Number(req.body.id);
+  const to = req.body.to;
+  if (to !== 'wishlist' && to !== 'shoppingList') return res.status(400).json({ error: 'Invalid destination' });
+  const from = to === 'wishlist' ? 'shoppingList' : 'wishlist';
+  const item = data[from].find(i => i.id === id);
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+
+  data[from] = data[from].filter(i => i.id !== id);
+  data[to].push(to === 'wishlist'
+    ? { id, text: item.text, note: '', createdAt: item.createdAt || new Date().toISOString() }
+    : { id, text: item.text, done: false, createdAt: item.createdAt || new Date().toISOString() });
   writeTasks(data, profile);
   res.json({ success: true });
 });
@@ -886,7 +939,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { category, id } = req.params;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wardrobe', 'dreams'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wishlist', 'wardrobe', 'dreams'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const task = data[category].find(t => t.id === Number(id));
@@ -896,6 +949,10 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
 
   if (category === 'dreams') {
     if (req.body.image !== undefined) task.image = req.body.image;
+  }
+
+  if (category === 'wishlist') {
+    if (req.body.note !== undefined) task.note = String(req.body.note).slice(0, 200);
   }
 
   if (category === 'wardrobe') {
@@ -963,7 +1020,7 @@ app.delete('/api/tasks/:category/:id', requireAdmin, (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { category, id } = req.params;
-  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wardrobe', 'dreams', 'done', 'olympus'].includes(category)) {
+  if (!['oneOff', 'habits', 'projects', 'treats', 'hardThings', 'shoppingList', 'wishlist', 'acquired', 'wardrobe', 'dreams', 'done', 'olympus'].includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const deletedTask = data[category].find(t => t.id === Number(id));

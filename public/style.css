@@ -1032,7 +1032,8 @@ body.admin-mode .lock-btn:hover { color: #b5c99a; }
 .task-checkbox { pointer-events: none; cursor: default; }
 .task-action-btn.edit,
 .task-action-btn.delete,
-.task-action-btn.restore { display: none; }
+.task-action-btn.restore,
+.task-action-btn.move { display: none; }
 .progress-btn { pointer-events: none; cursor: default; opacity: 0.3; }
 
 /* Restore in admin mode */
@@ -1040,11 +1041,14 @@ body.admin-mode .add-btn { display: flex; }
 body.admin-mode .task-checkbox { pointer-events: auto; cursor: pointer; }
 body.admin-mode .task-action-btn.edit,
 body.admin-mode .task-action-btn.delete,
-body.admin-mode .task-action-btn.restore { display: inline-block; }
+body.admin-mode .task-action-btn.restore,
+body.admin-mode .task-action-btn.move { display: inline-block; }
 body.admin-mode .progress-btn { pointer-events: auto; cursor: pointer; opacity: 1; }
 
 @media (max-width: 480px) {
-  body.admin-mode .task-action-btn.delete { display: none; }
+  /* On phones these live in the edit button's dropdown instead */
+  body.admin-mode .task-action-btn.delete,
+  body.admin-mode .task-action-btn.move { display: none; }
 }
 
 /* ============ Drag to reorder ============ */
@@ -2154,4 +2158,72 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
     right: 20px;
     bottom: calc(90px + env(safe-area-inset-bottom));
   }
+}
+
+/* ============ Shopping: wishlist + acquired ============ */
+
+.wishlist-section {
+  margin-top: 24px;
+}
+
+.wish-row {
+  cursor: pointer;
+}
+
+.wish-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wish-row-note {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 0.9rem;
+  color: rgba(240, 232, 224, 0.45);
+  line-height: 1.35;
+}
+
+.acquired-header {
+  cursor: pointer;
+}
+
+.acquired-section .task-item {
+  opacity: 0.6;
+}
+
+.acquired-row-meta {
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: rgba(200, 168, 122, 0.7);
+  white-space: nowrap;
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.wish-overlay-content {
+  text-align: left;
+}
+
+.wish-link:empty {
+  display: none;
+}
+
+.wish-link {
+  margin-top: 4px;
+  font-size: 0.8rem;
+}
+
+.wish-since {
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: rgba(240, 232, 224, 0.4);
+  margin: 12px 0 28px;
+}
+
+.wish-edit-actions {
+  justify-content: space-between;
+  margin-top: 24px;
 }

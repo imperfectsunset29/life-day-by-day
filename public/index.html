@@ -162,12 +162,12 @@
   <main id="shopping-list-view" class="hidden">
     <div class="olympus-header">
       <button id="shopping-list-back" class="back-btn"></button>
-      <h2 class="olympus-title">Shopping List</h2>
+      <h2 class="olympus-title">Shopping</h2>
     </div>
-    <p class="olympus-subtitle">Things to pick up</p>
+    <p class="olympus-subtitle">what I need, what I want</p>
     <section class="category">
       <div class="category-header">
-        <h2>Your list</h2>
+        <h2>Errands</h2>
         <button class="add-btn" data-category="shoppingList">+</button>
       </div>
       <ul id="list-shoppingList" class="task-list"></ul>
@@ -177,6 +177,25 @@
         <h2>Done</h2>
       </div>
       <ul id="list-shoppingListDone" class="task-list"></ul>
+    </section>
+
+    <section class="category wishlist-section">
+      <div class="category-header">
+        <h2>Wishlist</h2>
+        <button class="add-btn" data-category="wishlist">+</button>
+      </div>
+      <ul id="list-wishlist" class="task-list"></ul>
+    </section>
+
+    <section class="category acquired-section hidden" id="acquired-section">
+      <div class="category-header acquired-header">
+        <div class="wardrobe-cat-label">
+          <span class="wardrobe-cat-chevron" id="acquired-chevron">▸</span>
+          <h2>Acquired</h2>
+          <span class="wardrobe-cat-count" id="count-acquired"></span>
+        </div>
+      </div>
+      <ul id="list-acquired" class="task-list hidden"></ul>
     </section>
   </main>
 
@@ -410,6 +429,42 @@
 
       <div class="overlay-actions">
         <button id="wardrobe-save-btn" class="btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wish card overlay: one wishlist item, and the moment it's bought -->
+  <div id="wish-overlay" class="overlay hidden">
+    <div class="overlay-content wish-overlay-content">
+      <button id="wish-x-btn" class="oracle-x-btn">&times;</button>
+      <p id="wish-label" class="overlay-label">Wishlist</p>
+      <h3 id="wish-title" class="garment-title"></h3>
+      <div id="wish-link" class="wish-link"></div>
+      <p id="wish-note" class="garment-memory hidden"></p>
+      <p id="wish-since" class="wish-since"></p>
+      <div id="wish-actions" class="overlay-actions">
+        <button id="wish-edit-btn" class="btn-secondary">Edit</button>
+        <button id="wish-bought-btn" class="btn-primary">Bought it</button>
+      </div>
+      <div id="wish-acquired-actions" class="overlay-actions hidden">
+        <button id="wish-to-wardrobe-btn" class="btn-secondary">Add to wardrobe</button>
+        <button id="wish-done-btn" class="btn-primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wish edit overlay: the item, plus an optional one-liner of your own -->
+  <div id="wish-edit-overlay" class="overlay hidden">
+    <div class="overlay-content wish-overlay-content">
+      <button id="wish-edit-x-btn" class="oracle-x-btn">&times;</button>
+      <p class="overlay-label">Edit wish</p>
+      <div class="wardrobe-form-fields">
+        <input id="we-text" class="task-text-input wardrobe-field-input" placeholder="The thing (or paste a link)" type="text">
+        <input id="we-note" class="task-text-input wardrobe-field-input" placeholder="Why you want it, in one line (optional)" type="text" maxlength="200">
+      </div>
+      <div class="overlay-actions wish-edit-actions">
+        <button id="we-move-btn" class="btn-tertiary">Move to errands</button>
+        <button id="we-save-btn" class="btn-primary">Save</button>
       </div>
     </div>
   </div>

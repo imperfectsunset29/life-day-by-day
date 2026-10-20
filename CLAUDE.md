@@ -43,6 +43,7 @@ tasks.json           → All persistent data (auto-created on first run)
 - **Treats / Hard Things:** Stateless. 20% chance each in randomizer.
 - **Done:** Completed one-offs; cleared every Sunday 23:59 PT.
 - **Olympus:** Ascended projects. Restoring resets progress to 0; steps not restored.
+- **Shopping:** One page, two lists (the nav has no room for a sixth item). **Errands** (`shoppingList`) is a quick checklist whose checked items clear daily. **Wishlist** holds longer-term wants that never clear; each can carry an optional one-line note the user writes in the edit overlay. Tapping a wish opens its card; "Bought it" moves it to **Acquired** (collapsed archive, newest first, showing how long it was wanted) and offers "Add to wardrobe", which prefills name, origin (the shop's domain), acquired date and memory (the note). Items move between Errands and Wishlist via the edit dropdown on phones or the "→ wishlist / → errands" action on desktop. API: `POST /api/wishlist/:id/acquire`, `POST /api/shopping/move`.
 - **Surprise Me:** `currentSurpriseTask` tracks the last spin. "I'll do it" marks oneOff/habit done; Treats/Hard Things close without checking off.
 
 **Quote style — non-negotiable:** Both the one-off celebration quote (`GET /api/quote/celebration`, shown when all one-offs are cleared) and the project ascension quote (`reflection` field, shown when a project hits 100%) must be Pynchon-style: sardonic, paranoid, literary, darkly funny. No plain/minimalist/dry register for either.
@@ -68,6 +69,10 @@ wardrobe:   { id, text, brand, color, material, pattern, occasion, season, wardr
               origin, acquired, memory,                // optional, user-written: where it's from, when, a one-line memory
               dossier, createdAt }                     // dossier: { text, wearCount, generatedAt } — cached AI file
 wearLog:    { id, date, wornAt, itemIds, prompt, weather } // one entry per "Love it"; date is the PT habit-day
+shoppingList: { id, text, done, createdAt }          // Errands; done items clear at the end of each PT day
+wishlist:   { id, text, note, createdAt }            // longer-term wants; never auto-clear; note is the user's optional one-liner
+acquired:   { id, text, note, createdAt, acquiredAt } // bought wishes; createdAt→acquiredAt = how long it was wanted
+shoppingSplit: true                                  // one-time migration flag (linked items moved from shoppingList to wishlist)
 nextId:     number                                   // shared counter for tasks, steps and wear entries
 ```
 
@@ -114,7 +119,7 @@ New overlays should reuse `.overlay` / `.overlay-content` to inherit these guard
 
 **Dossier:** a Pynchon-voiced one-liner written from the garment's real history (`POST /api/wardrobe/:id/dossier`). It's cached on the item and only rewritten after the garment has been worn again. Viewers see the cached one; only admin can write a new one. It renders in amber, the card's inner light. Wardrobe rows have no dblclick-to-edit; edit from the card's Edit button or the row's edit link.
 
-**Back buttons:** Secondary views (Olympus, Treats, Hard Things, Shopping List) use `.back-btn` — a bare `‹` chevron via `::before`, no label, no border. Context makes navigation legible without naming it.
+**Back buttons:** Secondary views (Olympus, Treats, Hard Things, Shopping, Wardrobe, Dreams) use `.back-btn` — a bare `‹` chevron via `::before`, no label, no border. Context makes navigation legible without naming it.
 
 **Floating nav:** A glass pill fixed at the bottom of every screen (`#floating-nav-dock` → `#floating-nav`), holding Home, Olympus, Wardrobe, Shopping, Dreams in that order. It collapses to a single circle showing the current view's icon, and expands on tap. Auto-collapses after `NAV_IDLE_MS` of no interaction, on any scroll, on a tap outside, and `NAV_SETTLE_MS` after a jump. Key functions in `app.js`: `expandNav()`, `collapseNav()`, `setActiveNav(key)`. `setActiveNav(null)` (Treats, Hard Things) highlights nothing and falls the collapsed circle back to Home. Adding a destination = one `.floating-nav-item` in `index.html` + one entry in `NAV_DESTINATIONS` + a `setActiveNav()` call in its `show*()` function. Five items is the comfortable ceiling at 390px; Treats and Hard Things stay as `.tertiary-link` text at the bottom of the main view. Anything `position: fixed` near the bottom (e.g. `#dreams-fab`) must sit above the pill, and `body` bottom padding must clear it.
 
