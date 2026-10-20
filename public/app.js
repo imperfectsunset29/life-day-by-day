@@ -1771,7 +1771,7 @@ function renderWardrobe() {
   hydrateLinkPreviews();
 }
 
-// ---- Wardrobe history (wear log, garment card, dossier) ----
+// ---- Wardrobe history (wear log, garment card) ----
 
 async function refreshWardrobeStats() {
   try {
@@ -1860,33 +1860,7 @@ function openGarmentCard(id) {
   editBtn.dataset.id = id;
   editBtn.parentElement.classList.toggle('hidden', !isAdmin());
 
-  loadGarmentDossier(item);
   garmentOverlay.classList.remove('hidden');
-}
-
-async function loadGarmentDossier(item) {
-  const el = document.getElementById('garment-dossier');
-  const show = text => {
-    el.textContent = text || '';
-    el.classList.toggle('hidden', !text);
-    el.classList.remove('loading');
-  };
-  // Viewers see whatever file already exists; writing a new one is admin-only
-  if (!isAdmin()) return show(item.dossier && item.dossier.text);
-
-  el.textContent = 'Consulting the file…';
-  el.classList.add('loading');
-  el.classList.remove('hidden');
-  try {
-    const res = await apiFetch(`${API}/wardrobe/${item.id}/dossier`, { method: 'POST' });
-    const data = await res.json();
-    // Ignore a late answer if the card has since been closed or moved to another garment
-    if (garmentOverlay.classList.contains('hidden') || Number(document.getElementById('garment-edit-btn').dataset.id) !== item.id) return;
-    show(data.dossier);
-    if (data.dossier) item.dossier = { ...(item.dossier || {}), text: data.dossier };
-  } catch {
-    show(item.dossier && item.dossier.text);
-  }
 }
 
 async function recordOutfitWorn() {

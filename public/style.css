@@ -1658,24 +1658,6 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   display: none;
 }
 
-/* The dossier is the card's inner light — amber, like the fissure in logo.jpg */
-.garment-dossier {
-  font-family: 'Instrument Serif', Georgia, serif;
-  font-style: italic;
-  font-size: 1rem;
-  line-height: 1.45;
-  color: rgba(200, 168, 122, 0.9);
-  padding: 14px 16px;
-  margin-bottom: 20px;
-  background: rgba(200, 168, 122, 0.06);
-  border: 1px solid rgba(200, 168, 122, 0.16);
-  border-radius: 14px;
-}
-
-.garment-dossier.loading {
-  color: rgba(200, 168, 122, 0.4);
-}
-
 .garment-section {
   padding: 12px 0;
   border-top: 1px solid rgba(255, 255, 255, 0.06);

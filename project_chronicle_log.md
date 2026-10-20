@@ -42,3 +42,7 @@ Garments gained optional origin, acquired and memory fields.
 ## 2026-10-20 — Shopping splits into needs and wants
 **Decision:** Shopping became one page with two lists. **Errands** is a quick checklist that clears daily, as before. **Wishlist** is for longer-term wants that never clear on their own, each with an optional one-line note written by the user. Buying a wish moves it to an **Acquired** archive that remembers how long it was wanted, and offers to add it to the Wardrobe with its origin filled in. Existing items containing links moved to the wishlist automatically.
 **Why:** Groceries and covetable things were sharing one list with a daily clear-out, so checking off a tote you were eyeing erased it by morning. Needs want speed; wants deserve time, and the moment of finally getting one is worth marking.
+
+## 2026-10-20 — Garment dossiers removed
+**Decision:** The AI-written Pynchon "dossier" on each garment card is gone, along with any cached ones stored on garments.
+**Why:** In practice it ran to a long paragraph that took over the card. For never-worn pieces it had nothing real to say. The card is better as plain history.

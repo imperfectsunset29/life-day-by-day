@@ -67,7 +67,7 @@ olympus:    { id, text, completedAt, reflection }    // Pynchon quote
 oracle:     { text, source, preview }                // single object, not an array
 wardrobe:   { id, text, brand, color, material, pattern, occasion, season, wardrobeCategory, subcategory,
               origin, acquired, memory,                // optional, user-written: where it's from, when, a one-line memory
-              dossier, createdAt }                     // dossier: { text, wearCount, generatedAt } — cached AI file
+              createdAt }
 wearLog:    { id, date, wornAt, itemIds, prompt, weather } // one entry per "Love it"; date is the PT habit-day
 shoppingList: { id, text, done, createdAt }          // Errands; done items clear at the end of each PT day
 wishlist:   { id, text, note, createdAt }            // longer-term wants; never auto-clear; note is the user's optional one-liner
@@ -114,10 +114,10 @@ New overlays should reuse `.overlay` / `.overlay-content` to inherit these guard
 
 **Wardrobe history.** "Love it" on a suggested outfit is the only way wears are recorded (`POST /api/wardrobe/wear`, admin-only). Re-spin and × record nothing. Everything else is derived on request by `computeWardrobeStats()` in `server.js` (`GET /api/wardrobe/stats`), never stored:
 - **Rows:** show "worn 3 wks ago" in place of color, or a ghosted italic "never worn".
-- **Garment card:** tapping a row opens `#garment-overlay`, showing wear count, "Usually seen with" (pieces worn together at least `FRIEND_MIN_TOGETHER` times), "Its story" (the last `WEAR_STORY_LENGTH` wears with prompt and weather), origin/memory, and the dossier.
+- **Garment card:** tapping a row opens `#garment-overlay`, showing wear count, "Usually seen with" (pieces worn together at least `FRIEND_MIN_TOGETHER` times), "Its story" (the last `WEAR_STORY_LENGTH` wears with prompt and weather), and origin/memory.
 - **Rotation nudge:** the outfit stylist sees each piece's wear history and is told to favor neglected pieces when two fit equally well.
 
-**Dossier:** a Pynchon-voiced one-liner written from the garment's real history (`POST /api/wardrobe/:id/dossier`). It's cached on the item and only rewritten after the garment has been worn again. Viewers see the cached one; only admin can write a new one. It renders in amber, the card's inner light. Wardrobe rows have no dblclick-to-edit; edit from the card's Edit button or the row's edit link.
+**Dossier — removed.** Garments once had an AI-written Pynchon "dossier" on their card. It was removed: it ran long and crowded the card. Don't reintroduce it without asking. Wardrobe rows have no dblclick-to-edit; edit from the card's Edit button or the row's edit link.
 
 **Back buttons:** Secondary views (Olympus, Treats, Hard Things, Shopping, Wardrobe, Dreams) use `.back-btn` — a bare `‹` chevron via `::before`, no label, no border. Context makes navigation legible without naming it.
 

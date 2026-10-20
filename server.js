@@ -369,6 +369,11 @@ function readTasks(profile) {
     changed = true;
   }
 
+  // Garment dossiers were removed — drop any cached ones still stored on garments
+  for (const item of data.wardrobe) {
+    if (item.dossier !== undefined) { delete item.dossier; changed = true; }
+  }
+
   // Clear done shopping list items at the end of each PT day
   const todayPT = getTodayPT();
   if (data.lastShoppingCleared !== todayPT) {
@@ -618,7 +623,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   res.json({ items: sanitizeOutfit(items), weather });
 });
 
-// ---- Wardrobe history: wear log, stats, dossier ----
+// ---- Wardrobe history: wear log and stats ----
 // "Love it" on a suggested outfit records a wear. Everything else (last worn, times worn,
 // best friends, a garment's story, the closet line) is derived from that log on request.
 
@@ -707,52 +712,6 @@ app.post('/api/wardrobe/wear', requireAdmin, (req, res) => {
   writeTasks(data, profile);
   logEvent('outfit_worn', { itemIds, prompt: wear.prompt }, profile);
   res.json(wear);
-});
-
-// A one-line, Pynchon-voiced file on a garment, written from its real history. Cached on the
-// item and only rewritten once the garment has been worn again since the last one was written.
-app.post('/api/wardrobe/:id/dossier', requireAdmin, async (req, res) => {
-  const profile = profileFrom(req);
-  const data = readTasks(profile);
-  const item = data.wardrobe.find(i => i.id === Number(req.params.id));
-  if (!item) return res.status(404).json({ error: 'Garment not found' });
-
-  const stats = computeWardrobeStats(data);
-  const st = stats.items[item.id];
-  if (item.dossier && item.dossier.wearCount === st.timesWorn) return res.json({ dossier: item.dossier.text });
-  if (!anthropic) return res.json({ dossier: null });
-
-  const nameOf = id => (data.wardrobe.find(i => i.id === id) || {}).text;
-  const facts = [
-    `Garment: ${[item.brand, item.text].filter(Boolean).join(' ')} (${[item.color, item.material, item.pattern].filter(Boolean).join(', ')})`,
-    st.timesWorn ? `Worn ${st.timesWorn} time(s); last on ${st.lastWorn}` : 'Never worn yet',
-    st.friends.length ? `Most often worn with: ${st.friends.map(f => `${nameOf(f.id)} (${f.count}x)`).join('; ')}` : '',
-    st.story.length ? `Recent outings (the wearer's own words): ${st.story.map(w => `"${w.prompt}"${w.weather ? ` at ${w.weather}` : ''}`).join('; ')}` : '',
-    item.origin ? `Origin: ${item.origin}` : '',
-    item.acquired ? `Acquired: ${item.acquired}` : '',
-    item.memory ? `The wearer's memory of it: ${item.memory}` : ''
-  ].filter(Boolean).join('\n');
-
-  try {
-    const msg = await anthropic.messages.create({
-      model: 'claude-opus-4-8',
-      max_tokens: 300,
-      messages: [{
-        role: 'user',
-        content: `Write a one- or two-sentence dossier entry on this garment, in the voice of Thomas Pynchon: as if a paranoid, half-amused intelligence service has been keeping a file on it. Sardonic, literary, affectionate underneath. Build it only from the facts below, using at least one specific detail. If it has never been worn, treat that as its own small mystery. Avoid stock moves like the word "entropy" or a capitalized "They" unless they're genuinely fresh here.\n\n${facts}\n\nReturn only the entry, with no title, label or quotes.`
-      }]
-    });
-    const text = msg.content.find(b => b.type === 'text');
-    const dossier = text ? text.text.trim().replace(/^["“]|["”]$/g, '') : null;
-    if (dossier) {
-      item.dossier = { text: dossier, wearCount: st.timesWorn, generatedAt: new Date().toISOString() };
-      writeTasks(data, profile);
-    }
-    res.json({ dossier });
-  } catch (err) {
-    console.error('Dossier unavailable:', friendlyAnthropicError(err));
-    res.json({ dossier: item.dossier ? item.dossier.text : null });
-  }
 });
 
 // Blocks requests to internal/private network addresses — this endpoint fetches
