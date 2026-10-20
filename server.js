@@ -23,6 +23,77 @@ function getEventsFile(profile) {
   return EVENTS_FILES[profile] || EVENTS_FILES.vc;
 }
 
+// ---- Storage safety: all-or-nothing saves, daily snapshots, recovery ----
+
+// On Railway the data must live on the mounted volume, or it's wiped on every deploy.
+// Railway sets RAILWAY_ENVIRONMENT_NAME, so a missing volume there is shouted about.
+const PERSISTENT = DATA_DIR === '/app/data';
+if (!PERSISTENT && process.env.RAILWAY_ENVIRONMENT_NAME) {
+  console.error('!!! STORAGE WARNING: /app/data volume not found. Data is being saved inside the container and WILL BE LOST on the next deploy. Reattach the volume at /app/data in Railway.');
+}
+
+const SNAPSHOT_DIR = path.join(DATA_DIR, 'snapshots');
+const SNAPSHOT_KEEP_DAYS = 14;
+
+// Write to a temp file, then rename over the real one. A rename is atomic, so a crash
+// or a deploy mid-save leaves either the old file or the new one, never half of one.
+function writeJsonAtomic(file, data) {
+  const tmp = `${file}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+  fs.renameSync(tmp, file);
+}
+
+function snapshotsFor(profile) {
+  if (!fs.existsSync(SNAPSHOT_DIR)) return [];
+  const prefix = `tasks-${profile}-`;
+  return fs.readdirSync(SNAPSHOT_DIR)
+    .filter(f => f.startsWith(prefix) && f.endsWith('.json'))
+    .sort(); // names end in YYYY-MM-DD, so this is oldest → newest
+}
+
+// Copies today's data file into snapshots/ once per day (before the day's first save),
+// keeping the last SNAPSHOT_KEEP_DAYS days per profile.
+function snapshotIfDue(profile) {
+  const file = getTasksFile(profile);
+  if (!fs.existsSync(file)) return;
+  const name = `tasks-${profile}-${getTodayPT()}.json`;
+  const target = path.join(SNAPSHOT_DIR, name);
+  if (fs.existsSync(target)) return;
+  try {
+    JSON.parse(fs.readFileSync(file, 'utf8')); // never snapshot a damaged file
+    fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
+    fs.copyFileSync(file, target);
+    const all = snapshotsFor(profile);
+    for (const old of all.slice(0, Math.max(0, all.length - SNAPSHOT_KEEP_DAYS))) {
+      fs.unlinkSync(path.join(SNAPSHOT_DIR, old));
+    }
+  } catch (err) {
+    console.error(`Snapshot for ${profile} skipped:`, err.message);
+  }
+}
+
+// Reads a profile's data file. If it can't be parsed, the damaged file is set aside
+// and the newest snapshot that does parse is restored in its place.
+function readDataFile(file, profile) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (err) {
+    console.error(`!!! ${file} could not be read (${err.message}). Restoring from the latest snapshot.`);
+    fs.copyFileSync(file, `${file}.damaged-${Date.now()}`);
+    for (const name of snapshotsFor(profile).reverse()) {
+      try {
+        const data = JSON.parse(fs.readFileSync(path.join(SNAPSHOT_DIR, name), 'utf8'));
+        writeJsonAtomic(file, data);
+        console.error(`Restored ${file} from snapshots/${name}.`);
+        return data;
+      } catch {
+        // that snapshot is damaged too — try the one before it
+      }
+    }
+    throw new Error(`${file} is damaged and no usable snapshot exists`);
+  }
+}
+
 function profileFrom(req) {
   const p = (req.headers['x-profile'] || 'vc').toLowerCase();
   return p === 'fg' ? 'fg' : 'vc';
@@ -286,10 +357,10 @@ function readTasks(profile) {
   const file = getTasksFile(profile || 'vc');
   const defaults = profile === 'fg' ? defaultFgTasks : defaultTasks;
   if (!fs.existsSync(file)) {
-    fs.writeFileSync(file, JSON.stringify(defaults, null, 2));
+    writeJsonAtomic(file, defaults);
     return JSON.parse(JSON.stringify(defaults));
   }
-  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const data = readDataFile(file, profile || 'vc');
 
   // Ensure new fields exist for migration
   if (!data.done) data.done = [];
@@ -385,20 +456,22 @@ function readTasks(profile) {
   }
 
   if (changed) {
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    snapshotIfDue(profile || 'vc');
+    writeJsonAtomic(file, data);
   }
   return data;
 }
 
 function writeTasks(data, profile) {
-  fs.writeFileSync(getTasksFile(profile || 'vc'), JSON.stringify(data, null, 2));
+  snapshotIfDue(profile || 'vc');
+  writeJsonAtomic(getTasksFile(profile || 'vc'), data);
 }
 
 function logEvent(type, payload, profile) {
   const file = getEventsFile(profile || 'vc');
   const events = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
   events.push({ type, at: new Date().toISOString(), ...payload });
-  fs.writeFileSync(file, JSON.stringify(events, null, 2));
+  writeJsonAtomic(file, events);
 }
 
 // ---- Pynchon quotes (project ascension + one-off celebration) ----
@@ -904,6 +977,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
   const task = data[category].find(t => t.id === Number(id));
   if (!task) return res.status(404).json({ error: 'Task not found' });
 
+  const before = { ...task }; // for logging what a garment edit changed
   if (req.body.text !== undefined) task.text = req.body.text;
 
   if (category === 'dreams') {
@@ -915,6 +989,11 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
   }
 
   if (category === 'wardrobe') {
+    const fields = ['text', 'brand', 'color', 'material', 'pattern', 'occasion', 'season', 'wardrobeCategory', 'subcategory', 'origin', 'acquired', 'memory'];
+    const changes = fields
+      .filter(f => req.body[f] !== undefined && req.body[f] !== (before[f] ?? ''))
+      .map(f => ({ field: f, from: before[f] ?? '', to: req.body[f] }));
+    if (changes.length) logEvent('garment_edited', { taskId: task.id, text: task.text, changes }, profile);
     if (req.body.brand !== undefined) task.brand = req.body.brand;
     if (req.body.color !== undefined) task.color = req.body.color;
     if (req.body.material !== undefined) task.material = req.body.material;
@@ -942,16 +1021,22 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
 
     // Auto-ascend at 100%
     if (task.progress >= 100) {
-      logEvent('project_ascended', { taskId: task.id, text: task.text }, profile);
       const reflection = await getProjectReflection(task.text, data);
-      data.olympus.push({
-        id: task.id,
-        text: task.text,
-        completedAt: new Date().toISOString(),
-        reflection
-      });
-      data.projects = data.projects.filter(t => t.id !== task.id);
-      writeTasks(data, profile);
+      // Writing the quote takes seconds, and anything saved meanwhile (a habit checked, a
+      // task added) would be overwritten by the copy read before the wait — so re-read now.
+      const fresh = readTasks(profile);
+      const freshTask = fresh.projects.find(t => t.id === task.id);
+      if (freshTask) { // gone means a duplicate tap already ascended it
+        logEvent('project_ascended', { taskId: task.id, text: task.text }, profile);
+        fresh.olympus.push({
+          id: task.id,
+          text: freshTask.text,
+          completedAt: new Date().toISOString(),
+          reflection
+        });
+        fresh.projects = fresh.projects.filter(t => t.id !== task.id);
+        writeTasks(fresh, profile);
+      }
       return res.json({ ascended: true, reflection });
     }
   } else if (req.body.done !== undefined) {
@@ -983,7 +1068,8 @@ app.delete('/api/tasks/:category/:id', requireAdmin, (req, res) => {
     return res.status(400).json({ error: 'Invalid category' });
   }
   const deletedTask = data[category].find(t => t.id === Number(id));
-  if (deletedTask) logEvent('task_deleted', { taskId: deletedTask.id, text: deletedTask.text, category }, profile);
+  // Garments are logged whole, so a deleted one can be rebuilt from the activity log
+  if (deletedTask) logEvent('task_deleted', { taskId: deletedTask.id, text: deletedTask.text, category, ...(category === 'wardrobe' ? { item: deletedTask } : {}) }, profile);
   data[category] = data[category].filter(t => t.id !== Number(id));
   writeTasks(data, profile);
   res.json({ success: true });
@@ -1077,6 +1163,24 @@ app.get('/api/export', requireAdmin, (req, res) => {
 });
 
 // Backup — download tasks.json as a file (admin only)
+// Storage status: is the data on the persistent volume, how big it is, and its latest snapshot
+app.get('/api/health', (req, res) => {
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
+  const snapshots = snapshotsFor(profile);
+  res.json({
+    persistent: PERSISTENT,
+    snapshots: { count: snapshots.length, latest: snapshots[snapshots.length - 1] || null },
+    counts: {
+      projects: data.projects.length,
+      olympus: data.olympus.length,
+      garments: data.wardrobe.length,
+      wears: data.wearLog.length,
+      wishlist: data.wishlist.length
+    }
+  });
+});
+
 app.get('/api/backup', requireAdmin, (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);

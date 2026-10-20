@@ -46,3 +46,7 @@ Garments gained optional origin, acquired and memory fields.
 ## 2026-10-20 — Garment dossiers removed
 **Decision:** The AI-written Pynchon "dossier" on each garment card is gone, along with any cached ones stored on garments.
 **Why:** In practice it ran to a long paragraph that took over the card. For never-worn pieces it had nothing real to say. The card is better as plain history.
+
+## 2026-10-20 — Data gets safeguards
+**Decision:** Saves became all-or-nothing (write a temp file, then swap it in). Each profile gets a daily snapshot, kept for 14 days. A damaged data file restores itself from the newest snapshot, and a missing Railway volume triggers a loud warning. Wardrobe changes are now fully tracked: every garment edit is logged field by field, and deleted garments are kept whole in the activity log.
+**Why:** There was exactly one copy of everything, overwritten in place. Finishing a project also silently undid any change made while its quote was being written (a bug introduced by on-demand quotes, now fixed). The wardrobe, built up by hand over time, is the hardest data to recreate.

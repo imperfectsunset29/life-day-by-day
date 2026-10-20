@@ -8,3 +8,6 @@ events-fg.json
 Claude/
 untitled folder/
 Life day by day .md
+snapshots/
+*.tmp
+*.damaged-*

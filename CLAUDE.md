@@ -76,6 +76,16 @@ shoppingSplit: true                                  // one-time migration flag 
 nextId:     number                                   // shared counter for tasks, steps and wear entries
 ```
 
+## Data Safety — Don't Remove
+
+All data is plain JSON on the Railway volume (`/app/data`): `tasks*.json` per profile, `events*.json` activity logs. Safeguards in `server.js`:
+- **All-or-nothing saves:** every write goes through `writeJsonAtomic()` (write `.tmp`, then rename), so a crash or deploy mid-save can't leave a half-written file. Never call `fs.writeFileSync` on a data file directly.
+- **Daily snapshots:** `snapshotIfDue()` copies each profile's file into `/app/data/snapshots/` before the day's first save, keeping `SNAPSHOT_KEEP_DAYS` (14) days.
+- **Self-repair:** if a data file can't be parsed, `readDataFile()` sets it aside as `*.damaged-<time>` and restores the newest valid snapshot (start of that day's state).
+- **Volume check:** if `/app/data` is missing on Railway, the server logs a loud `STORAGE WARNING`; data would otherwise vanish on the next deploy. `GET /api/health` reports `persistent`, the latest snapshot, and counts (projects, olympus, garments, wears, wishlist).
+- **Never hold data across an `await`:** read, change, write in one go. If a route must wait (e.g. the ascension quote), re-read with `readTasks()` after the wait and apply the change to the fresh copy, or edits made meanwhile are overwritten.
+- **Wardrobe audit trail:** garment edits log `garment_edited` with each changed field (`from`→`to`); deleting a garment logs the whole item, so it can be rebuilt from the activity log. Wears log `outfit_worn`.
+
 ## Render Scope
 
 `render()` updates the main view and re-initializes SortableJS. Olympus, Treats, and Hard Things have their own render functions (`renderOlympus()`, `renderTreats()`, `renderHardThings()`) — call these explicitly when modifying that data.
