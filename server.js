@@ -417,6 +417,7 @@ function readTasks(profile) {
   if (!data.dreams) data.dreams = [];
   if (!data.wearLog) data.wearLog = [];
   if (!data.outfitPasses) data.outfitPasses = [];
+  if (!data.recentSuggestions) data.recentSuggestions = [];
   if (!data.wishlist) data.wishlist = [];
   if (!data.acquired) data.acquired = [];
   if (!data.oracle) data.oracle = { text: '', source: '', preview: '' };
@@ -708,7 +709,7 @@ Rules:
 - Formality: every piece shares one level of dressiness that matches the occasion. Don't mix office tailoring, casual daywear and evening pieces in one outfit.
 - Practicality: dress for the given weather and for any walking, standing or travel the request implies. Shoes must suit the distance. Add a layer when it's cool or will get colder after dark.
 - Structure: at most one item per category. A dress or jumpsuit/romper replaces a top and bottom; otherwise pick one top and one bottom. Include shoes if the closet has any. Add outerwear or an accessory only when it helps.
-- Rotation: among choices that work equally well, prefer pieces worn least recently or never.
+- Rotation: among choices that work equally well, prefer pieces worn least recently or never — but not ones you suggested recently (listed in the request). Spread suggestions across the closet; don't build every outfit around the same favorite.
 - Taste: outfits the user loved show their style; echo their spirit, don't repeat them. Outfits they marked "not my style" show what to steer away from: avoid that direction, not just those exact pieces.
 
 Check the outfit against every rule before answering. "itemIds" are the chosen garments' IDs. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion.`;
@@ -750,6 +751,11 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
 
       const loved = data.wearLog.slice(-6).reverse()
         .map(w => `- "${w.prompt}": ${w.itemIds.map(nameOf).filter(Boolean).join(' + ')}`);
+      // Main pieces (dress, jumpsuit, top, bottom) of the last few suggestions, so one favorite
+      // doesn't anchor every outfit. Shoes and layers repeat naturally and aren't listed.
+      const MAIN_CATEGORIES = ['dresses', 'jumpsuitsRompers', 'tops', 'bottoms'];
+      const recent = [...new Set(data.recentSuggestions.slice(-10).flatMap(s => s.itemIds))]
+        .filter(id => MAIN_CATEGORIES.includes((data.wardrobe.find(i => i.id === id) || {}).wardrobeCategory));
       const passed = data.outfitPasses.slice(-6).reverse()
         .map(p => `- "${p.prompt}": ${p.itemIds.map(nameOf).filter(Boolean).join(' + ')}`);
       const request = [
@@ -757,7 +763,8 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
         weather ? `Weather now: ${weather.tempF}°F, ${weather.description}.` : 'Weather: unknown.',
         loved.length ? `Outfits the user loved recently:\n${loved.join('\n')}` : '',
         passed.length ? `Outfits the user marked "not my style":\n${passed.join('\n')}` : '',
-        exclude.length ? `Already shown for this occasion — pick a genuinely different outfit:\n${exclude.map(ids => `- ${ids.map(nameOf).filter(Boolean).join(' + ')}`).join('\n')}` : ''
+        recent.length ? `Pieces you suggested recently (any occasion) — don't lean on them again unless nothing else fits:\n${recent.map(id => `- ${nameOf(id)}`).join('\n')}` : '',
+        exclude.length ? `Already shown for this occasion — pick a genuinely different outfit with a different main piece (the dress or jumpsuit, or the top), not just new shoes or a layer:\n${exclude.map(ids => `- ${ids.map(nameOf).filter(Boolean).join(' + ')}`).join('\n')}` : ''
       ].filter(Boolean).join('\n\n');
 
       const message = await anthropic.beta.messages.create({
@@ -785,8 +792,16 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   // No AI configured, the AI call failed, or it picked nothing usable — random pick,
   // rather than showing an empty "add clothes" result when the wardrobe has items.
   if (!items || items.length === 0) { items = randomOutfitPick(data.wardrobe); why = ''; }
+  const outfit = sanitizeOutfit(items);
 
-  res.json({ items: sanitizeOutfit(items), weather, why });
+  // Remember what was suggested (last 10) so the next request can steer away from it.
+  // Re-read first: the AI call took seconds, and saving the old copy would undo edits made meanwhile.
+  const fresh = readTasks(profile);
+  fresh.recentSuggestions.push({ date: getHabitDay(), itemIds: outfit.map(i => i.id) });
+  fresh.recentSuggestions = fresh.recentSuggestions.slice(-10);
+  writeTasks(fresh, profile);
+
+  res.json({ items: outfit, weather, why });
 });
 
 // ---- Wardrobe history: wear log and stats ----

@@ -70,3 +70,7 @@ Garments gained optional origin, acquired and memory fields.
 ## 2026-10-22 — Legibility becomes a rule
 **Decision:** Size and contrast are checked every time text or a control changes: at least ~11px for anything read or tapped, WCAG AA contrast (4.5:1 for small text) measured against the real glass surface, and 44px tap targets. The new text action went from ~10px at 3.9:1 to ~11px at 6.1:1. About 37 older declarations below the size floor are recorded as known debt.
 **Why:** The app's editorial restraint had drifted into text that was hard to read, especially on a phone in daylight. Hierarchy should come from position, weight and fill, not from fading or shrinking text past legibility.
+
+## 2026-10-22 — The stylist stops circling one dress
+**Decision:** The stylist now remembers its last 10 suggestions and steers away from their main pieces. A re-spin must change the main piece (dress, jumpsuit or top), not just the shoes or coat. "Never worn" is only favored for pieces that weren't suggested recently.
+**Why:** It kept suggesting the same DOEN black lace dress. "Never worn" was treated as a rotation bonus, but a piece only counts as worn after "Love it", so an unloved favorite won every time. Re-spin only blocked exact combinations, and with no memory of past suggestions similar evening prompts kept landing on the same answer.
