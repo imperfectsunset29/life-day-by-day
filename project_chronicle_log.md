@@ -58,3 +58,7 @@ Garments gained optional origin, acquired and memory fields.
 ## 2026-10-22 — The outfit stylist gets taste
 **Decision:** Outfit suggestions moved from Haiku 4.5 to Opus 5.5 at low effort. The stylist now follows explicit rules: one color story, one level of dressiness, and dressing for the weather and any walking. It sees recently loved outfits as a guide to taste, never repeats an outfit already shown on Re-spin, and gives a one-line reason under each outfit. The closet list is cached so quick re-spins cost less.
 **Why:** A real suggestion for drinks and a walk to dinner paired a bright red dress with burgundy pumps under an office blazer: clashing reds and three different levels of formality. The old prompt only asked for "compatible patterns and seasons," and the smallest model was choosing from short text descriptions with no reasoning. Wardrobe is used occasionally, so a stronger model at low effort is affordable.
+
+## 2026-10-22 — "Not my style"
+**Decision:** The outfit card gained a "Not my style" button. It records the outfit as a dislike and spins a new one. The last six dislikes go along with every request as a direction to avoid, mirroring how the last six loved outfits guide taste.
+**Why:** Nothing is trained; the stylist only knows what each request tells it. Re-spin is ambiguous ("not tonight" isn't "not me"), so dislikes needed their own explicit signal rather than reading every re-spin as one.

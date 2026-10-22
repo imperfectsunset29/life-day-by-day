@@ -416,6 +416,7 @@ function readTasks(profile) {
   if (!data.wardrobe) data.wardrobe = [];
   if (!data.dreams) data.dreams = [];
   if (!data.wearLog) data.wearLog = [];
+  if (!data.outfitPasses) data.outfitPasses = [];
   if (!data.wishlist) data.wishlist = [];
   if (!data.acquired) data.acquired = [];
   if (!data.oracle) data.oracle = { text: '', source: '', preview: '' };
@@ -708,7 +709,7 @@ Rules:
 - Practicality: dress for the given weather and for any walking, standing or travel the request implies. Shoes must suit the distance. Add a layer when it's cool or will get colder after dark.
 - Structure: at most one item per category. A dress or jumpsuit/romper replaces a top and bottom; otherwise pick one top and one bottom. Include shoes if the closet has any. Add outerwear or an accessory only when it helps.
 - Rotation: among choices that work equally well, prefer pieces worn least recently or never.
-- Taste: outfits the user loved before show their style. Echo their spirit; don't repeat them.
+- Taste: outfits the user loved show their style; echo their spirit, don't repeat them. Outfits they marked "not my style" show what to steer away from: avoid that direction, not just those exact pieces.
 
 Check the outfit against every rule before answering. "itemIds" are the chosen garments' IDs. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion.`;
 
@@ -749,10 +750,13 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
 
       const loved = data.wearLog.slice(-6).reverse()
         .map(w => `- "${w.prompt}": ${w.itemIds.map(nameOf).filter(Boolean).join(' + ')}`);
+      const passed = data.outfitPasses.slice(-6).reverse()
+        .map(p => `- "${p.prompt}": ${p.itemIds.map(nameOf).filter(Boolean).join(' + ')}`);
       const request = [
         `Occasion: "${String(prompt || '').slice(0, 300)}"`,
         weather ? `Weather now: ${weather.tempF}°F, ${weather.description}.` : 'Weather: unknown.',
         loved.length ? `Outfits the user loved recently:\n${loved.join('\n')}` : '',
+        passed.length ? `Outfits the user marked "not my style":\n${passed.join('\n')}` : '',
         exclude.length ? `Already shown for this occasion — pick a genuinely different outfit:\n${exclude.map(ids => `- ${ids.map(nameOf).filter(Boolean).join(' + ')}`).join('\n')}` : ''
       ].filter(Boolean).join('\n\n');
 
@@ -852,6 +856,25 @@ function computeWardrobeStats(data) {
 
 app.get('/api/wardrobe/stats', (req, res) => {
   res.json(computeWardrobeStats(readTasks(profileFrom(req))));
+});
+
+// Records an outfit the user marked "Not my style" — recent ones steer future suggestions away
+app.post('/api/wardrobe/pass', requireAdmin, (req, res) => {
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
+  const known = new Set(data.wardrobe.map(i => i.id));
+  const itemIds = (Array.isArray(req.body.itemIds) ? req.body.itemIds : []).map(Number).filter(id => known.has(id));
+  if (!itemIds.length) return res.status(400).json({ error: 'No known garments in outfit' });
+  const pass = {
+    id: data.nextId++,
+    date: getHabitDay(),
+    itemIds,
+    prompt: typeof req.body.prompt === 'string' ? req.body.prompt.slice(0, 200) : ''
+  };
+  data.outfitPasses.push(pass);
+  writeTasks(data, profile);
+  logEvent('outfit_not_my_style', { itemIds, prompt: pass.prompt }, profile);
+  res.json(pass);
 });
 
 // Records a worn outfit (from "Love it")

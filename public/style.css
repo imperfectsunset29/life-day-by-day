@@ -2030,6 +2030,18 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   text-overflow: ellipsis;
 }
 
+/* "Not my style" sits on its own line under Re-spin / Love it */
+.outfit-pass-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.btn-tertiary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* The stylist's one-line reason, under the pieces */
 .outfit-why {
   font-family: 'Instrument Serif', Georgia, serif;

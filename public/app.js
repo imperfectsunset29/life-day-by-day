@@ -1864,6 +1864,20 @@ function openGarmentCard(id) {
   garmentOverlay.classList.remove('hidden');
 }
 
+// "Not my style": note the outfit as a dislike (admin only), then spin a new one right away
+async function passOnOutfit() {
+  const outfit = currentOutfit;
+  currentOutfit = null;
+  if (outfit && isAdmin()) {
+    try {
+      await apiFetch(`${API}/wardrobe/pass`, { method: 'POST', body: JSON.stringify({ itemIds: outfit.itemIds, prompt: outfit.prompt }) });
+    } catch {
+      // the new spin matters more than the note — carry on
+    }
+  }
+  suggestOutfit();
+}
+
 async function recordOutfitWorn() {
   if (!currentOutfit || !isAdmin()) return;
   const outfit = currentOutfit;
@@ -2056,9 +2070,11 @@ async function suggestOutfit() {
   outfitRequestInFlight = true;
   const btn = document.getElementById('suggest-outfit-btn');
   const respinBtn = document.getElementById('outfit-respin-btn');
+  const passBtn = document.getElementById('outfit-pass-btn');
   btn.textContent = 'Asking…';
   btn.disabled = true;
   respinBtn.disabled = true;
+  passBtn.disabled = true;
 
   try {
     const location = await getUserLocation();
@@ -2117,6 +2133,7 @@ async function suggestOutfit() {
     btn.textContent = SUGGEST_OUTFIT_LABEL;
     btn.disabled = false;
     respinBtn.disabled = false;
+    passBtn.disabled = false;
     outfitRequestInFlight = false;
   }
 }
@@ -2482,6 +2499,7 @@ wardrobeAddOverlay.addEventListener('click', e => { if (e.target === wardrobeAdd
 document.getElementById('suggest-outfit-btn').addEventListener('click', suggestOutfit);
 document.getElementById('outfit-x-btn').addEventListener('click', () => outfitOverlay.classList.add('hidden'));
 document.getElementById('outfit-respin-btn').addEventListener('click', suggestOutfit);
+document.getElementById('outfit-pass-btn').addEventListener('click', passOnOutfit);
 document.getElementById('outfit-close-btn').addEventListener('click', () => {
   outfitOverlay.classList.add('hidden');
   recordOutfitWorn();
