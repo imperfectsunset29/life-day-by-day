@@ -57,6 +57,7 @@ let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO
 let capturedPhotos = []; // [{ image: base64, mimeType }] — cleared after each wardrobe save
 let editingWardrobeId = null; // set while the add/edit modal is editing an existing item, else null
 let lastOutfitPrompt = '';
+let shownOutfits = [];     // garment-ID sets already shown for the current prompt, so Re-spin avoids them
 let currentOutfit = null;  // { itemIds, prompt, weather } for the outfit on screen — "Love it" records it as worn
 let wardrobeStats = null;  // from /api/wardrobe/stats: per-garment wear history + closet summary
 let editingDreamId = null; // set while the dream modal is editing an existing dream, else null
@@ -2049,6 +2050,7 @@ async function suggestOutfit() {
   const promptEl = document.getElementById('outfit-prompt-input');
   const prompt = (promptEl && promptEl.value.trim()) || lastOutfitPrompt;
   if (!prompt) return;
+  if (prompt !== lastOutfitPrompt) shownOutfits = []; // a new occasion starts a fresh set of spins
   lastOutfitPrompt = prompt;
 
   outfitRequestInFlight = true;
@@ -2063,11 +2065,15 @@ async function suggestOutfit() {
     const res = await fetch(`${API}/wardrobe/suggest-outfit`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ prompt, lat: location && location.lat, lon: location && location.lon })
+      body: JSON.stringify({ prompt, lat: location && location.lat, lon: location && location.lon, exclude: shownOutfits })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Outfit suggestion failed');
-    const { items, weather, wardrobeEmpty } = data;
+    const { items, weather, wardrobeEmpty, why } = data;
+    if (items && items.length) shownOutfits.push(items.map(i => i.id));
+    const whyEl = document.getElementById('outfit-why');
+    whyEl.textContent = why || '';
+    whyEl.classList.toggle('hidden', !why);
     currentOutfit = items && items.length
       ? { itemIds: items.map(i => i.id), prompt, weather: weather ? `${weather.tempF}°F, ${weather.description}` : '' }
       : null;

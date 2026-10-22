@@ -2030,6 +2030,16 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   text-overflow: ellipsis;
 }
 
+/* The stylist's one-line reason, under the pieces */
+.outfit-why {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: rgba(200, 168, 122, 0.85);
+  margin: -16px 0 28px;
+}
+
 .outfit-empty {
   font-family: 'Instrument Serif', serif;
   font-style: italic;

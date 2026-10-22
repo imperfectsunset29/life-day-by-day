@@ -54,3 +54,7 @@ Garments gained optional origin, acquired and memory fields.
 ## 2026-10-20 — Dream photos move out of the data file; no backup button
 **Decision:** Dream photos are now stored as image files on the volume, and the data file holds only a link to each one. Existing photos were moved out automatically. Orphaned photos are swept daily, but only once no snapshot still refers to them. The planned in-app backup button was dropped.
 **Why:** Each photo added ~100 KB to a file that's read and rewritten on every tap, so the app would slow as dreams accumulated. Daily snapshots and self-repair already cover what a manual backup button was for.
+
+## 2026-10-22 — The outfit stylist gets taste
+**Decision:** Outfit suggestions moved from Haiku 4.5 to Opus 5.5 at low effort. The stylist now follows explicit rules: one color story, one level of dressiness, and dressing for the weather and any walking. It sees recently loved outfits as a guide to taste, never repeats an outfit already shown on Re-spin, and gives a one-line reason under each outfit. The closet list is cached so quick re-spins cost less.
+**Why:** A real suggestion for drinks and a walk to dinner paired a bright red dress with burgundy pumps under an office blazer: clashing reds and three different levels of formality. The old prompt only asked for "compatible patterns and seasons," and the smallest model was choosing from short text descriptions with no reasoning. Wardrobe is used occasionally, so a stronger model at low effort is affordable.

@@ -697,56 +697,92 @@ function randomOutfitPick(wardrobe) {
     .filter(Boolean);
 }
 
+// The stylist: Claude Opus 5.5 at low effort (wardrobe is used occasionally, so each call is
+// kept lean). Stable rules + the closet go in a cached system prefix, so a Re-spin within a
+// few minutes re-reads them at a fraction of the cost. Output is schema-constrained JSON.
+const STYLIST_RULES = `You are a personal stylist choosing one outfit from the user's own closet (listed below).
+
+Rules:
+- Color: one clear color story. At most one strong color; everything else neutral or deliberately tonal. Never pair near-miss shades of one color family (bright red with burgundy, navy with black) unless the whole outfit is tonal on purpose.
+- Formality: every piece shares one level of dressiness that matches the occasion. Don't mix office tailoring, casual daywear and evening pieces in one outfit.
+- Practicality: dress for the given weather and for any walking, standing or travel the request implies. Shoes must suit the distance. Add a layer when it's cool or will get colder after dark.
+- Structure: at most one item per category. A dress or jumpsuit/romper replaces a top and bottom; otherwise pick one top and one bottom. Include shoes if the closet has any. Add outerwear or an accessory only when it helps.
+- Rotation: among choices that work equally well, prefer pieces worn least recently or never.
+- Taste: outfits the user loved before show their style. Echo their spirit; don't repeat them.
+
+Check the outfit against every rule before answering. "itemIds" are the chosen garments' IDs. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion.`;
+
+const OUTFIT_SCHEMA = {
+  type: 'object',
+  properties: {
+    itemIds: { type: 'array', items: { type: 'integer' } },
+    why: { type: 'string' }
+  },
+  required: ['itemIds', 'why'],
+  additionalProperties: false
+};
+
 app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { prompt, lat, lon } = req.body;
+  // Outfits already shown for this prompt (Re-spin), as arrays of garment IDs
+  const exclude = Array.isArray(req.body.exclude) ? req.body.exclude.filter(Array.isArray).slice(-8) : [];
   if (!data.wardrobe || !data.wardrobe.length) return res.json({ items: [], wardrobeEmpty: true });
 
   const weather = (typeof lat === 'number' && typeof lon === 'number') ? await fetchWeather(lat, lon) : null;
-  const weatherLine = weather ? `Current weather at the user's location: ${weather.tempF}°F, ${weather.description}.` : '';
 
   // Try the AI stylist, but never let it be a hard failure — any problem (usage limits,
-  // rate limits, a bad network hiccup, an unparsable response) just falls back to a
-  // random pick so the user always gets *an* outfit rather than a raw error message.
+  // rate limits, a refusal, a network hiccup) just falls back to a random pick so the
+  // user always gets *an* outfit rather than a raw error message.
   let items = null;
+  let why = '';
   if (anthropic) {
     try {
       const stats = computeWardrobeStats(data);
+      const nameOf = id => (data.wardrobe.find(i => i.id === id) || {}).text;
       const inventory = data.wardrobe.map(i => {
         const st = stats.items[i.id];
-        const worn = st.timesWorn ? `worn:${st.timesWorn}x, last:${st.lastWorn}` : 'worn:never';
-        return `ID:${i.id} | ${i.wardrobeCategory} | ${i.brand ? i.brand + ' ' : ''}${i.text} | color:${i.color || ''} | ${i.material || ''} | pattern:${i.pattern || ''} | occasion:${i.occasion || ''} | season:${i.season || ''} | ${worn}`;
+        const worn = st.timesWorn ? `worn ${st.timesWorn}x, last ${st.lastWorn}` : 'never worn';
+        return `${i.id} | ${i.wardrobeCategory} | ${i.brand ? i.brand + ' ' : ''}${i.text} | ${[i.color, i.material, i.pattern, i.occasion, i.season].filter(Boolean).join(', ')} | ${worn}`;
       }).join('\n');
 
-      const message = await anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 256,
-        messages: [{
-          role: 'user',
-          content: `You are a personal stylist. Wardrobe inventory:\n${inventory}\n\n${weatherLine}\n\nBuild an outfit for: "${prompt}"\n\nPick the best combination: at most one item per category, never the same item twice, compatible patterns and seasons${weather ? ', and appropriate for the current weather (temperature and precipitation/wind implied by the conditions)' : ''}. A dress or jumpsuit/romper is a complete base layer — if you pick one, do not also pick a top or bottom. Otherwise pick one top and one bottom. When two pieces suit the prompt about equally well, favor the one worn least recently (or never) so the whole closet stays in rotation. Return ONLY a JSON array of item IDs (numbers). Raw JSON array only, no markdown.`
-        }]
+      const loved = data.wearLog.slice(-6).reverse()
+        .map(w => `- "${w.prompt}": ${w.itemIds.map(nameOf).filter(Boolean).join(' + ')}`);
+      const request = [
+        `Occasion: "${String(prompt || '').slice(0, 300)}"`,
+        weather ? `Weather now: ${weather.tempF}°F, ${weather.description}.` : 'Weather: unknown.',
+        loved.length ? `Outfits the user loved recently:\n${loved.join('\n')}` : '',
+        exclude.length ? `Already shown for this occasion — pick a genuinely different outfit:\n${exclude.map(ids => `- ${ids.map(nameOf).filter(Boolean).join(' + ')}`).join('\n')}` : ''
+      ].filter(Boolean).join('\n\n');
+
+      const message = await anthropic.beta.messages.create({
+        model: 'claude-opus-5-5',
+        max_tokens: 8000,
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default', // a declined request is retried on Anthropic's recommended model
+        output_config: { effort: 'low', format: { type: 'json_schema', schema: OUTFIT_SCHEMA } },
+        system: [
+          { type: 'text', text: STYLIST_RULES },
+          { type: 'text', text: `Closet (ID | category | name | details | wear history):\n${inventory}`, cache_control: { type: 'ephemeral' } }
+        ],
+        messages: [{ role: 'user', content: request }]
       });
 
-      let ids;
-      try {
-        ids = parseJsonFromModel(message.content[0].text);
-      } catch {
-        // Model added commentary or otherwise didn't return clean JSON — pull the
-        // first bracketed array out of the text instead of failing the whole request.
-        const match = message.content[0].text.match(/\[[\s\d,]*\]/);
-        ids = match ? JSON.parse(match[0]) : [];
-      }
-      items = ids.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
+      if (message.stop_reason === 'refusal') throw new Error('stylist declined the request');
+      const text = message.content.find(b => b.type === 'text');
+      const result = JSON.parse(text.text);
+      items = result.itemIds.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
+      why = typeof result.why === 'string' ? result.why.trim() : '';
     } catch (err) {
       console.error('AI outfit suggestion unavailable, falling back to random pick:', friendlyAnthropicError(err));
     }
   }
   // No AI configured, the AI call failed, or it picked nothing usable — random pick,
   // rather than showing an empty "add clothes" result when the wardrobe has items.
-  if (!items || items.length === 0) items = randomOutfitPick(data.wardrobe);
+  if (!items || items.length === 0) { items = randomOutfitPick(data.wardrobe); why = ''; }
 
-  res.json({ items: sanitizeOutfit(items), weather });
+  res.json({ items: sanitizeOutfit(items), weather, why });
 });
 
 // ---- Wardrobe history: wear log and stats ----
