@@ -2514,6 +2514,11 @@ document.getElementById('outfit-pass-btn').addEventListener('click', passOnOutfi
 document.getElementById('outfit-close-btn').addEventListener('click', () => {
   outfitOverlay.classList.add('hidden');
   recordOutfitWorn();
+  // "Love it" ends the flow: clear the prompt so the box is ready for the next occasion.
+  // (Closing with × keeps the text, so it can be tweaked and asked again.)
+  document.getElementById('outfit-prompt-input').value = '';
+  lastOutfitPrompt = '';
+  shownOutfits = [];
 });
 
 const wishOverlay = document.getElementById('wish-overlay');
