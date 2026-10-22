@@ -78,3 +78,7 @@ Garments gained optional origin, acquired and memory fields.
 ## 2026-10-22 — Pill buttons meet the legibility floor
 **Decision:** Every pill button label is now ~11px on all screens; on phones they had shrunk to ~10px, and outline pills to ~9px. The outline pill's label went from 3.9:1 to 6.1:1 contrast. Each pill gained an invisible 44px tap area, so it's easier to hit without looking bigger.
 **Why:** The first bulk pass under the new legibility rule. Pills are the most-tapped controls in the app, and their phone labels were smaller than the text action meant to rank below them.
+
+## 2026-10-22 — Legibility debt cleared
+**Decision:** Every remaining text style was raised to the floor: 32 sizes up to ~11px and 54 colors up to WCAG AA. Ivory text is now at least 58% opacity, sage 72% and amber 82%, measured against the lightest surface each can sit on. Icon buttons meet 3:1. The faded Done and Acquired rows went from 55–60% to 85% so their text stays readable. The floating nav's slots widened slightly (58→68px on phones) so its labels could grow from ~8px to ~11px.
+**Why:** The new legibility rule applied to everything, not just what gets touched next. The quiet, editorial feel now comes from hierarchy (serif vs uppercase labels, position, fill) instead of from text too faint or small to read.

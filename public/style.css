@@ -70,7 +70,7 @@ h1 {
 
 .subtle {
   font-style: italic;
-  color: rgba(240, 232, 224, 0.3);
+  color: rgba(240, 232, 224, 0.4);
   font-size: 0.45em;
   white-space: nowrap;
 }
@@ -101,8 +101,8 @@ h1 {
 .tertiary-link {
   background: none;
   border: none;
-  color: rgba(240, 232, 224, 0.55);
-  font-size: 0.65rem;
+  color: rgba(240, 232, 224, 0.58);
+  font-size: 0.7rem;
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -160,13 +160,14 @@ h1 {
 .floating-nav-item {
   position: relative;
   flex: 0 0 auto;
-  width: 62px;
+  width: 70px;
   height: 54px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
+  padding: 0; /* drop the browser's default button padding so labels get the full slot */
   background: none;
   border: none;
   border-radius: 100px;
@@ -211,14 +212,14 @@ h1 {
 }
 
 .floating-nav-label {
-  font-size: 0.5rem;
+  font-size: 0.7rem;
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.04em; /* tighter than other labels so 11px words fit the nav slots */
   text-transform: uppercase;
   line-height: 1;
   white-space: nowrap;
   opacity: 1;
-  max-height: 12px;
+  max-height: 14px;
   transition: opacity 0.18s ease, max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
@@ -238,6 +239,12 @@ h1 {
   width: 52px;
   height: 52px;
   background: rgba(255, 255, 255, 0.10);
+}
+
+/* Expanded: let labels use the full slot width; the rounded slot would otherwise clip the
+   ends of the longest one ("WARDROBE"). Clipping is only needed while collapsing. */
+.floating-nav:not(.collapsed) .floating-nav-item {
+  overflow: visible;
 }
 
 .floating-nav.collapsed .floating-nav-label {
@@ -270,7 +277,7 @@ h1 {
 
 .category-header h2 {
   font-family: 'Inter', sans-serif;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.2em;
@@ -337,7 +344,7 @@ h1 {
 
 .task-item.done .task-text {
   text-decoration: line-through;
-  color: rgba(240, 232, 224, 0.4);
+  color: rgba(240, 232, 224, 0.58);
 }
 
 .task-checkbox {
@@ -429,9 +436,9 @@ h1 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   letter-spacing: 0.02em;
-  color: rgba(240, 232, 224, 0.35);
+  color: rgba(240, 232, 224, 0.58);
 }
 
 .task-text-input {
@@ -479,7 +486,7 @@ textarea.task-text-input {
   border: none;
   cursor: pointer;
   font-size: 0.7rem;
-  color: rgba(240, 232, 224, 0.28);
+  color: rgba(240, 232, 224, 0.58);
   padding: 4px 6px;
   transition: color 0.1s ease;
   letter-spacing: 0.05em;
@@ -577,8 +584,8 @@ textarea.task-text-input {
 }
 
 .progress-label {
-  font-size: 0.6rem;
-  color: rgba(181, 201, 154, 0.45);
+  font-size: 0.7rem;
+  color: rgba(181, 201, 154, 0.72);
   letter-spacing: 0.05em;
   min-width: 28px;
   text-align: right;
@@ -587,17 +594,17 @@ textarea.task-text-input {
 
 /* Done section */
 .done-section .task-item {
-  opacity: 0.55;
+  opacity: 0.85; /* settled, not illegible: text inside is tuned so the effective contrast clears 4.5:1 */
 }
 
 .done-section .task-text {
   text-decoration: line-through;
-  color: rgba(240, 232, 224, 0.5);
+  color: rgba(240, 232, 224, 0.7);
 }
 
 .done-date {
-  font-size: 0.6rem;
-  color: rgba(240, 232, 224, 0.15);
+  font-size: 0.7rem;
+  color: rgba(240, 232, 224, 0.58);
   white-space: nowrap;
   letter-spacing: 0.05em;
 }
@@ -613,8 +620,8 @@ textarea.task-text-input {
 
 .olympus-restore {
   margin-top: 12px;
-  font-size: 0.65rem;
-  color: rgba(240, 232, 224, 0.2);
+  font-size: 0.7rem;
+  color: rgba(240, 232, 224, 0.58);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -668,7 +675,7 @@ textarea.task-text-input {
 }
 
 .overlay-label {
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.25em;
   color: rgba(181, 201, 154, 0.9);
@@ -852,7 +859,7 @@ textarea.task-text-input {
 
 /* Empty state */
 .empty-state {
-  color: rgba(240, 232, 224, 0.2);
+  color: rgba(240, 232, 224, 0.58);
   font-size: 0.8rem;
   padding: 12px 0;
   font-style: italic;
@@ -866,7 +873,7 @@ textarea.task-text-input {
 .show-more-btn {
   background: none;
   border: none;
-  color: rgba(240, 232, 224, 0.3);
+  color: rgba(240, 232, 224, 0.58);
   font-family: 'Instrument Serif', Georgia, serif;
   font-style: italic;
   font-size: 0.85rem;
@@ -877,7 +884,7 @@ textarea.task-text-input {
 }
 
 .show-more-btn:hover {
-  color: rgba(240, 232, 224, 0.65);
+  color: rgba(240, 232, 224, 0.78);
 }
 
 /* Hidden */
@@ -930,7 +937,7 @@ textarea.task-text-input {
 .olympus-subtitle {
   font-family: 'Instrument Serif', Georgia, serif;
   font-size: 0.95rem;
-  color: rgba(181, 201, 154, 0.35);
+  color: rgba(181, 201, 154, 0.72);
   margin-bottom: 56px;
   font-style: italic;
 }
@@ -967,8 +974,8 @@ textarea.task-text-input {
 }
 
 .olympus-card-date {
-  font-size: 0.6rem;
-  color: rgba(181, 201, 154, 0.35);
+  font-size: 0.7rem;
+  color: rgba(181, 201, 154, 0.72);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -976,7 +983,7 @@ textarea.task-text-input {
 .olympus-card-reflection {
   font-family: 'Instrument Serif', Georgia, serif;
   font-size: 0.95rem;
-  color: rgba(240, 232, 224, 0.38);
+  color: rgba(240, 232, 224, 0.58);
   font-style: italic;
   line-height: 1.7;
 }
@@ -986,7 +993,7 @@ textarea.task-text-input {
   padding: 80px 0;
   font-family: 'Instrument Serif', Georgia, serif;
   font-size: 1rem;
-  color: rgba(240, 232, 224, 0.18);
+  color: rgba(240, 232, 224, 0.58);
 }
 
 /* Edit/delete dropdown (mobile) */
@@ -1048,7 +1055,7 @@ textarea.task-text-input {
 
 
   .floating-nav-item {
-    width: 58px;
+    width: 68px; /* fits "WARDROBE" at the 11px floor; 5 items still clear a 390px screen */
   }
 
   .task-actions {
@@ -1082,7 +1089,7 @@ textarea.task-text-input {
 .lock-btn {
   background: none;
   border: none;
-  color: rgba(240, 232, 224, 0.28);
+  color: rgba(240, 232, 224, 0.45);
   padding: 0 4px;
   font-size: 1rem;
   cursor: pointer;
@@ -1094,7 +1101,7 @@ textarea.task-text-input {
   flex-shrink: 0;
   margin-left: auto;
 }
-.lock-btn:hover { color: rgba(240, 232, 224, 0.55); }
+.lock-btn:hover { color: rgba(240, 232, 224, 0.65); }
 body.admin-mode .lock-btn { color: rgba(181, 201, 154, 0.8); }
 body.admin-mode .lock-btn:hover { color: #b5c99a; }
 
@@ -1141,7 +1148,7 @@ body.admin-mode .progress-btn { pointer-events: auto; cursor: pointer; opacity: 
 .step-toggle {
   background: none;
   border: none;
-  color: rgba(240, 232, 224, 0.45);
+  color: rgba(240, 232, 224, 0.58);
   cursor: pointer;
   font-size: 0.85rem;
   padding: 8px 10px 8px 0;
@@ -1155,7 +1162,7 @@ body.admin-mode .progress-btn { pointer-events: auto; cursor: pointer; opacity: 
 }
 
 .step-toggle:hover {
-  color: rgba(240, 232, 224, 0.75);
+  color: rgba(240, 232, 224, 0.78);
 }
 
 .steps-section {
@@ -1220,7 +1227,7 @@ body.admin-mode .step-checkbox:hover {
 
 .step-text.done {
   text-decoration: line-through;
-  color: rgba(240, 232, 224, 0.35);
+  color: rgba(240, 232, 224, 0.58);
 }
 
 body.admin-mode .step-text {
@@ -1232,7 +1239,7 @@ body.admin-mode .step-text {
   border: none;
   cursor: pointer;
   font-size: 0.7rem;
-  color: rgba(240, 232, 224, 0.12);
+  color: rgba(240, 232, 224, 0.42);
   padding: 2px 4px;
   opacity: 0;
   transition: all 0.1s ease;
@@ -1268,7 +1275,7 @@ body.admin-mode .step-delete {
 }
 
 .oracle-source {
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.25em;
   color: rgba(181, 201, 154, 0.75);
@@ -1288,9 +1295,9 @@ body.admin-mode .step-delete {
 }
 
 .oracle-more-hint {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   letter-spacing: 0.15em;
-  color: rgba(240, 232, 224, 0.25);
+  color: rgba(240, 232, 224, 0.58);
   margin: 0;
 }
 
@@ -1306,7 +1313,7 @@ body.admin-mode .step-delete {
   right: 20px;
   background: none;
   border: none;
-  color: rgba(240, 232, 224, 0.35);
+  color: rgba(240, 232, 224, 0.45);
   font-size: 1.2rem;
   cursor: pointer;
   line-height: 1;
@@ -1330,7 +1337,7 @@ body.admin-mode .step-delete {
 .oracle-text-link {
   background: none;
   border: none;
-  color: rgba(240, 232, 224, 0.3);
+  color: rgba(240, 232, 224, 0.58);
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.15em;
@@ -1340,7 +1347,7 @@ body.admin-mode .step-delete {
 }
 
 .oracle-text-link:hover {
-  color: rgba(240, 232, 224, 0.6);
+  color: rgba(240, 232, 224, 0.78);
 }
 
 .oracle-para {
@@ -1352,10 +1359,10 @@ body.admin-mode .step-delete {
 }
 
 .oracle-select-hint {
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: rgba(240, 232, 224, 0.25);
+  color: rgba(240, 232, 224, 0.58);
   margin-bottom: 20px;
 }
 
@@ -1379,7 +1386,7 @@ body.admin-mode .oracle-sentence {
 }
 
 body.admin-mode .oracle-sentence:hover {
-  color: rgba(181, 201, 154, 0.65);
+  color: rgba(181, 201, 154, 0.85);
 }
 
 .oracle-sentence.selected {
@@ -1402,7 +1409,7 @@ body.admin-mode .oracle-sentence:hover {
 }
 
 .oracle-source-input::placeholder {
-  color: rgba(240, 232, 224, 0.2);
+  color: rgba(240, 232, 224, 0.58);
   text-transform: uppercase;
 }
 
@@ -1424,7 +1431,7 @@ body.admin-mode .oracle-sentence:hover {
 }
 
 .oracle-text-input::placeholder {
-  color: rgba(240, 232, 224, 0.2);
+  color: rgba(240, 232, 224, 0.58);
 }
 
 .oracle-edit-sentences {
@@ -1447,8 +1454,8 @@ body.admin-mode .oracle-sentence:hover {
 .step-add-btn {
   background: none;
   border: none;
-  color: rgba(181, 201, 154, 0.25);
-  font-size: 0.62rem;
+  color: rgba(181, 201, 154, 0.72);
+  font-size: 0.7rem;
   letter-spacing: 0.1em;
   cursor: pointer;
   padding: 0;
@@ -1462,7 +1469,7 @@ body.admin-mode .step-add-btn {
 }
 
 .step-add-btn:hover {
-  color: rgba(181, 201, 154, 0.6);
+  color: rgba(181, 201, 154, 0.92);
 }
 
 .step-text-input {
@@ -1524,11 +1531,11 @@ body.admin-mode .progress-btn:disabled {
 }
 
 .profile-selector-label {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 500;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(240, 232, 224, 0.35);
+  color: rgba(240, 232, 224, 0.58);
 }
 
 .profile-selector-btns {
@@ -1573,8 +1580,8 @@ body.admin-mode .progress-btn:disabled {
 .profile-switcher-btn {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(240, 232, 224, 0.5);
-  font-size: 0.6rem;
+  color: rgba(240, 232, 224, 0.58);
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -1596,9 +1603,9 @@ body.admin-mode .progress-btn:disabled {
 .app-footer {
   text-align: center;
   padding: 32px 24px;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   letter-spacing: 0.08em;
-  color: rgba(240, 232, 224, 0.15);
+  color: rgba(240, 232, 224, 0.58);
   font-family: Inter, sans-serif;
 }
 
@@ -1622,9 +1629,9 @@ body.admin-mode .progress-btn:disabled {
 .celebration-dismiss {
   background: none;
   border: none;
-  color: rgba(240, 232, 224, 0.28);
+  color: rgba(240, 232, 224, 0.58);
   font-family: 'Inter', sans-serif;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.2em;
   cursor: pointer;
@@ -1633,7 +1640,7 @@ body.admin-mode .progress-btn:disabled {
 }
 
 .celebration-dismiss:hover {
-  color: rgba(240, 232, 224, 0.65);
+  color: rgba(240, 232, 224, 0.78);
 }
 
 /* ============ Wardrobe ============ */
@@ -1686,7 +1693,7 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   font-family: 'Instrument Serif', Georgia, serif;
   font-style: italic;
   font-size: 0.9rem;
-  color: rgba(240, 232, 224, 0.35);
+  color: rgba(240, 232, 224, 0.58);
   margin-top: 4px;
 }
 
@@ -1695,11 +1702,11 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 }
 
 .wf-section-label {
-  font-size: 0.55rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: rgba(181, 201, 154, 0.55);
+  color: rgba(181, 201, 154, 0.72);
   padding: 20px 0 4px;
 }
 
@@ -1718,9 +1725,9 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 }
 
 .garment-meta {
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   letter-spacing: 0.06em;
-  color: rgba(240, 232, 224, 0.35);
+  color: rgba(240, 232, 224, 0.58);
   margin-bottom: 20px;
 }
 
@@ -1734,11 +1741,11 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 }
 
 .garment-section-label {
-  font-size: 0.5rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: rgba(181, 201, 154, 0.6);
+  color: rgba(181, 201, 154, 0.72);
   margin-bottom: 6px;
 }
 
@@ -1752,11 +1759,11 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   font-family: 'Instrument Serif', Georgia, serif;
   font-style: italic;
   font-size: 0.95rem;
-  color: rgba(240, 232, 224, 0.4);
+  color: rgba(240, 232, 224, 0.58);
 }
 
 .garment-count {
-  color: rgba(240, 232, 224, 0.3);
+  color: rgba(240, 232, 224, 0.58);
   font-size: 0.7rem;
   margin-left: 4px;
 }
@@ -1772,10 +1779,10 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 .garment-story-date {
   flex-shrink: 0;
   min-width: 44px;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(240, 232, 224, 0.3);
+  color: rgba(240, 232, 224, 0.58);
   padding-top: 3px;
 }
 
@@ -1789,9 +1796,9 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 .garment-story-weather {
   font-family: 'Inter', sans-serif;
   font-style: normal;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   letter-spacing: 0.04em;
-  color: rgba(181, 201, 154, 0.5);
+  color: rgba(181, 201, 154, 0.72);
   margin-left: 4px;
 }
 
@@ -1833,7 +1840,7 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 }
 
 .wardrobe-prompt-input::placeholder {
-  color: rgba(240, 232, 224, 0.22);
+  color: rgba(240, 232, 224, 0.58);
 }
 
 .wardrobe-prompt-input:focus {
@@ -1867,10 +1874,10 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 
 .wardrobe-cat-count {
   font-family: 'Inter', sans-serif;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 400;
   letter-spacing: 0.05em;
-  color: rgba(240, 232, 224, 0.28);
+  color: rgba(240, 232, 224, 0.58);
 }
 
 .wardrobe-row {
@@ -1894,8 +1901,8 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 }
 
 .wardrobe-row-meta {
-  font-size: 0.65rem;
-  color: rgba(240, 232, 224, 0.28);
+  font-size: 0.7rem;
+  color: rgba(240, 232, 224, 0.58);
   letter-spacing: 0.04em;
   white-space: nowrap;
   overflow: hidden;
@@ -1908,7 +1915,7 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   font-style: italic;
   font-size: 0.8rem;
   letter-spacing: 0;
-  color: rgba(240, 232, 224, 0.22);
+  color: rgba(240, 232, 224, 0.58);
 }
 
 .wardrobe-row {
@@ -1917,11 +1924,11 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 
 .wardrobe-subcat-label {
   font-family: 'Inter', sans-serif;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(240, 232, 224, 0.22);
+  color: rgba(240, 232, 224, 0.58);
   padding: 14px 2px 4px;
 }
 
@@ -1944,8 +1951,8 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 }
 
 .wardrobe-photo-count {
-  font-size: 0.62rem;
-  color: rgba(181, 201, 154, 0.55);
+  font-size: 0.7rem;
+  color: rgba(181, 201, 154, 0.72);
   letter-spacing: 0.08em;
 }
 
@@ -1963,7 +1970,7 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   font-family: 'Instrument Serif', serif;
   font-style: italic;
   font-size: 0.85rem;
-  color: rgba(181, 201, 154, 0.55);
+  color: rgba(181, 201, 154, 0.72);
   margin-bottom: 12px;
 }
 
@@ -2033,16 +2040,16 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 .outfit-prompt-echo {
   font-family: 'Instrument Serif', serif;
   font-style: italic;
-  color: rgba(240, 232, 224, 0.32);
+  color: rgba(240, 232, 224, 0.58);
   font-size: 0.88rem;
   margin-bottom: 6px;
 }
 
 .outfit-weather {
   font-family: 'Inter', sans-serif;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   letter-spacing: 0.05em;
-  color: rgba(181, 201, 154, 0.6);
+  color: rgba(181, 201, 154, 0.72);
   margin-bottom: 20px;
 }
 
@@ -2066,11 +2073,11 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 }
 
 .outfit-cat-label {
-  font-size: 0.48rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: rgba(181, 201, 154, 0.55);
+  color: rgba(181, 201, 154, 0.72);
   min-width: 68px;
   flex-shrink: 0;
   padding-top: 4px;
@@ -2092,8 +2099,8 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 }
 
 .outfit-item-meta {
-  font-size: 0.62rem;
-  color: rgba(240, 232, 224, 0.28);
+  font-size: 0.7rem;
+  color: rgba(240, 232, 224, 0.58);
   letter-spacing: 0.04em;
   white-space: nowrap;
   overflow: hidden;
@@ -2113,7 +2120,7 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 .outfit-empty {
   font-family: 'Instrument Serif', serif;
   font-style: italic;
-  color: rgba(240, 232, 224, 0.3);
+  color: rgba(240, 232, 224, 0.58);
   font-size: 0.88rem;
   text-align: center;
   padding: 20px 0;
@@ -2139,7 +2146,7 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 
 .dream-month-header {
   font-family: 'Inter', sans-serif;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.2em;
@@ -2183,9 +2190,9 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 }
 
 .dream-card-date {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   letter-spacing: 0.04em;
-  color: rgba(240, 232, 224, 0.4);
+  color: rgba(240, 232, 224, 0.58);
 }
 
 .dream-menu-btn {
@@ -2245,7 +2252,7 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   font-family: 'Instrument Serif', Georgia, serif;
   font-style: italic;
   font-size: 0.9rem;
-  color: rgba(240, 232, 224, 0.45);
+  color: rgba(240, 232, 224, 0.58);
   line-height: 1.35;
 }
 
@@ -2254,13 +2261,13 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 }
 
 .acquired-section .task-item {
-  opacity: 0.6;
+  opacity: 0.85; /* settled, not illegible */
 }
 
 .acquired-row-meta {
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   letter-spacing: 0.04em;
-  color: rgba(200, 168, 122, 0.7);
+  color: rgba(200, 168, 122, 1.0);
   white-space: nowrap;
   margin-left: auto;
   padding-left: 12px;
@@ -2282,7 +2289,7 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 .wish-since {
   font-size: 0.7rem;
   letter-spacing: 0.04em;
-  color: rgba(240, 232, 224, 0.4);
+  color: rgba(240, 232, 224, 0.58);
   margin: 12px 0 28px;
 }
 
