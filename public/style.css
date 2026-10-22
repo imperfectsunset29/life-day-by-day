@@ -774,12 +774,19 @@ textarea.task-text-input {
   cursor: default;
 }
 
-/* A text action's own line: centered under the buttons, or start-aligned under
-   the thing it acts on (e.g. Remove photo under the photo) */
+/* A text action's own line, sharing the buttons' edge: overlay buttons are end-aligned,
+   so the text action is too (one alignment per group). Start-aligned variant below sits
+   under the thing it acts on (e.g. Remove photo under the photo). */
 .action-text-row {
   display: flex;
-  justify-content: center;
-  margin-top: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+/* Line its right edge up with the buttons' edge: drop the side padding that would inset it */
+.action-text-row .btn-text {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .action-text-row-start {
