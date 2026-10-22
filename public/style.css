@@ -744,6 +744,62 @@ textarea.task-text-input {
   cursor: default;
 }
 
+/* Text action: the third action in a group. A group shows at most two buttons;
+   anything beyond them is plain text on its own line, never a third pill. */
+.btn-text {
+  background: none;
+  border: none;
+  padding: 12px 4px;
+  min-height: 44px; /* comfortable tap target without a visible container */
+  font-family: 'Inter', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(240, 232, 224, 0.45);
+  text-decoration: underline;
+  text-decoration-color: rgba(240, 232, 224, 0.18);
+  text-underline-offset: 5px;
+  cursor: pointer;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.btn-text:hover {
+  color: rgba(240, 232, 224, 0.75);
+  text-decoration-color: rgba(240, 232, 224, 0.4);
+}
+
+.btn-text:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* A text action's own line: centered under the buttons, or start-aligned under
+   the thing it acts on (e.g. Remove photo under the photo) */
+.action-text-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.action-text-row-start {
+  justify-content: flex-start;
+  margin: -8px 0 8px;
+}
+
+.wardrobe-photo-controls .btn-text {
+  order: 3;
+  flex-basis: 100%;
+  text-align: left;
+}
+
+/* Start-aligned text actions sit flush with the content edge above them */
+.action-text-row-start .btn-text,
+.wardrobe-photo-controls .btn-text {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 /* Tertiary: maintenance actions (add, manage). Ghost pill — no fill, no glow. */
 .btn-tertiary {
   padding: 12px 28px;
@@ -2028,18 +2084,6 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* "Not my style" sits on its own line under Re-spin / Love it */
-.outfit-pass-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 12px;
-}
-
-.btn-tertiary:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 /* The stylist's one-line reason, under the pieces */

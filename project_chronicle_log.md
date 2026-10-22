@@ -62,3 +62,7 @@ Garments gained optional origin, acquired and memory fields.
 ## 2026-10-22 — "Not my style"
 **Decision:** The outfit card gained a "Not my style" button. It records the outfit as a dislike and spins a new one. The last six dislikes go along with every request as a direction to avoid, mirroring how the last six loved outfits guide taste.
 **Why:** Nothing is trained; the stylist only knows what each request tells it. Re-spin is ambiguous ("not tonight" isn't "not me"), so dislikes needed their own explicit signal rather than reading every re-spin as one.
+
+## 2026-10-22 — Two buttons max; a third action is text
+**Decision:** Any group of actions shows at most two pill buttons (with at most one primary). A third action becomes a text action: no fill, no border, small uppercase text with a faint underline, on its own line. It's centered under the buttons, or sits directly under the thing it acts on. Applied to the outfit card ("Not my style"), the dream editor ("Remove photo") and the add-garment form (after a photo is added, "Analyze photos" becomes a secondary button, not a second primary, and "Add photo" becomes "Add another photo" as text).
+**Why:** Three pills in a row read as three equal choices and crowd a phone-width card; the add-garment form even showed two primaries at once. A different presentation for the third action keeps the hierarchy legible at a glance.

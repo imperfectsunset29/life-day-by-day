@@ -1916,6 +1916,7 @@ function openWardrobeAddModal(wardrobeCat) {
   populateSubcatOptions(wardrobeCat || '');
   document.getElementById('wardrobe-photo-count').textContent = '';
   document.getElementById('wardrobe-analyze-btn').classList.add('hidden');
+  setWardrobeCameraBtn(false);
   document.getElementById('wardrobe-analyzing-msg').classList.add('hidden');
   document.getElementById('wardrobe-modal-label').textContent = 'Add item';
   document.getElementById('wardrobe-save-btn').textContent = 'Save';
@@ -1943,10 +1944,19 @@ function openWardrobeEditModal(id) {
   populateSubcatOptions(item.wardrobeCategory || 'tops', item.subcategory);
   document.getElementById('wardrobe-photo-count').textContent = '';
   document.getElementById('wardrobe-analyze-btn').classList.add('hidden');
+  setWardrobeCameraBtn(false);
   document.getElementById('wardrobe-analyzing-msg').classList.add('hidden');
   document.getElementById('wardrobe-modal-label').textContent = 'Edit item';
   document.getElementById('wardrobe-save-btn').textContent = 'Update';
   wardrobeAddOverlay.classList.remove('hidden');
+}
+
+// Max two buttons per group: once a photo is in, Analyze (button) + Save (button) lead, and
+// "Add photo" becomes a text action. Reset to a button whenever the modal opens fresh.
+function setWardrobeCameraBtn(hasPhotos) {
+  const btn = document.getElementById('wardrobe-camera-btn');
+  btn.className = hasPhotos ? 'btn-text' : 'btn-secondary';
+  btn.textContent = hasPhotos ? 'Add another photo' : 'Add photo';
 }
 
 function capturePhoto(file) {
@@ -1960,6 +1970,7 @@ function capturePhoto(file) {
     const count = capturedPhotos.length;
     document.getElementById('wardrobe-photo-count').textContent = `${count} photo${count > 1 ? 's' : ''}`;
     document.getElementById('wardrobe-analyze-btn').classList.remove('hidden');
+    setWardrobeCameraBtn(true);
     wardrobePhotoInput.value = '';
   };
   reader.readAsDataURL(file);
