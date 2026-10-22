@@ -66,3 +66,7 @@ Garments gained optional origin, acquired and memory fields.
 ## 2026-10-22 — Two buttons max; a third action is text
 **Decision:** Any group of actions shows at most two pill buttons (with at most one primary). A third action becomes a text action: no fill, no border, small uppercase text with a faint underline, on its own line. It's centered under the buttons, or sits directly under the thing it acts on. Applied to the outfit card ("Not my style"), the dream editor ("Remove photo") and the add-garment form (after a photo is added, "Analyze photos" becomes a secondary button, not a second primary, and "Add photo" becomes "Add another photo" as text).
 **Why:** Three pills in a row read as three equal choices and crowd a phone-width card; the add-garment form even showed two primaries at once. A different presentation for the third action keeps the hierarchy legible at a glance.
+
+## 2026-10-22 — Legibility becomes a rule
+**Decision:** Size and contrast are checked every time text or a control changes: at least ~11px for anything read or tapped, WCAG AA contrast (4.5:1 for small text) measured against the real glass surface, and 44px tap targets. The new text action went from ~10px at 3.9:1 to ~11px at 6.1:1. About 37 older declarations below the size floor are recorded as known debt.
+**Why:** The app's editorial restraint had drifted into text that was hard to read, especially on a phone in daylight. Hierarchy should come from position, weight and fill, not from fading or shrinking text past legibility.
