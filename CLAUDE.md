@@ -117,7 +117,8 @@ New overlays should reuse `.overlay` / `.overlay-content` to inherit these guard
 - **Size:** at least `0.7rem` (~11px) for anything tappable or meant to be read, mobile block included. Purely decorative marks (a chevron, a count in parentheses) are the only exception.
 - **Contrast** (WCAG AA), measured against the actual surface behind it (glass card over the plum background, not pure black): **4.5:1** for text under ~18px, **3:1** for large text and for a control's visible boundary. With ivory `#f0e8e0` on a glass card, that means roughly **≥ 0.6 opacity** for small text; `0.45` measures only 3.9:1. Compute it rather than eyeballing it, and note the ratio in a CSS comment when it's close.
 - **Tap targets:** at least 44px tall, even when the visible text is small (use padding / `min-height`).
-- **Known debt:** ~37 older declarations sit below 0.7rem, among them category labels, metadata lines, and pill buttons on mobile (0.6rem). Don't copy their values. Fix any you touch, and raise them in bulk when asked.
+- **Pill buttons meet all three:** `.btn-primary`, `.btn-secondary` and `.btn-tertiary` labels are 0.7rem on every screen size. The tertiary label is 0.62 opacity (6.1–6.5:1; 0.45 was 3.9:1). An invisible `::after` extends each ~34px pill to a 44px tap area without changing its look.
+- **Known debt:** ~33 older declarations still sit below 0.7rem, mostly category labels and metadata lines. Don't copy their values. Fix any you touch, and raise them in bulk when asked.
 
 **Button hierarchy — non-negotiable.** Emphasis follows how central an action is to the screen, not how often it's built. At most **one** primary per screen or overlay.
 - **Primary — `.btn-primary`** (filled sage pill with glow): the action the screen exists for. Home → "Surprise me"; Wardrobe → "What should I wear?"; overlays → the confirming action ("Got it", "Love it", "Save").

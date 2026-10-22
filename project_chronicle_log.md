@@ -74,3 +74,7 @@ Garments gained optional origin, acquired and memory fields.
 ## 2026-10-22 — The stylist stops circling one dress
 **Decision:** The stylist now remembers its last 10 suggestions and steers away from their main pieces. A re-spin must change the main piece (dress, jumpsuit or top), not just the shoes or coat. "Never worn" is only favored for pieces that weren't suggested recently.
 **Why:** It kept suggesting the same DOEN black lace dress. "Never worn" was treated as a rotation bonus, but a piece only counts as worn after "Love it", so an unloved favorite won every time. Re-spin only blocked exact combinations, and with no memory of past suggestions similar evening prompts kept landing on the same answer.
+
+## 2026-10-22 — Pill buttons meet the legibility floor
+**Decision:** Every pill button label is now ~11px on all screens; on phones they had shrunk to ~10px, and outline pills to ~9px. The outline pill's label went from 3.9:1 to 6.1:1 contrast. Each pill gained an invisible 44px tap area, so it's easier to hit without looking bigger.
+**Why:** The first bulk pass under the new legibility rule. Pills are the most-tapped controls in the app, and their phone labels were smaller than the text action meant to rank below them.

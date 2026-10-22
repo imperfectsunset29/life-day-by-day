@@ -704,7 +704,7 @@ textarea.task-text-input {
 .btn-primary, .btn-secondary {
   padding: 12px 28px;
   border-radius: 100px;
-  font-size: 0.65rem;
+  font-size: 0.7rem;                 /* legibility floor (~11px), phones included */
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -742,6 +742,18 @@ textarea.task-text-input {
 .btn-secondary:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+/* Pills are ~36px tall; an invisible extension makes each one a full 44px tap target
+   without making it look bigger */
+.btn-primary, .btn-secondary, .btn-tertiary {
+  position: relative;
+}
+
+.btn-primary::after, .btn-secondary::after, .btn-tertiary::after {
+  content: '';
+  position: absolute;
+  inset: -5px 0; /* 34px visible + 10px = 44px */
 }
 
 /* Text action: the third action in a group. A group shows at most two buttons;
@@ -811,14 +823,14 @@ textarea.task-text-input {
 .btn-tertiary {
   padding: 12px 28px;
   border-radius: 100px;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   background: transparent;
-  color: rgba(240, 232, 224, 0.45);
+  color: rgba(240, 232, 224, 0.62);  /* 6.1–6.5:1 on card and page; 0.45 was 3.9:1 */
   border: 1px solid rgba(255, 255, 255, 0.09);
 }
 
@@ -1052,14 +1064,9 @@ textarea.task-text-input {
     margin-bottom: 28px;
   }
 
-  .btn-primary, .btn-secondary {
+  /* Phones keep the tighter padding but never a smaller label */
+  .btn-primary, .btn-secondary, .btn-tertiary {
     padding: 10px 20px;
-    font-size: 0.6rem;
-  }
-
-  .btn-tertiary {
-    padding: 10px 20px;
-    font-size: 0.56rem;
   }
 
   .done-section .restore {
