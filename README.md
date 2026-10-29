@@ -1,4 +1,6 @@
-# LIFE (day by day)
+# Oedipa (life, day by day)
+
+*Formerly LIFE. Named for Oedipa Maas, the heroine of Thomas Pynchon's* The Crying of Lot 49*, who sets out to sort someone's affairs and finds patterns everywhere.*
 
 A personal task manager with one-off tasks, daily habits, ongoing projects, and a treat-yourself randomizer. Built with Node.js/Express and vanilla JS. Runs locally.
 

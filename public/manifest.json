@@ -1,6 +1,6 @@
 {
-  "name": "LIFE (day by day)",
-  "short_name": "LIFE",
+  "name": "Oedipa (life, day by day)",
+  "short_name": "Oedipa",
   "description": "Personal life tracker",
   "start_url": "/",
   "display": "standalone",

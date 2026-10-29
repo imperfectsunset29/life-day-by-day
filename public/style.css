@@ -45,7 +45,7 @@ header {
   gap: 0;
 }
 
-/* App header (LIFE, profile, Surprise me, lock) belongs to Home only.
+/* App header (Oedipa title, profile, Surprise me, lock) belongs to Home only.
    Secondary views use their own title as the page header. */
 body.secondary-view #header {
   display: none;

@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Name
+
+The app is **Oedipa** (*life, day by day*), formerly LIFE. It's named for Oedipa Maas in Thomas Pynchon's *The Crying of Lot 49*, who sets out to sort someone's affairs and finds patterns everywhere: the same Pynchon voice the quotes use. Write it "Oedipa" (title case, never all caps), with "(life, day by day)" as the subtitle in the serif italic. The repo, Railway service, data files and `life-*` storage keys keep their old names; renaming them is optional and not needed for the brand.
+
 ## Commands
 
 ```bash
@@ -131,7 +135,7 @@ New overlays should reuse `.overlay` / `.overlay-content` to inherit these guard
 - No one-off button classes. Every button is one of the three tiers (plus icon-only/back), or a text action.
 - **Two buttons max per group.** An overlay, form or action row shows at most two pill buttons (still at most one primary). A third action is a **text action — `.btn-text`**: no fill, no border, uppercase Inter at 0.7rem and 0.62 opacity (~6:1 contrast) with a faint underline, 44px tap height. It sits on its own line, sharing the buttons' edge (one alignment per group, never centered under end-aligned buttons): end-aligned under the buttons in an `.action-text-row` (outfit card → "Not my style"). It can't share the buttons' row: two legible pills plus a text action don't fit the ~300px card width. or start-aligned directly under the thing it acts on with `.action-text-row-start` (dream editor → "Remove photo" under the photo). When a step changes what matters, demote rather than add: in the add-garment form, once a photo is in, "Analyze photos" (secondary) + "Save" (primary) are the buttons and "Add photo" becomes the text action "Add another photo" (`setWardrobeCameraBtn()`).
 
-**App header is Home-only.** The `#header` block (LIFE title, profile switcher, Surprise me, lock) shows only on the main view. Every `show*()` for a secondary view adds `body.secondary-view`, which hides `#header`; the view's own title (`.olympus-header`) is the page header. New views must add `secondary-view` too.
+**App header is Home-only.** The `#header` block (Oedipa title, profile switcher, Surprise me, lock) shows only on the main view. Every `show*()` for a secondary view adds `body.secondary-view`, which hides `#header`; the view's own title (`.olympus-header`) is the page header. New views must add `secondary-view` too.
 
 **Wardrobe IA.** Two sections, top to bottom: (1) outfit picker — prompt input + "What should I wear?" primary; (2) "My closet" — `.wardrobe-closet-header` with the serif subheader, then "+ Add garment" (tertiary, admin-only) on its own line beneath it, aligned right, then the categories. Categories start collapsed on every visit; saving a garment expands its category. Under the title, `#wardrobe-closet-line` shows a quiet summary (pieces · colors · most loyal).
 

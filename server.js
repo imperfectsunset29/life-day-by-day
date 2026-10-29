@@ -1321,5 +1321,5 @@ sweepAllMedia();
 setInterval(sweepAllMedia, 86400000);
 
 app.listen(PORT, () => {
-  console.log(`LIFE (day by day) running at http://localhost:${PORT}`);
+  console.log(`Oedipa (life, day by day) running at http://localhost:${PORT}`);
 });
