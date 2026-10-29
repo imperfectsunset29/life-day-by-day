@@ -1755,13 +1755,6 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   line-height: 1.5;
 }
 
-.garment-section-text.never-worn {
-  font-family: 'Instrument Serif', Georgia, serif;
-  font-style: italic;
-  font-size: 0.95rem;
-  color: rgba(240, 232, 224, 0.58);
-}
-
 .garment-count {
   color: rgba(240, 232, 224, 0.58);
   font-size: 0.7rem;
@@ -1907,15 +1900,6 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Never-worn pieces read as ghosts — present, but not yet part of the story */
-.wardrobe-row-meta.never-worn {
-  font-family: 'Instrument Serif', Georgia, serif;
-  font-style: italic;
-  font-size: 0.8rem;
-  letter-spacing: 0;
-  color: rgba(240, 232, 224, 0.58);
 }
 
 .wardrobe-row {

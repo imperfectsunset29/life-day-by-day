@@ -6,6 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The app is **Oedipa** (*life, day by day*), formerly LIFE. It's named for Oedipa Maas in Thomas Pynchon's *The Crying of Lot 49*, who sets out to sort someone's affairs and finds patterns everywhere: the same Pynchon voice the quotes use. Write it "Oedipa" (title case, never all caps), with "(life, day by day)" as the subtitle in the serif italic. The repo, Railway service, data files and `life-*` storage keys keep their old names; renaming them is optional and not needed for the brand.
 
+## First Principles — Non-Negotiable
+
+Every feature is checked against these. If it doesn't serve them, it doesn't ship, however clever. Each was distilled with the user, question by question; add new ones the same way.
+
+**1. A kind mirror.** Oedipa only remembers what happened. It counts what you did, never what you didn't, and keeps it for when you want to look.
+- **Only what you did.** Gaps, misses and time-since are never shown: no streaks, no "never worn", no "last done 5 days ago", no "worn 3 weeks ago".
+- **Totals that only grow.** "Stretched 41 times", "worn 6 times". Nothing resets; nothing is lost. With nothing to count, show nothing (or the item's own details), never a zero.
+- **Plain facts.** Reflections are numbers, not commentary. The Pynchon voice belongs to rewards (celebrations, ascensions), never to the mirror.
+- **Waits to be looked at.** Small facts sit quietly on each item, plus one place for the bigger picture. Nothing is pushed at you.
+- **Never judges.** It notices; the meaning is yours to make.
+- **Absence may steer, never show.** Systems may use gaps privately (the outfit stylist favors pieces not worn lately), but a gap is never displayed.
+- Already consistent: "Its story" (what happened, with dates), "Usually seen with", Acquired's "wanted for 4 months", habits without streaks.
+
 ## Commands
 
 ```bash
@@ -140,8 +153,8 @@ New overlays should reuse `.overlay` / `.overlay-content` to inherit these guard
 **Wardrobe IA.** Two sections, top to bottom: (1) outfit picker — prompt input + "What should I wear?" primary; (2) "My closet" — `.wardrobe-closet-header` with the serif subheader, then "+ Add garment" (tertiary, admin-only) on its own line beneath it, aligned right, then the categories. Categories start collapsed on every visit; saving a garment expands its category. Under the title, `#wardrobe-closet-line` shows a quiet summary (pieces · colors · most loyal).
 
 **Wardrobe history.** "Love it" on a suggested outfit is the only way wears are recorded (`POST /api/wardrobe/wear`, admin-only). Re-spin and × record nothing. Everything else is derived on request by `computeWardrobeStats()` in `server.js` (`GET /api/wardrobe/stats`), never stored:
-- **Rows:** show "worn 3 wks ago" in place of color, or a ghosted italic "never worn".
-- **Garment card:** tapping a row opens `#garment-overlay`, showing wear count, "Usually seen with" (pieces worn together at least `FRIEND_MIN_TOGETHER` times), "Its story" (the last `WEAR_STORY_LENGTH` wears with prompt and weather), and origin/memory.
+- **Rows:** a worn piece shows its total ("worn 6 times"); an unworn piece just shows its color. No time-since, no "never worn" (first principle: a kind mirror).
+- **Garment card:** tapping a row opens `#garment-overlay`, showing the wear count (only when there is one), "Usually seen with" (pieces worn together at least `FRIEND_MIN_TOGETHER` times), "Its story" (the last `WEAR_STORY_LENGTH` wears with prompt and weather), and origin/memory.
 - **Rotation nudge:** the outfit stylist sees each piece's wear history and is told to favor neglected pieces when two fit equally well.
 
 **Outfit stylist.** `POST /api/wardrobe/suggest-outfit` calls Claude Opus 5.5 at `effort: 'low'` (wardrobe is used occasionally; keep each call lean) with schema-constrained JSON output (`OUTFIT_SCHEMA`: `itemIds`, `why`) and `fallbacks: 'default'` (beta `server-side-fallback-2026-07-01`) so a declined request is retried server-side. `STYLIST_RULES` (color story, one level of dressiness, weather and walking, structure, rotation, taste) and the closet list form a cached system prefix; the occasion, weather, the last 6 loved outfits, the last 6 "Not my style" outfits (`outfitPasses`, recorded by `POST /api/wardrobe/pass`, admin-only) the main pieces (dress, jumpsuit, top, bottom) of the last 10 suggestions (`recentSuggestions`, saved after every suggestion — re-read before writing, since the AI call takes seconds) so one favorite doesn't anchor every outfit, and the outfits already shown (`exclude`, sent by the frontend's `shownOutfits`, reset when the prompt changes) go in the user message. The one-line `why` shows in amber under the pieces (`#outfit-why`). Any failure or refusal falls back to `randomOutfitPick()` with no `why`. Nothing is trained: the model only learns from what each request includes. "Love it" and "Not my style" persist; Re-spin's exclusions live only in the browser for the current prompt, and a re-spin must change the main piece, not just shoes or a layer. "Never worn" is only favored when the piece wasn't suggested recently; otherwise a never-loved favorite wins every time. "Not my style" (a `.btn-text` text action on its own line under Re-spin / Love it) records the dislike and immediately spins a new outfit. "Love it" ends the flow and clears the prompt box; closing with × keeps the text so it can be tweaked and asked again. Photo analysis (`/api/wardrobe/analyze-photo`) still uses Haiku 4.5.

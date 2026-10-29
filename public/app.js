@@ -1754,8 +1754,9 @@ function renderWardrobe() {
         li.dataset.id = item.id;
         li.dataset.category = 'wardrobe';
         const st = wardrobeStats && wardrobeStats.items[item.id];
-        const meta = st ? wornLabel(st) : (item.color || item.brand || '');
-        const metaClass = st && !st.timesWorn ? 'wardrobe-row-meta never-worn' : 'wardrobe-row-meta';
+        // A kind mirror: show how many times it's been worn; an unworn piece just shows its color
+        const meta = (st && st.timesWorn) ? wornLabel(st) : (item.color || item.brand || '');
+        const metaClass = 'wardrobe-row-meta';
         li.innerHTML = `
           <span class="task-text">${renderTaskText(item.text)}</span>
           ${meta ? `<span class="${metaClass}">${escapeHtml(meta)}</span>` : ''}
@@ -1785,17 +1786,9 @@ async function refreshWardrobeStats() {
   }
 }
 
-function wornAgo(days) {
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) { const w = Math.round(days / 7); return `${w} wk${w > 1 ? 's' : ''} ago`; }
-  if (days < 365) { const m = Math.round(days / 30); return `${m} mo ago`; }
-  return 'over a year ago';
-}
-
+// Totals only, never time-since or absence (first principle: a kind mirror)
 function wornLabel(st) {
-  return st.timesWorn ? `worn ${wornAgo(st.daysSinceWorn)}` : 'never worn';
+  return `worn ${st.timesWorn} time${st.timesWorn === 1 ? '' : 's'}`;
 }
 
 function formatWearDate(dateStr) {
@@ -1836,9 +1829,10 @@ function openGarmentCard(id) {
   };
 
   if (st) {
-    addSection('Wear', st.timesWorn
-      ? `<p class="garment-section-text">Worn ${st.timesWorn} time${st.timesWorn === 1 ? '' : 's'}, last ${escapeHtml(wornAgo(st.daysSinceWorn))}</p>`
-      : `<p class="garment-section-text never-worn">Never worn. Yet.</p>`);
+    // Only what happened: a count when there is one, nothing when there isn't
+    if (st.timesWorn) {
+      addSection('Wear', `<p class="garment-section-text">Worn ${st.timesWorn} time${st.timesWorn === 1 ? '' : 's'}</p>`);
+    }
     if (st.friends.length) {
       addSection('Usually seen with', st.friends
         .map(f => `<p class="garment-section-text">${escapeHtml(nameOf(f.id) || 'something since given away')} <span class="garment-count">${f.count}×</span></p>`).join(''));
