@@ -2091,6 +2091,16 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   text-overflow: ellipsis;
 }
 
+/* Principle 2: the plain nudge after a few re-spins in a row */
+.spin-nudge {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: rgba(240, 232, 224, 0.72); /* ~7:1 on the glass card */
+  margin: -12px 0 24px;
+}
+
 /* The stylist's one-line reason, under the pieces */
 .outfit-why {
   font-family: 'Instrument Serif', Georgia, serif;

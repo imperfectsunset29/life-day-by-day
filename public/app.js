@@ -57,6 +57,18 @@ let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO
 let capturedPhotos = []; // [{ image: base64, mimeType }] — cleared after each wardrobe save
 let editingWardrobeId = null; // set while the add/edit modal is editing an existing item, else null
 let lastOutfitPrompt = '';
+// Principle 2 (off the hook): re-spins are free, but after a few in a row a plain line
+// suggests going with what life picked. Counts reset whenever a fresh spin starts.
+const SPIN_NUDGE_AFTER = 3;
+let surpriseRespins = 0;
+let outfitRespins = 0;
+
+function updateSpinNudge(el, respins) {
+  const show = respins >= SPIN_NUDGE_AFTER;
+  el.textContent = show ? `Life has picked ${respins + 1} times. Maybe this one?` : '';
+  el.classList.toggle('hidden', !show);
+}
+
 let shownOutfits = [];     // garment-ID sets already shown for the current prompt, so Re-spin avoids them
 let currentOutfit = null;  // { itemIds, prompt, weather } for the outfit on screen — "Love it" records it as worn
 let wardrobeStats = null;  // from /api/wardrobe/stats: per-garment wear history + closet summary
@@ -2284,8 +2296,16 @@ document.getElementById('randomizer-x-btn').addEventListener('click', async () =
   overlay.classList.add('hidden');
   currentSurpriseTask = null;
 });
-document.getElementById('surprise-btn').addEventListener('click', surprise);
-document.getElementById('respin-btn').addEventListener('click', surprise);
+document.getElementById('surprise-btn').addEventListener('click', async () => {
+  surpriseRespins = 0;
+  await surprise();
+  updateSpinNudge(document.getElementById('spin-nudge'), surpriseRespins);
+});
+document.getElementById('respin-btn').addEventListener('click', async () => {
+  surpriseRespins++;
+  await surprise();
+  updateSpinNudge(document.getElementById('spin-nudge'), surpriseRespins);
+});
 document.getElementById('close-overlay-btn').addEventListener('click', async () => {
   await logSurpriseOutcome('acted');
   overlay.classList.add('hidden');
@@ -2501,9 +2521,18 @@ document.getElementById('wf-cat').addEventListener('change', e => populateSubcat
 document.getElementById('wardrobe-add-x-btn').addEventListener('click', () => wardrobeAddOverlay.classList.add('hidden'));
 wardrobeAddOverlay.addEventListener('click', e => { if (e.target === wardrobeAddOverlay) wardrobeAddOverlay.classList.add('hidden'); });
 
-document.getElementById('suggest-outfit-btn').addEventListener('click', suggestOutfit);
+document.getElementById('suggest-outfit-btn').addEventListener('click', async () => {
+  outfitRespins = 0;
+  await suggestOutfit();
+  updateSpinNudge(document.getElementById('outfit-spin-nudge'), outfitRespins);
+});
 document.getElementById('outfit-x-btn').addEventListener('click', () => outfitOverlay.classList.add('hidden'));
-document.getElementById('outfit-respin-btn').addEventListener('click', suggestOutfit);
+document.getElementById('outfit-respin-btn').addEventListener('click', async () => {
+  if (outfitRequestInFlight) return;
+  outfitRespins++;
+  await suggestOutfit();
+  updateSpinNudge(document.getElementById('outfit-spin-nudge'), outfitRespins);
+});
 document.getElementById('outfit-pass-btn').addEventListener('click', passOnOutfit);
 document.getElementById('outfit-close-btn').addEventListener('click', () => {
   outfitOverlay.classList.add('hidden');

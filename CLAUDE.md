@@ -19,6 +19,15 @@ Every feature is checked against these. If it doesn't serve them, it doesn't shi
 - **Absence may steer, never show.** Systems may use gaps privately (the outfit stylist favors pieces not worn lately), but a gap is never displayed.
 - Already consistent: "Its story" (what happened, with dates), "Usually seen with", Acquired's "wanted for 4 months", habits without streaks.
 
+**2. Off the hook.** Oedipa lets life decide. Hand it a choice from your lists and chance picks, playfully, so you don't have to. You can always spin again.
+- **The gift is permission.** Life chose, so you're off the hook for choosing.
+- **Only from what's yours.** Chance picks from your own lists (tasks, treats, hard things, clothes), never from outside them.
+- **Only when asked.** Nothing is decided for you unprompted.
+- **Honest chance.** Picks are truly random. Weighted odds are part of the game (treats and hard things at 20% each in Surprise me), but nothing is secretly chosen for you.
+- **Playful, wordless.** The reveal is a little theater (a spin, a flourish). The Pynchon voice stays with rewards.
+- **Saying no is free.** Re-spin anytime. Skips leave no visible trace (principle 1). After `SPIN_NUDGE_AFTER` (3) re-spins in a row, a plain line suggests going with it ("Life has picked 4 times. Maybe this one?"), in Surprise me and on the outfit card. A fresh spin resets the count; "Not my style" doesn't count as a re-spin.
+- **Taste gets a wild card.** The outfit stylist chooses with taste, but with `WILD_CARD_ODDS` (0.25) chance picks one of your pieces at random and the stylist builds around it. It's unmarked, and the stylist is told not to mention it.
+
 ## Commands
 
 ```bash

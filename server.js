@@ -714,6 +714,10 @@ Rules:
 
 Check the outfit against every rule before answering. "itemIds" are the chosen garments' IDs. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion.`;
 
+// Principle 2 (off the hook): taste chooses the outfit, but now and then chance slips one
+// of your own pieces in. Unmarked: the outfit looks like any other.
+const WILD_CARD_ODDS = 0.25;
+
 const OUTFIT_SCHEMA = {
   type: 'object',
   properties: {
@@ -756,6 +760,9 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
       const MAIN_CATEGORIES = ['dresses', 'jumpsuitsRompers', 'tops', 'bottoms'];
       const recent = [...new Set(data.recentSuggestions.slice(-10).flatMap(s => s.itemIds))]
         .filter(id => MAIN_CATEGORIES.includes((data.wardrobe.find(i => i.id === id) || {}).wardrobeCategory));
+      const shownIds = new Set(exclude.flat());
+      const wildPool = data.wardrobe.filter(i => !shownIds.has(i.id));
+      const wildCard = wildPool.length && Math.random() < WILD_CARD_ODDS ? pickRandom(wildPool) : null;
       const passed = data.outfitPasses.slice(-6).reverse()
         .map(p => `- "${p.prompt}": ${p.itemIds.map(nameOf).filter(Boolean).join(' + ')}`);
       const request = [
@@ -764,6 +771,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
         loved.length ? `Outfits the user loved recently:\n${loved.join('\n')}` : '',
         passed.length ? `Outfits the user marked "not my style":\n${passed.join('\n')}` : '',
         recent.length ? `Pieces you suggested recently (any occasion) — don't lean on them again unless nothing else fits:\n${recent.map(id => `- ${nameOf(id)}`).join('\n')}` : '',
+        wildCard ? `A piece chosen by chance for this outfit: "${wildCard.text}" (ID ${wildCard.id}). Include it and build the rest around it, following every rule. Don't mention that it was chosen by chance.` : '',
         exclude.length ? `Already shown for this occasion — pick a genuinely different outfit with a different main piece (the dress or jumpsuit, or the top), not just new shoes or a layer:\n${exclude.map(ids => `- ${ids.map(nameOf).filter(Boolean).join(' + ')}`).join('\n')}` : ''
       ].filter(Boolean).join('\n\n');
 
