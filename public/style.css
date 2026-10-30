@@ -36,6 +36,27 @@ body.loaded {
   opacity: 1;
 }
 
+/* Fresh starts: one wordless mood per habit-day (applyDawn() in app.js).
+   Same palette, blooms drift and shift between plum and indigo. Text sits on
+   glass cards, so contrast floors are unaffected (bloom peaks stay ≤ #3a0e3c-ish). */
+body.dawn-0 { background: radial-gradient(ellipse 80% 50% at 70% 0%, #3a0e3c 0%, transparent 65%),
+                          radial-gradient(ellipse 60% 40% at 10% 90%, #1e0832 0%, transparent 60%), #130518; }
+body.dawn-1 { background: radial-gradient(ellipse 70% 45% at 25% 0%, #361040 0%, transparent 65%),
+                          radial-gradient(ellipse 65% 45% at 90% 85%, #220a36 0%, transparent 60%), #130518; }
+body.dawn-2 { background: radial-gradient(ellipse 90% 55% at 50% 0%, #3a0e3c 0%, transparent 62%),
+                          radial-gradient(ellipse 55% 35% at 85% 60%, #1c0830 0%, transparent 60%), #130518; }
+body.dawn-3 { background: radial-gradient(ellipse 75% 50% at 85% 10%, #2e0c3e 0%, transparent 65%),
+                          radial-gradient(ellipse 70% 45% at 15% 70%, #2a0a34 0%, transparent 60%), #130518; }
+body.dawn-4 { background: radial-gradient(ellipse 80% 50% at 10% 5%, #3c0f38 0%, transparent 62%),
+                          radial-gradient(ellipse 60% 40% at 70% 95%, #1e0832 0%, transparent 60%), #130518; }
+body.dawn-5 { background: radial-gradient(ellipse 85% 50% at 60% 0%, #34113c 0%, transparent 65%),
+                          radial-gradient(ellipse 50% 35% at 5% 50%, #200934 0%, transparent 60%),
+                          radial-gradient(ellipse 50% 30% at 95% 95%, #1a072c 0%, transparent 60%), #130518; }
+body.dawn-6 { background: radial-gradient(ellipse 70% 45% at 40% 0%, #2c0d40 0%, transparent 65%),
+                          radial-gradient(ellipse 70% 45% at 60% 90%, #2a0c36 0%, transparent 60%), #130518; }
+body.dawn-7 { background: radial-gradient(ellipse 80% 50% at 95% 0%, #3a0e3c 0%, transparent 60%),
+                          radial-gradient(ellipse 65% 40% at 30% 80%, #240a38 0%, transparent 60%), #130518; }
+
 /* Header */
 header {
   display: flex;

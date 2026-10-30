@@ -2568,6 +2568,21 @@ document.getElementById('lock-btn').addEventListener('click', () => {
 
 applyAuthUI();
 
+// Fresh starts: each habit-day (turning over at 5 AM PT) gets one of DAWN_VARIANTS
+// background moods. Wordless; consecutive days always differ.
+const DAWN_VARIANTS = 8;
+function habitDayNumber() {
+  const shifted = new Date(Date.now() - 5 * 3600 * 1000);
+  const ymd = shifted.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  return Math.floor(Date.parse(ymd + 'T00:00:00Z') / 86400000);
+}
+function applyDawn() {
+  const variant = (habitDayNumber() * 5) % DAWN_VARIANTS;
+  for (let i = 0; i < DAWN_VARIANTS; i++) document.body.classList.toggle(`dawn-${i}`, i === variant);
+}
+applyDawn();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) applyDawn(); });
+
 // Profile selector buttons
 document.querySelectorAll('.profile-btn').forEach(btn => {
   btn.addEventListener('click', () => selectProfile(btn.dataset.profile));

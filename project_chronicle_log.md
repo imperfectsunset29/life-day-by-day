@@ -103,3 +103,13 @@ Garments gained optional origin, acquired and memory fields.
 - no ceremony for treats or shopping, and "It's yours now." dropped from the Acquired card.
 
 **Why:** Finishing should feel earned, not addictive. The user's sharpest point was that shopping and treats already feed the dopamine loop, so Oedipa shouldn't add to them, and that big rewards stay meaningful only by staying rare.
+
+## 2026-10-30 — Fourth principle: fresh starts
+**Decision:** Oedipa's fourth principle, distilled over 16 questions: *Oedipa's slate is what you finished: it clears on time's rhythm, and what's still waiting simply waits, without judgment.*
+- What's finished clears on a schedule: Done weekly, Errands daily, habits at 5 AM PT.
+- Unfinished things never expire and never show their age.
+- Resets are silent and invisible. There's no fresh-start button and no "welcome back".
+- Restoring from Olympus truly begins again.
+
+Built right away: each morning gets one of eight wordless background moods, so a new day feels slightly new without a single word.
+**Why:** A clean slate means the finished things go, not the pending ones. Expiring or aging unfinished tasks would be a quiet verdict, which breaks the kind mirror. The rhythm should be felt rather than explained or triggered by hand.

@@ -39,6 +39,18 @@ Every feature is checked against these. If it doesn't serve them, it doesn't shi
 - **Afterlife by size.** Big things are honored (Olympus, with their quote); small things are released (Done clears weekly).
 - Reduced motion: beats and the epic glow don't animate, and ceremonies show the quote still.
 
+**4. Fresh starts.** Oedipa's slate is what you finished: it clears on time's rhythm, and what's still waiting simply waits, without judgment.
+- **The slate is finished things.** Done clears every Sunday 23:59 PT; checked Errands clear at the end of each day; habits uncheck at 5 AM PT. Unfinished things never expire.
+- **Silent resets.** An unchecked habit resets with no trace. A turnover (day or week) is invisible: no marker, no "last week: 14 done".
+- **No age on what waits.** A task never shows how long it has waited, not on the list and not on a card (principle 1).
+- **Time does it.** No "fresh start" button, no "clear all". Resets belong to the rhythm.
+- **The day begins at 5 AM PT,** not midnight: late nights still count as today.
+- **Returning is just today.** Coming back after days away looks like any morning: no "welcome back", no sign you were gone.
+- **The rhythm is felt, not explained.** No "resets at 5 AM" hints in the UI.
+- **Cleared means gone from view.** Nothing visible survives a clear. The history stays in the data (`events*.json`) for a future bigger-picture place.
+- **Beginning again is real.** Restoring from Olympus starts the project at 0%, and its old steps stay behind.
+- **Each morning is a little new.** Every habit-day gets one of `DAWN_VARIANTS` (8) wordless background moods (`body.dawn-N`, chosen by `applyDawn()` in `app.js`; consecutive days always differ). Same palette, blooms drift; no words, no animation.
+
 ## Commands
 
 ```bash
