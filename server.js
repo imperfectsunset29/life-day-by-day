@@ -594,10 +594,20 @@ async function generatePynchon({ occasion, subject, avoid, fallbacks }) {
   }
 }
 
-function getProjectReflection(projectText, data) {
+// Principle 3 (scaled ceremony): the quote knows how long the project was carried
+function describeCarried(days) {
+  if (days == null) return '';
+  if (days < 14) return `${Math.max(1, days)} day${days === 1 ? '' : 's'}`;
+  if (days < 60) return `${Math.round(days / 7)} weeks`;
+  if (days < 730) return `${Math.round(days / 30)} months`;
+  return `${Math.round(days / 365)} years`;
+}
+
+function getProjectReflection(projectText, data, carriedDays) {
   const avoid = (data.olympus || []).map(o => o.reflection).filter(Boolean).slice(-12);
+  const carried = describeCarried(carriedDays);
   return generatePynchon({
-    occasion: 'a project has just been carried all the way to 100% and ascends to Olympus.',
+    occasion: `a project has just been carried all the way to 100% and ascends to Olympus${carried ? `, after being carried for ${carried}` : ''}.`,
     subject: projectText,
     avoid,
     fallbacks: fallbackPynchonQuotes
@@ -1156,7 +1166,8 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
 
     // Auto-ascend at 100%
     if (task.progress >= 100) {
-      const reflection = await getProjectReflection(task.text, data);
+      const carriedDays = task.createdAt ? Math.floor((Date.now() - new Date(task.createdAt)) / 86400000) : null;
+      const reflection = await getProjectReflection(task.text, data, carriedDays);
       // Writing the quote takes seconds, and anything saved meanwhile (a habit checked, a
       // task added) would be overwritten by the copy read before the wait — so re-read now.
       const fresh = readTasks(profile);
@@ -1172,7 +1183,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
         fresh.projects = fresh.projects.filter(t => t.id !== task.id);
         writeTasks(fresh, profile);
       }
-      return res.json({ ascended: true, reflection });
+      return res.json({ ascended: true, reflection, carriedDays });
     }
   } else if (req.body.done !== undefined) {
     const wasDone = task.done;

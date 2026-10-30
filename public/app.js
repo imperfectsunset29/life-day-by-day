@@ -328,6 +328,7 @@ async function toggleStep(projectId, stepId, done) {
     body: JSON.stringify({ done })
   });
   await loadTasks();
+  playBeat(`.step-checkbox[data-step-id="${stepId}"]`, done ? 'finish-beat' : 'undo-beat');
 }
 
 async function deleteStep(projectId, stepId) {
@@ -429,14 +430,16 @@ async function updateProgress(id, delta) {
 
   if (newProgress >= 100) {
     let reflection = 'It is finished, which is more than most things can say.';
+    let carriedDays = null;
     try {
       const result = await putRes.json();
       if (result.reflection) reflection = result.reflection;
+      if (typeof result.carriedDays === 'number') carriedDays = result.carriedDays;
     } catch {
       // keep the default line above
     }
     loadTasks(); // fire without await — re-renders in background behind overlay
-    showCelebration(reflection);
+    showCelebration(reflection, ceremonyTierFor(carriedDays));
   }
 }
 
@@ -654,25 +657,114 @@ async function toggleTask(category, id) {
   if (SHOPPING_CATS.includes(category)) renderShoppingList();
 
   if (category === 'oneOff' && !wasDone && tasks.oneOff.length === 0) {
-    showOneOffCelebration();
+    showOneOffCelebration(); // the big moment replaces the small beat
+  } else {
+    playBeat(`li.task-item[data-id="${id}"]`, nowDone ? 'finish-beat' : 'undo-beat');
   }
+}
+
+// ---- Principle 3 (scaled ceremony) ----
+// Small finishes get a calm, wordless beat on their row; undoing gets a quieter sage one.
+// Big finishes (a project ascending, the whole list cleared) get a Pynchon quote performed by
+// one of several ceremonies, never the same one twice in a row, grander the longer it was carried.
+function playBeat(selector, kind) {
+  requestAnimationFrame(() => {
+    document.querySelectorAll(selector).forEach(el => {
+      el.classList.remove('finish-beat', 'undo-beat');
+      void el.offsetWidth; // restart the animation if it's already running
+      el.classList.add(kind);
+      el.addEventListener('animationend', () => el.classList.remove(kind), { once: true });
+    });
+  });
+}
+
+const CEREMONIES = ['sand', 'ink', 'type', 'rise'];
+const CEREMONY_TIERS = ['ceremony-base', 'ceremony-long', 'ceremony-epic'];
+const CEREMONY_SPEED = { 'ceremony-base': 1, 'ceremony-long': 1.35, 'ceremony-epic': 1.7 };
+let ceremonyTimers = [];
+
+function ceremonyTierFor(carriedDays) {
+  if (carriedDays == null || carriedDays < 30) return 'ceremony-base';
+  if (carriedDays < 180) return 'ceremony-long';
+  return 'ceremony-epic';
+}
+
+function pickCeremony() {
+  let last = null;
+  try { last = localStorage.getItem('lastCeremony'); } catch {}
+  const options = CEREMONIES.filter(c => c !== last);
+  const pick = options[Math.floor(Math.random() * options.length)];
+  try { localStorage.setItem('lastCeremony', pick); } catch {}
+  return pick;
+}
+
+function playCeremony(quote, tier = 'ceremony-base') {
+  const el = document.getElementById('oneoff-celebration-overlay');
+  const content = el.querySelector('.celebration-content');
+  const canvas = el.querySelector('.celebration-canvas');
+  const textEl = el.querySelector('.celebration-text');
+  content.classList.remove(...CEREMONY_TIERS);
+  content.classList.add(tier);
+  const speed = CEREMONY_SPEED[tier] || 1;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const ceremony = reduced ? 'still' : pickCeremony();
+
+  if (ceremony === 'sand') {
+    textEl.classList.add('hidden');
+    canvas.classList.remove('hidden');
+    animateSandText(canvas, quote, speed);
+    return;
+  }
+
+  canvas.classList.add('hidden');
+  textEl.classList.remove('hidden');
+  textEl.className = `celebration-text ceremony-${ceremony}`;
+  textEl.textContent = '';
+
+  if (ceremony === 'still') {
+    textEl.textContent = quote;
+    return;
+  }
+
+  if (ceremony === 'type') {
+    // Typed out letter by letter, with a soft caret
+    const typed = document.createElement('span');
+    const caret = document.createElement('span');
+    caret.className = 'ceremony-caret';
+    textEl.append(typed, caret);
+    [...quote].forEach((ch, i) => {
+      ceremonyTimers.push(setTimeout(() => { typed.textContent += ch; }, i * 32 * speed));
+    });
+    ceremonyTimers.push(setTimeout(() => caret.remove(), quote.length * 32 * speed + 1200));
+    return;
+  }
+
+  // ink: words sharpen out of a blur; rise: words float up into place
+  quote.split(' ').forEach((word, i, all) => {
+    const span = document.createElement('span');
+    span.className = 'ceremony-word';
+    span.textContent = word + (i < all.length - 1 ? ' ' : '');
+    textEl.appendChild(span);
+    ceremonyTimers.push(setTimeout(() => span.classList.add('in'), (ceremony === 'ink' ? 110 : 70) * i * speed));
+  });
 }
 
 function openCelebrationOverlay() {
   const el = document.getElementById('oneoff-celebration-overlay');
   // Wipe the previous quote so it doesn't flash while the new one is on its way
+  ceremonyTimers.forEach(clearTimeout);
+  ceremonyTimers = [];
   const canvas = el.querySelector('.celebration-canvas');
   canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  el.querySelector('.celebration-text').textContent = '';
   el.classList.remove('hidden');
 }
 
-async function showCelebration(quote) {
+async function showCelebration(quote, tier = 'ceremony-base') {
   const el = document.getElementById('oneoff-celebration-overlay');
   el.classList.remove('hidden');
   await document.fonts.ready;
-  requestAnimationFrame(() => {
-    animateSandText(el.querySelector('.celebration-canvas'), quote);
-  });
+  requestAnimationFrame(() => playCeremony(quote, tier));
 }
 
 async function showOneOffCelebration() {
@@ -693,12 +785,10 @@ async function showOneOffCelebration() {
     // network/auth failure — fall back to the default quote above
   }
 
-  requestAnimationFrame(() => {
-    animateSandText(el.querySelector('.celebration-canvas'), quote);
-  });
+  requestAnimationFrame(() => playCeremony(quote, 'ceremony-base'));
 }
 
-function animateSandText(canvas, text) {
+function animateSandText(canvas, text, speed = 1) {
   const dpr = window.devicePixelRatio || 1;
   const W = canvas.clientWidth;
   if (!W) return;
@@ -774,8 +864,8 @@ function animateSandText(canvas, text) {
     tx: t.x,
     ty: t.y,
     sx: t.x + (Math.random() - 0.5) * 60,
-    delay: ((yMax - t.y) / ySpan) * 700,   // bottom-first
-    dur: 850 + Math.random() * 400,
+    delay: ((yMax - t.y) / ySpan) * 700 * speed,   // bottom-first; slower for longer-carried work
+    dur: (850 + Math.random() * 400) * speed,
     color: Math.random() < 0.6 ? '#f0e8e0' : '#c8a87a',
     r: 0.3 + Math.random() * 0.5,
   }));
@@ -1013,6 +1103,7 @@ async function restoreTask(category, id) {
   await apiFetch(`${API}/restore/${category}/${id}`, { method: 'POST' });
   await loadTasks();
   if (category === 'olympus') renderOlympus();
+  playBeat(`li.task-item[data-id="${id}"]`, 'undo-beat');
 }
 
 // Render treats
@@ -1364,7 +1455,7 @@ async function markWishBought() {
 
   // The card becomes the moment of acquiring: how long it was wanted, and a door to the Wardrobe
   document.getElementById('wish-label').textContent = 'Acquired';
-  document.getElementById('wish-since').textContent = `Wanted for ${wantedFor(lastAcquired.createdAt, lastAcquired.acquiredAt)}. It's yours now.`;
+  document.getElementById('wish-since').textContent = `Wanted for ${wantedFor(lastAcquired.createdAt, lastAcquired.acquiredAt)}.` // plain fact: shopping rewards itself (principle 3);
   document.getElementById('wish-actions').classList.add('hidden');
   document.getElementById('wish-acquired-actions').classList.remove('hidden');
   await loadTasks();
@@ -2308,6 +2399,11 @@ document.getElementById('respin-btn').addEventListener('click', async () => {
 });
 document.getElementById('close-overlay-btn').addEventListener('click', async () => {
   await logSurpriseOutcome('acted');
+  if (currentSurpriseTask && currentSurpriseTask.category === 'hardThings') {
+    // Pleasures need no applause, but a hard thing done gets the small beat
+    playBeat('#randomizer-overlay .overlay-content', 'finish-beat');
+    await new Promise(r => setTimeout(r, 750));
+  }
   overlay.classList.add('hidden');
   if (currentSurpriseTask && (currentSurpriseTask.category === 'oneOff' || currentSurpriseTask.category === 'habits')) {
     await toggleTask(currentSurpriseTask.category, currentSurpriseTask.id);

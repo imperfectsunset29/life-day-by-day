@@ -1626,6 +1626,120 @@ body.admin-mode .progress-btn:disabled {
   min-height: 140px;
 }
 
+.celebration-canvas.hidden {
+  display: none;
+}
+
+/* Principle 3: big finishes. An amber inner light behind the quote, grander the longer the
+   work was carried (tier set by playCeremony), like the fissure glow in logo.jpg */
+.celebration-content {
+  position: relative;
+}
+
+.celebration-content::before {
+  content: '';
+  position: absolute;
+  inset: 10% 5%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(212, 144, 42, 0.5) 0%, transparent 70%);
+  filter: blur(30px);
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.celebration-content.ceremony-long::before {
+  opacity: 0.3;
+}
+
+.celebration-content.ceremony-epic::before {
+  opacity: 0.42;
+  animation: ceremonyGlow 4s ease-in-out infinite alternate;
+}
+
+@keyframes ceremonyGlow {
+  from { transform: scale(0.94); }
+  to { transform: scale(1.06); }
+}
+
+.celebration-text {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 1.25rem;
+  line-height: 1.85;
+  color: #f0e8e0;
+  min-height: 140px;
+  padding: 0 24px;
+  text-wrap: balance;
+}
+
+.ceremony-word {
+  display: inline;
+  opacity: 0;
+  transition: opacity 0.7s ease, filter 0.9s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ceremony-ink .ceremony-word {
+  filter: blur(8px);
+}
+
+.ceremony-rise .ceremony-word {
+  display: inline-block;
+  white-space: pre;
+  transform: translateY(14px);
+}
+
+.ceremony-word.in {
+  opacity: 1;
+  filter: none;
+  transform: none;
+}
+
+.ceremony-rise .ceremony-word:nth-child(5n + 2).in,
+.ceremony-ink .ceremony-word:nth-child(7n + 3).in {
+  color: #c8a87a; /* a few words catch the amber light; 6.9:1 on the card */
+}
+
+.ceremony-caret {
+  display: inline-block;
+  width: 1px;
+  height: 1.1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: #c8a87a;
+  animation: caretBlink 1s steps(2) infinite;
+}
+
+@keyframes caretBlink {
+  to { opacity: 0; }
+}
+
+/* Principle 3: small finishes settle with a calm amber beat; undoing gets a quieter sage one */
+.finish-beat {
+  animation: finishBeat 0.9s ease-out;
+}
+
+.undo-beat {
+  animation: undoBeat 0.7s ease-out;
+}
+
+@keyframes finishBeat {
+  0% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 0 rgba(200, 168, 122, 0); }
+  35% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(200, 168, 122, 0.55), 0 0 26px rgba(200, 168, 122, 0.28); }
+  100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 0 rgba(200, 168, 122, 0); }
+}
+
+@keyframes undoBeat {
+  0% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 0 rgba(181, 201, 154, 0); }
+  40% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(181, 201, 154, 0.4); }
+  100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 0 rgba(181, 201, 154, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .finish-beat, .undo-beat, .celebration-content.ceremony-epic::before { animation: none; }
+  .ceremony-word { transition: none; }
+}
+
 .celebration-dismiss {
   background: none;
   border: none;

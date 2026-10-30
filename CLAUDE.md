@@ -28,6 +28,17 @@ Every feature is checked against these. If it doesn't serve them, it doesn't shi
 - **Saying no is free.** Re-spin anytime. Skips leave no visible trace (principle 1). After `SPIN_NUDGE_AFTER` (3) re-spins in a row, a plain line suggests going with it ("Life has picked 4 times. Maybe this one?"), in Surprise me and on the outfit card. A fresh spin resets the count; "Not my style" doesn't count as a re-spin.
 - **Taste gets a wild card.** The outfit stylist chooses with taste, but with `WILD_CARD_ODDS` (0.25) chance picks one of your pieces at random and the stylist builds around it. It's unmarked, and the stylist is told not to mention it.
 
+**3. Scaled ceremony.** Oedipa marks what you finish in proportion to what it took. Small things settle quietly; big things get a laugh, never the same twice. It never rewards what already rewards itself.
+- **Scaled to the effort.** Size is the kind of thing (task < habit < cleared list < project) plus how long it was carried.
+- **Small finishes settle.** Checking a one-off, habit, errand or project step, or doing a hard thing from Surprise me ("I'll do it"), plays `finish-beat`: a calm amber glow on the row, about 0.9s. No words, no overlay, no sparkle. Via `playBeat(selector, kind)` in `app.js`.
+- **Big finishes get a laugh.** A project ascending or the whole one-off list cleared gets a Pynchon quote performed by one of four ceremonies (`CEREMONIES`: sand, ink, type, rise), never the same one twice in a row (`lastCeremony` in localStorage). Words and visuals are always new.
+- **Time carried shows in both.** The ascension response includes `carriedDays` (from the project's `createdAt`). The quote prompt says how long it was carried, and `ceremonyTierFor()` makes the ceremony grander: `ceremony-base` (under 30 days), `ceremony-long`, `ceremony-epic` (180+ days) slow the animation and brighten the amber glow behind the words.
+- **Rewards stay rare.** Only those two moments are big. Nothing else gets an overlay or a quote.
+- **Pleasures need no applause.** Treats and shopping (Wishlist, Acquired) get no ceremony; they already reward themselves. The Acquired card states only "Wanted for 4 months." Errands are chores, not shopping, so they get the small beat.
+- **Undoing is gently marked.** Unchecking, or restoring from Done or Olympus, plays `undo-beat`: a quieter sage outline, wordless.
+- **Afterlife by size.** Big things are honored (Olympus, with their quote); small things are released (Done clears weekly).
+- Reduced motion: beats and the epic glow don't animate, and ceremonies show the quote still.
+
 ## Commands
 
 ```bash
@@ -65,7 +76,7 @@ tasks.json           → All persistent data (auto-created on first run)
 
 - **One-offs:** Boolean done. Completing moves to "Done"; clears every Sunday 23:59 PT.
 - **Habits:** Daily recurring. `doneToday` resets at 5 AM PT (checked on every `readTasks()`).
-- **Projects:** Progress 0–100 via +/− buttons. Sub-steps (`steps[]`) are a pure checklist — don't affect progress. Auto-ascends to Olympus at 100% with a random Pynchon quote. Route ordering in `server.js` matters: step routes must be registered before `/:category/:id`. Step text is edited inline by tapping it (admin only) — `startEditStep()` replaces the span with an input, same pattern as `addStep()`, reuses `.step-text-input` CSS.
+- **Projects:** Progress 0–100 via +/− buttons. Sub-steps (`steps[]`) are a pure checklist — don't affect progress. Auto-ascends to Olympus at 100% with a fresh Pynchon quote and a ceremony scaled to how long it was carried (principle 3). Route ordering in `server.js` matters: step routes must be registered before `/:category/:id`. Step text is edited inline by tapping it (admin only) — `startEditStep()` replaces the span with an input, same pattern as `addStep()`, reuses `.step-text-input` CSS.
 - **Treats / Hard Things:** Stateless. 20% chance each in randomizer.
 - **Done:** Completed one-offs; cleared every Sunday 23:59 PT.
 - **Olympus:** Ascended projects. Restoring resets progress to 0; steps not restored.

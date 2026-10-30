@@ -94,3 +94,12 @@ Garments gained optional origin, acquired and memory fields.
 ## 2026-10-29 — Second principle: off the hook
 **Decision:** Oedipa's second principle, distilled over 17 questions: *Oedipa lets life decide. Hand it a choice from your lists and chance picks, playfully, so you don't have to. You can always spin again.* The gift is permission. Chance only picks from your own lists and only when asked; picks are honestly random (weighted odds are fine); the reveal is playful and wordless. Re-spins are free, and skips are never shown. Built right away: a plain nudge after three re-spins in a row, and a hidden wild card that has the stylist build about one outfit in four around a randomly chosen piece of yours.
 **Why:** What letting life decide gives isn't efficiency or surprise but permission: once life has chosen, you're off the hook. Taste still matters for clothes, so chance enters the Wardrobe as an occasional, unmarked wild card rather than replacing the stylist.
+
+## 2026-10-30 — Third principle: scaled ceremony
+**Decision:** Oedipa's third principle, distilled over 21 questions: *Oedipa marks what you finish in proportion to what it took. Small things settle quietly; big things get a laugh, never the same twice. It never rewards what already rewards itself.* Built right away:
+- a calm amber beat for small finishes (one-offs, habits, errands, steps, hard things done);
+- a quieter sage beat for undoing;
+- four rotating ceremonies (sand, ink, type, rise) for the two big moments, grander and slower the longer a project was carried, with the quote told how long it took;
+- no ceremony for treats or shopping, and "It's yours now." dropped from the Acquired card.
+
+**Why:** Finishing should feel earned, not addictive. The user's sharpest point was that shopping and treats already feed the dopamine loop, so Oedipa shouldn't add to them, and that big rewards stay meaningful only by staying rare.
