@@ -1877,6 +1877,13 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   margin-bottom: 64px;
 }
 
+/* Outfit photo (a flier, an outfit to echo): "Add photo" and "Remove photo" are text actions
+   under the prompt, so "What should I wear?" stays the screen's only pill. The preview reuses
+   the dream photo look; its display:block would otherwise beat .hidden. */
+.outfit-photo-preview.hidden {
+  display: none;
+}
+
 /* "My closet" subheader, with Add garment on its own line beneath, aligned right */
 .wardrobe-closet-header {
   display: flex;

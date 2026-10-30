@@ -226,6 +226,14 @@
 
     <div class="wardrobe-suggest-row">
       <input id="outfit-prompt-input" class="wardrobe-prompt-input" placeholder="hot day, important meeting, rainy lunch…" type="text">
+      <input type="file" id="outfit-photo-input" accept="image/*" style="display:none">
+      <div class="action-text-row action-text-row-start">
+        <button id="outfit-photo-btn" class="btn-text">Add photo</button>
+      </div>
+      <img id="outfit-photo-preview" class="dream-photo-preview outfit-photo-preview hidden" alt="Photo for this outfit">
+      <div class="action-text-row action-text-row-start">
+        <button id="outfit-photo-remove-btn" class="btn-text hidden">Remove photo</button>
+      </div>
       <button id="suggest-outfit-btn" class="btn-primary wardrobe-suggest-btn">What should I wear?</button>
     </div>
 

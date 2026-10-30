@@ -732,16 +732,33 @@ const OUTFIT_SCHEMA = {
   type: 'object',
   properties: {
     itemIds: { type: 'array', items: { type: 'integer' } },
-    why: { type: 'string' }
+    why: { type: 'string' },
+    // What the stylist read from an attached photo, in a few words ("70s disco night at a bar").
+    // Shown in place of the prompt and saved as the wear's prompt when no words were typed.
+    occasion: { type: 'string' }
   },
-  required: ['itemIds', 'why'],
+  required: ['itemIds', 'why', 'occasion'],
   additionalProperties: false
 };
+
+// A photo attached to the outfit request (a party flier, an invitation, an outfit to echo).
+// Read for this one request and never saved, like the garment photos.
+const OUTFIT_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const OUTFIT_PHOTO_MAX_CHARS = 7 * 1024 * 1024; // base64; the app sends ~1568px JPEGs, well under this
+
+function outfitPhotoFrom(body) {
+  const photo = body && body.photo;
+  if (!photo || typeof photo.image !== 'string' || !photo.image) return null;
+  if (photo.image.length > OUTFIT_PHOTO_MAX_CHARS) return null;
+  const mimeType = OUTFIT_PHOTO_TYPES.includes(photo.mimeType) ? photo.mimeType : 'image/jpeg';
+  return { image: photo.image, mimeType };
+}
 
 app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { prompt, lat, lon } = req.body;
+  const photo = outfitPhotoFrom(req.body);
   // Outfits already shown for this prompt (Re-spin), as arrays of garment IDs
   const exclude = Array.isArray(req.body.exclude) ? req.body.exclude.filter(Array.isArray).slice(-8) : [];
   if (!data.wardrobe || !data.wardrobe.length) return res.json({ items: [], wardrobeEmpty: true });
@@ -753,6 +770,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   // user always gets *an* outfit rather than a raw error message.
   let items = null;
   let why = '';
+  let occasion = '';
   if (anthropic) {
     try {
       const stats = computeWardrobeStats(data);
@@ -775,8 +793,10 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
       const wildCard = wildPool.length && Math.random() < WILD_CARD_ODDS ? pickRandom(wildPool) : null;
       const passed = data.outfitPasses.slice(-6).reverse()
         .map(p => `- "${p.prompt}": ${p.itemIds.map(nameOf).filter(Boolean).join(' + ')}`);
+      const words = String(prompt || '').slice(0, 300);
       const request = [
-        `Occasion: "${String(prompt || '').slice(0, 300)}"`,
+        words ? `Occasion: "${words}"` : 'Occasion: see the attached photo.',
+        photo ? `The user attached a photo. Work out what it is. If it's a flier, invitation or event page, read it for the occasion: the event, theme, dress code, venue, date and time, and dress for that event (if it's on another day or at night, the weather below is only a hint). If it's an outfit or a look, take its inspiration (silhouette, color story, mood, level of dressiness) and recreate its spirit from the closet only; never describe pieces the user doesn't own. If it's something else, take its mood as the brief. "occasion" is what you read from the photo in under 8 words, lowercase, plain (e.g. "70s disco night at a bar", "relaxed linen look in cream"). "why" may refer to the photo.` : '"occasion" is an empty string.',
         weather ? `Weather now: ${weather.tempF}°F, ${weather.description}.` : 'Weather: unknown.',
         loved.length ? `Outfits the user loved recently:\n${loved.join('\n')}` : '',
         passed.length ? `Outfits the user marked "not my style":\n${passed.join('\n')}` : '',
@@ -795,7 +815,12 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
           { type: 'text', text: STYLIST_RULES },
           { type: 'text', text: `Closet (ID | category | name | details | wear history):\n${inventory}`, cache_control: { type: 'ephemeral' } }
         ],
-        messages: [{ role: 'user', content: request }]
+        messages: [{
+          role: 'user',
+          content: photo
+            ? [{ type: 'image', source: { type: 'base64', media_type: photo.mimeType, data: photo.image } }, { type: 'text', text: request }]
+            : request
+        }]
       });
 
       if (message.stop_reason === 'refusal') throw new Error('stylist declined the request');
@@ -803,6 +828,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
       const result = JSON.parse(text.text);
       items = result.itemIds.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
       why = typeof result.why === 'string' ? result.why.trim() : '';
+      if (photo && typeof result.occasion === 'string') occasion = result.occasion.trim().slice(0, 80);
     } catch (err) {
       console.error('AI outfit suggestion unavailable, falling back to random pick:', friendlyAnthropicError(err));
     }
@@ -819,7 +845,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   fresh.recentSuggestions = fresh.recentSuggestions.slice(-10);
   writeTasks(fresh, profile);
 
-  res.json({ items: outfit, weather, why });
+  res.json({ items: outfit, weather, why, occasion });
 });
 
 // ---- Wardrobe history: wear log and stats ----

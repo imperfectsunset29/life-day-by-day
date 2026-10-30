@@ -129,3 +129,7 @@ Built right away: each morning gets one of eight wordless background moods, so a
   - waiting buttons keep their label under a sweeping amber light instead of "Asking…".
 
 **Why:** The app's job is to be there when looked at, not to compete for attention. The user chose gentle ambient life over total stillness, so the calm is alive rather than inert, but nothing ever speaks first.
+
+## 2026-10-30 — Wardrobe reads a photo
+**Decision:** "What should I wear?" can now take a photo as well as (or instead of) words: a party flier, an invitation, or an outfit for inspiration. The stylist sees the picture, works out which it is, and either dresses for the event it describes or rebuilds the look from pieces already in the closet. With no words typed, its short reading of the photo stands in for the prompt. The photo is never stored.
+**Why:** The occasion often arrives as an image, not a sentence. Typing out a flier's theme and dress code is the kind of choosing Oedipa exists to take off your hands (principle 2), and "Add photo" stays a quiet text action so "What should I wear?" is still the screen's one primary button.

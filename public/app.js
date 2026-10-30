@@ -155,6 +155,7 @@ let oracleSelectionOrder = []; // sentence texts in selection order, max 2 (FIFO
 let capturedPhotos = []; // [{ image: base64, mimeType }] — cleared after each wardrobe save
 let editingWardrobeId = null; // set while the add/edit modal is editing an existing item, else null
 let lastOutfitPrompt = '';
+let outfitPhoto = null;     // { image: base64, mimeType } attached to the outfit request; kept for Re-spin, never saved
 // Principle 2 (off the hook): re-spins are free, but after a few in a row a plain line
 // suggests going with what life picked. Counts reset whenever a fresh spin starts.
 const SPIN_NUDGE_AFTER = 3;
@@ -2280,11 +2281,33 @@ function getUserLocation() {
 const SUGGEST_OUTFIT_LABEL = 'What should I wear?';
 let outfitRequestInFlight = false;
 
+// A photo for the outfit (a party flier, an outfit to echo). Resized like dream photos, but
+// sharper (1568px is what the model reads best), so small print on a flier stays legible.
+async function attachOutfitPhoto(file) {
+  if (!file) return;
+  try {
+    const dataUri = await resizeImageForStorage(file, 1568, 0.85);
+    setOutfitPhoto({ image: dataUri.split(',')[1], mimeType: 'image/jpeg' }, dataUri);
+  } catch (err) {
+    console.error('Outfit photo failed to load:', err);
+  }
+}
+
+function setOutfitPhoto(photo, dataUri) {
+  outfitPhoto = photo;
+  shownOutfits = []; // a new photo is a new occasion: a fresh set of spins
+  const preview = document.getElementById('outfit-photo-preview');
+  if (dataUri) preview.src = dataUri; else preview.removeAttribute('src');
+  preview.classList.toggle('hidden', !photo);
+  document.getElementById('outfit-photo-remove-btn').classList.toggle('hidden', !photo);
+  document.getElementById('outfit-photo-btn').classList.toggle('hidden', !!photo); // Remove, then add another
+}
+
 async function suggestOutfit() {
   if (outfitRequestInFlight) return; // one request at a time — Re-spin taps while asking are ignored
   const promptEl = document.getElementById('outfit-prompt-input');
   const prompt = (promptEl && promptEl.value.trim()) || lastOutfitPrompt;
-  if (!prompt) return;
+  if (!prompt && !outfitPhoto) return; // words, a photo, or both
   if (prompt !== lastOutfitPrompt) shownOutfits = []; // a new occasion starts a fresh set of spins
   lastOutfitPrompt = prompt;
 
@@ -2302,20 +2325,22 @@ async function suggestOutfit() {
     const res = await fetch(`${API}/wardrobe/suggest-outfit`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ prompt, lat: location && location.lat, lon: location && location.lon, exclude: shownOutfits })
+      body: JSON.stringify({ prompt, photo: outfitPhoto, lat: location && location.lat, lon: location && location.lon, exclude: shownOutfits })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Outfit suggestion failed');
-    const { items, weather, wardrobeEmpty, why } = data;
+    const { items, weather, wardrobeEmpty, why, occasion } = data;
+    // With only a photo, the stylist's reading of it ("70s disco night at a bar") stands in for the words
+    const label = prompt || occasion || 'from a photo';
     if (items && items.length) shownOutfits.push(items.map(i => i.id));
     const whyEl = document.getElementById('outfit-why');
     whyEl.textContent = why || '';
     whyEl.classList.toggle('hidden', !why);
     currentOutfit = items && items.length
-      ? { itemIds: items.map(i => i.id), prompt, weather: weather ? `${weather.tempF}°F, ${weather.description}` : '' }
+      ? { itemIds: items.map(i => i.id), prompt: label, weather: weather ? `${weather.tempF}°F, ${weather.description}` : '' }
       : null;
 
-    document.getElementById('outfit-prompt-echo').textContent = `"${prompt}"`;
+    document.getElementById('outfit-prompt-echo').textContent = prompt ? `"${prompt}"` : label;
     const weatherEl = document.getElementById('outfit-weather');
     weatherEl.textContent = weather ? `${weather.tempF}°F, ${weather.description}` : '';
     weatherEl.classList.toggle('hidden', !weather);
@@ -2767,8 +2792,14 @@ document.getElementById('outfit-close-btn').addEventListener('click', () => {
   // (Closing with × keeps the text, so it can be tweaked and asked again.)
   document.getElementById('outfit-prompt-input').value = '';
   lastOutfitPrompt = '';
-  shownOutfits = [];
+  setOutfitPhoto(null); // also resets shownOutfits
 });
+document.getElementById('outfit-photo-btn').addEventListener('click', () => document.getElementById('outfit-photo-input').click());
+document.getElementById('outfit-photo-input').addEventListener('change', e => {
+  attachOutfitPhoto(e.target.files[0]);
+  e.target.value = ''; // so picking the same file again still fires
+});
+document.getElementById('outfit-photo-remove-btn').addEventListener('click', () => setOutfitPhoto(null));
 
 const wishOverlay = document.getElementById('wish-overlay');
 const wishEditOverlay = document.getElementById('wish-edit-overlay');
