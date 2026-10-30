@@ -139,7 +139,7 @@
     <p class="olympus-subtitle">Where completed projects ascend</p>
     <div id="olympus-list" class="olympus-list"></div>
     <div id="olympus-empty" class="empty-state olympus-empty">
-      No projects have ascended yet
+      Nothing here.
     </div>
   </main>
 
@@ -381,7 +381,6 @@
         <span id="wardrobe-photo-count" class="wardrobe-photo-count"></span>
         <button id="wardrobe-analyze-btn" class="btn-secondary hidden">Analyze photos</button>
       </div>
-      <p id="wardrobe-analyzing-msg" class="wardrobe-analyzing hidden">Reading item…</p>
 
       <div class="wardrobe-form-fields">
         <input id="wf-name"     class="task-text-input wardrobe-field-input" placeholder="Item name" type="text">
@@ -545,5 +544,16 @@
 
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <script src="app.js"></script>
+  <!-- Quiet design: asks only before what can't be undone -->
+  <div id="confirm-overlay" class="overlay hidden">
+    <div class="overlay-content confirm-overlay-content">
+      <p id="confirm-text" class="confirm-text"></p>
+      <div class="overlay-actions">
+        <button id="confirm-cancel-btn" class="btn-secondary">Keep it</button>
+        <button id="confirm-ok-btn" class="btn-primary">Delete</button>
+      </div>
+    </div>
+  </div>
+  <p id="save-status" class="save-status hidden" role="status" aria-live="polite"></p>
 </body>
 </html>

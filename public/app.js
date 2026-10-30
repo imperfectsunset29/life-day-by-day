@@ -19,9 +19,107 @@ function authHeaders() {
 }
 async function apiFetch(url, options = {}) {
   options.headers = authHeaders();
-  const res = await fetch(url, options);
+  const isWrite = options.method && options.method !== 'GET';
+  let res;
+  try {
+    res = await fetch(url, options);
+  } catch (err) {
+    if (isWrite) {
+      showSaveFailed(); // quiet design: saving is silent, only a failure speaks
+      loadTasks().catch(() => {}); // undo any optimistic check-off that didn't stick
+    }
+    throw err;
+  }
   if (res.status === 401) { lock(); alert('Wrong password — locked.'); throw new Error('Unauthorized'); }
+  if (isWrite && res.status >= 500) showSaveFailed();
   return res;
+}
+
+let saveFailedTimer = null;
+function showSaveFailed() {
+  const el = document.getElementById('save-status');
+  if (!el) return;
+  el.textContent = "Didn't save. Try again.";
+  el.classList.remove('hidden');
+  clearTimeout(saveFailedTimer);
+  saveFailedTimer = setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+// Quiet design: only what can't be undone asks first. Resolves true to go ahead.
+function askConfirm(text, okLabel) {
+  const overlay = document.getElementById('confirm-overlay');
+  document.getElementById('confirm-text').textContent = text;
+  const ok = document.getElementById('confirm-ok-btn');
+  const cancel = document.getElementById('confirm-cancel-btn');
+  ok.textContent = okLabel;
+  overlay.classList.remove('hidden');
+  return new Promise(resolve => {
+    const done = (answer) => {
+      overlay.classList.add('hidden');
+      ok.removeEventListener('click', onOk);
+      cancel.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onBackdrop);
+      resolve(answer);
+    };
+    const onOk = () => done(true);
+    const onCancel = () => done(false);
+    const onBackdrop = (e) => { if (e.target === overlay) done(false); };
+    ok.addEventListener('click', onOk);
+    cancel.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onBackdrop);
+  });
+}
+
+// Quiet design: a few hints, each shown once (for the rest of that visit), then never again.
+const HINTS = {
+  reorder: 'Hold a row to move it.',
+  garment: 'Tap a piece to see its story.',
+  step: 'Tap a step to edit it.'
+};
+const hintsThisVisit = new Set();
+function hintFor(key) {
+  if (hintsThisVisit.has(key)) return true;
+  try {
+    if (localStorage.getItem(`hint-${key}`)) return false;
+    localStorage.setItem(`hint-${key}`, '1');
+  } catch { return false; }
+  hintsThisVisit.add(key);
+  return true;
+}
+function hintHTML(key) {
+  return hintFor(key) ? `<p class="hint-line">${HINTS[key]}</p>` : '';
+}
+// Places (or removes) a one-time hint right after an element
+function placeHint(afterEl, key, show) {
+  if (!afterEl) return;
+  const next = afterEl.nextElementSibling;
+  if (next && next.dataset.hint === key) next.remove();
+  if (!show || !hintFor(key)) return;
+  const p = document.createElement('p');
+  p.className = 'hint-line';
+  p.dataset.hint = key;
+  p.textContent = HINTS[key];
+  afterEl.after(p);
+}
+
+// Quiet design: a soft haptic on small finishes. Android has vibrate(); iOS Safari has no
+// haptics API, but toggling a native switch input gives its system tick.
+let hapticSwitch = null;
+function haptic() {
+  if (navigator.vibrate) { navigator.vibrate(12); return; }
+  if (!hapticSwitch) {
+    const label = document.createElement('label');
+    label.className = 'haptic-switch';
+    label.setAttribute('aria-hidden', 'true');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.setAttribute('switch', '');
+    input.tabIndex = -1;
+    label.appendChild(input);
+    document.body.appendChild(label);
+    hapticSwitch = label;
+  }
+  hapticSwitch.click();
 }
 function applyAuthUI() {
   const btn = document.getElementById('lock-btn');
@@ -112,6 +210,7 @@ function render() {
   initSortable('list-oneOff', 'oneOff');
   initSortable('list-habits', 'habits');
   initSortable('list-projects', 'projects');
+  placeHint(document.getElementById('list-oneOff'), 'reorder', isAdmin() && tasks.oneOff.length > 1);
   hydrateLinkPreviews();
 }
 
@@ -212,7 +311,7 @@ function renderCategory(category, items) {
   if (items.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty-state';
-    li.textContent = 'No tasks yet';
+    li.textContent = 'Nothing here.';
     list.appendChild(li);
     return;
   }
@@ -269,6 +368,7 @@ function renderStepsHTML(task) {
         <button class="step-delete" data-project-id="${task.id}" data-step-id="${step.id}" title="Delete step">&times;</button>
       </div>`;
   }
+  if (steps.length && isAdmin()) html += hintHTML('step');
 
   html += `
     <div class="step-add-row">
@@ -286,7 +386,7 @@ function renderProjects() {
   if (tasks.projects.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty-state';
-    li.textContent = 'No tasks yet';
+    li.textContent = 'Nothing here.';
     list.appendChild(li);
     return;
   }
@@ -323,6 +423,7 @@ function renderProjects() {
 }
 
 async function toggleStep(projectId, stepId, done) {
+  if (done) haptic();
   await apiFetch(`${API}/tasks/projects/${projectId}/steps/${stepId}`, {
     method: 'PUT',
     body: JSON.stringify({ done })
@@ -623,6 +724,7 @@ async function toggleTask(category, id) {
 
   const wasDone = category === 'habits' ? task.doneToday : task.done;
   const nowDone = !wasDone;
+  if (nowDone) haptic();
 
   // Optimistic DOM update — instant feedback before network round-trip
   if (category === 'shoppingList') {
@@ -1003,7 +1105,14 @@ function startEdit(category, id) {
 }
 
 // Delete task
+const CONFIRM_DELETE = ['projects', 'wardrobe', 'dreams'];
 async function deleteTask(category, id) {
+  if (CONFIRM_DELETE.includes(category)) {
+    const item = (tasks[category] || []).find(t => t.id === id);
+    const name = item ? (item.text || item.title || '').trim() : '';
+    const ok = await askConfirm(name ? `Delete “${name}”? This can't be undone.` : "Delete this? This can't be undone.", 'Delete');
+    if (!ok) return;
+  }
   await apiFetch(`${API}/tasks/${category}/${id}`, { method: 'DELETE' });
   await loadTasks();
   if (category === 'treats') renderTreats();
@@ -1100,6 +1209,12 @@ async function surprise() {
 
 // Restore a done/olympus task
 async function restoreTask(category, id) {
+  if (category === 'olympus') {
+    const entry = tasks.olympus.find(t => t.id === id);
+    const name = entry ? entry.text : 'this project';
+    const ok = await askConfirm(`Bring “${name}” back? It starts again at 0%, and its quote is let go.`, 'Bring it back');
+    if (!ok) return;
+  }
   await apiFetch(`${API}/restore/${category}/${id}`, { method: 'POST' });
   await loadTasks();
   if (category === 'olympus') renderOlympus();
@@ -1114,7 +1229,7 @@ function renderTreats() {
   if (!tasks.treats || tasks.treats.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty-state';
-    li.textContent = 'No treats yet — add something nice';
+    li.textContent = 'Nothing here.';
     list.appendChild(li);
     return;
   }
@@ -1159,7 +1274,7 @@ function renderDreams() {
   if (!tasks.dreams || tasks.dreams.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty-state';
-    li.textContent = 'No dreams yet — add something worth wanting';
+    li.textContent = 'Nothing here.';
     list.appendChild(li);
     return;
   }
@@ -1294,7 +1409,7 @@ function renderShoppingList() {
   if (active.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty-state';
-    li.textContent = 'Nothing here yet — add something to pick up';
+    li.textContent = 'Nothing here.';
     list.appendChild(li);
   } else {
     for (const item of active) {
@@ -1351,7 +1466,7 @@ function renderWishlist() {
   if (wishes.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty-state';
-    li.textContent = 'Nothing here yet — add something you want';
+    li.textContent = 'Nothing here.';
     list.appendChild(li);
     return;
   }
@@ -1513,7 +1628,7 @@ function renderHardThings() {
   if (!tasks.hardThings || tasks.hardThings.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty-state';
-    li.textContent = "Nothing here yet — add something you've been avoiding";
+    li.textContent = 'Nothing here.';
     list.appendChild(li);
     return;
   }
@@ -1830,7 +1945,7 @@ function renderWardrobe() {
     if (items.length === 0) {
       const li = document.createElement('li');
       li.className = 'empty-state';
-      li.textContent = 'Nothing here yet';
+      li.textContent = 'Nothing here.';
       list.appendChild(li);
       continue;
     }
@@ -1902,7 +2017,7 @@ function renderClosetLine() {
   const el = document.getElementById('wardrobe-closet-line');
   if (!el) return;
   const pieces = (tasks.wardrobe || []).length;
-  if (!pieces) { el.textContent = ''; return; }
+  if (!pieces) { el.textContent = ''; placeHint(el, 'garment', false); return; }
   const parts = [`${pieces} piece${pieces === 1 ? '' : 's'}`];
   if (wardrobeStats) {
     const { colors, mostLoyal } = wardrobeStats.summary;
@@ -1910,6 +2025,7 @@ function renderClosetLine() {
     if (mostLoyal) parts.push(`most loyal: ${mostLoyal.text}`);
   }
   el.textContent = parts.join(' · ');
+  placeHint(el, 'garment', true);
 }
 
 function openGarmentCard(id) {
@@ -2014,7 +2130,6 @@ function openWardrobeAddModal(wardrobeCat) {
   document.getElementById('wardrobe-photo-count').textContent = '';
   document.getElementById('wardrobe-analyze-btn').classList.add('hidden');
   setWardrobeCameraBtn(false);
-  document.getElementById('wardrobe-analyzing-msg').classList.add('hidden');
   document.getElementById('wardrobe-modal-label').textContent = 'Add item';
   document.getElementById('wardrobe-save-btn').textContent = 'Save';
   wardrobeAddOverlay.classList.remove('hidden');
@@ -2042,7 +2157,6 @@ function openWardrobeEditModal(id) {
   document.getElementById('wardrobe-photo-count').textContent = '';
   document.getElementById('wardrobe-analyze-btn').classList.add('hidden');
   setWardrobeCameraBtn(false);
-  document.getElementById('wardrobe-analyzing-msg').classList.add('hidden');
   document.getElementById('wardrobe-modal-label').textContent = 'Edit item';
   document.getElementById('wardrobe-save-btn').textContent = 'Update';
   wardrobeAddOverlay.classList.remove('hidden');
@@ -2076,9 +2190,8 @@ function capturePhoto(file) {
 async function analyzePhotos() {
   if (!capturedPhotos.length) return;
   const analyzeBtn = document.getElementById('wardrobe-analyze-btn');
-  const analyzingMsg = document.getElementById('wardrobe-analyzing-msg');
-  analyzeBtn.classList.add('hidden');
-  analyzingMsg.classList.remove('hidden');
+  analyzeBtn.classList.add('is-waiting');
+  analyzeBtn.disabled = true;
 
   try {
     const res = await apiFetch(`${API}/wardrobe/analyze-photo`, {
@@ -2100,8 +2213,8 @@ async function analyzePhotos() {
     console.error('Photo analysis failed:', err);
     alert(`Couldn't analyze photos: ${err.message}`);
   } finally {
-    analyzingMsg.classList.add('hidden');
-    analyzeBtn.classList.remove('hidden');
+    analyzeBtn.classList.remove('is-waiting');
+    analyzeBtn.disabled = false;
   }
 }
 
@@ -2163,7 +2276,7 @@ function getUserLocation() {
 }
 
 // The label is fixed rather than read back from the button: a second request started
-// mid-flight (e.g. a quick Re-spin) used to read "Asking…" and restore that instead.
+// mid-flight (e.g. a quick Re-spin) once read "Asking…" and restored that instead.
 const SUGGEST_OUTFIT_LABEL = 'What should I wear?';
 let outfitRequestInFlight = false;
 
@@ -2179,7 +2292,7 @@ async function suggestOutfit() {
   const btn = document.getElementById('suggest-outfit-btn');
   const respinBtn = document.getElementById('outfit-respin-btn');
   const passBtn = document.getElementById('outfit-pass-btn');
-  btn.textContent = 'Asking…';
+  btn.classList.add('is-waiting');
   btn.disabled = true;
   respinBtn.disabled = true;
   passBtn.disabled = true;
@@ -2214,7 +2327,7 @@ async function suggestOutfit() {
       const p = document.createElement('p');
       p.className = 'outfit-empty';
       p.textContent = wardrobeEmpty
-        ? 'Add some clothes first — your wardrobe is empty'
+        ? 'Your closet is empty.'
         : "Couldn't put together an outfit for that — try a different prompt";
       container.appendChild(p);
     } else {
@@ -2239,6 +2352,7 @@ async function suggestOutfit() {
     alert(`Couldn't get an outfit suggestion: ${err.message}`);
   } finally {
     btn.textContent = SUGGEST_OUTFIT_LABEL;
+    btn.classList.remove('is-waiting');
     btn.disabled = false;
     respinBtn.disabled = false;
     passBtn.disabled = false;
@@ -2401,6 +2515,7 @@ document.getElementById('close-overlay-btn').addEventListener('click', async () 
   await logSurpriseOutcome('acted');
   if (currentSurpriseTask && currentSurpriseTask.category === 'hardThings') {
     // Pleasures need no applause, but a hard thing done gets the small beat
+    haptic();
     playBeat('#randomizer-overlay .overlay-content', 'finish-beat');
     await new Promise(r => setTimeout(r, 750));
   }

@@ -113,3 +113,19 @@ Garments gained optional origin, acquired and memory fields.
 
 Built right away: each morning gets one of eight wordless background moods, so a new day feels slightly new without a single word.
 **Why:** A clean slate means the finished things go, not the pending ones. Expiring or aging unfinished tasks would be a quiet verdict, which breaks the kind mirror. The rhythm should be felt rather than explained or triggered by hand.
+
+## 2026-10-30 — Fifth principle: quiet design
+**Decision:** Oedipa's fifth principle, distilled over 20 questions: *Oedipa never reaches out. It waits to be opened, and once open it stays calm: it explains itself once, speaks only when something fails, and asks only before what can't be undone.*
+- No notifications of any kind.
+- No counts of what's pending, though counts of what you have stay.
+- Empty lists say "Nothing here."
+- A failed save says so in one plain line.
+- Built right away:
+  - confirmation before deleting a project, garment or dream, or restoring from Olympus;
+  - three one-time hints;
+  - a soft haptic on small finishes;
+  - the day's background blooms slowly drift;
+  - a faint amber light breathes on Olympus;
+  - waiting buttons keep their label under a sweeping amber light instead of "Asking…".
+
+**Why:** The app's job is to be there when looked at, not to compete for attention. The user chose gentle ambient life over total stillness, so the calm is alive rather than inert, but nothing ever speaks first.

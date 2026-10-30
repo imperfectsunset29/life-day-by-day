@@ -51,6 +51,19 @@ Every feature is checked against these. If it doesn't serve them, it doesn't shi
 - **Beginning again is real.** Restoring from Olympus starts the project at 0%, and its old steps stay behind.
 - **Each morning is a little new.** Every habit-day gets one of `DAWN_VARIANTS` (8) wordless background moods (`body.dawn-N`, chosen by `applyDawn()` in `app.js`; consecutive days always differ). Same palette, blooms drift; no words, no animation.
 
+**5. Quiet design.** Oedipa never reaches out. It waits to be opened, and once open it stays calm: it explains itself once, speaks only when something fails, and asks only before what can't be undone.
+- **Never reaches out.** No push notifications, no emails, no badge on the icon. Ever.
+- **Calm lists.** Long lists show a few plus "– N more" (as now).
+- **No pending counts.** No "One-off (12)". Counts of what you *have* stay (wardrobe "Tops (14)", "Acquired (6)"): that's the mirror, not pressure.
+- **Empty is plain.** Every empty list says "Nothing here." (`.empty-state`), with no instructions and no illustration.
+- **Explains once, then never.** One-time hints (`HINTS` in `app.js`: hold to reorder, tap a garment for its story, tap a step to edit) show on a first visit, stay for that visit, then never again (`hint-<key>` in localStorage). Use `placeHint()` / `hintHTML()`; new features may add a hint only when a gesture isn't discoverable.
+- **Saving is silent.** Every tap saves itself. Only a failure speaks: `apiFetch()` shows "Didn't save. Try again." (`#save-status`) on a network error or a 5xx on a write, and reloads to undo the optimistic check.
+- **Asks only before what can't be undone.** Deleting a project, garment or dream, or restoring from Olympus (which lets its quote go), goes through `askConfirm(text, okLabel)` (`#confirm-overlay`: "Keep it" secondary, the action primary). Everything else just happens.
+- **A soft haptic on small finishes.** `haptic()` fires at the tap of every finish-beat (`navigator.vibrate` on Android; on iOS, the native-switch tick via a hidden `<input switch>`). No sounds, ever.
+- **Gentle ambient life.** At rest, the day's blooms drift slowly (`body::before`, `bloomDrift`, ~50s) and a faint amber light breathes behind each Olympus title (`olympusBreath`, 7s). Visible if you look, never pulling the eye. Nothing else idles or loops.
+- **Waiting is wordless.** While Oedipa thinks (stylist, photo analysis), the button keeps its label and an amber light sweeps across it (`.is-waiting`). No spinners, no "Loading…".
+- Reduced motion: no drift, no breathing; the waiting button gets a still amber tint.
+
 ## Commands
 
 ```bash

@@ -16,9 +16,11 @@ html {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: radial-gradient(ellipse 80% 50% at 70% 0%, #3a0e3c 0%, transparent 65%),
-              radial-gradient(ellipse 60% 40% at 10% 90%, #1e0832 0%, transparent 60%),
-              #130518;
+  /* The blooms live on body::before so they can drift (quiet design: gentle ambient life) */
+  --bloom: radial-gradient(ellipse 80% 50% at 70% 0%, #3a0e3c 0%, transparent 65%),
+           radial-gradient(ellipse 60% 40% at 10% 90%, #1e0832 0%, transparent 60%),
+           #130518;
+  background: transparent;
   color: #f0e8e0;
   line-height: 1.5;
   max-width: 640px;
@@ -36,25 +38,41 @@ body.loaded {
   opacity: 1;
 }
 
+body::before {
+  content: '';
+  position: fixed;
+  inset: -12%;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--bloom);
+  animation: bloomDrift 50s ease-in-out infinite alternate;
+}
+
+/* Visible if you look, never pulling the eye: one slow wander every ~50s */
+@keyframes bloomDrift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(-5%, 4%, 0) scale(1.06); }
+}
+
 /* Fresh starts: one wordless mood per habit-day (applyDawn() in app.js).
    Same palette, blooms drift and shift between plum and indigo. Text sits on
    glass cards, so contrast floors are unaffected (bloom peaks stay ≤ #3a0e3c-ish). */
-body.dawn-0 { background: radial-gradient(ellipse 80% 50% at 70% 0%, #3a0e3c 0%, transparent 65%),
+body.dawn-0 { --bloom: radial-gradient(ellipse 80% 50% at 70% 0%, #3a0e3c 0%, transparent 65%),
                           radial-gradient(ellipse 60% 40% at 10% 90%, #1e0832 0%, transparent 60%), #130518; }
-body.dawn-1 { background: radial-gradient(ellipse 70% 45% at 25% 0%, #361040 0%, transparent 65%),
+body.dawn-1 { --bloom: radial-gradient(ellipse 70% 45% at 25% 0%, #361040 0%, transparent 65%),
                           radial-gradient(ellipse 65% 45% at 90% 85%, #220a36 0%, transparent 60%), #130518; }
-body.dawn-2 { background: radial-gradient(ellipse 90% 55% at 50% 0%, #3a0e3c 0%, transparent 62%),
+body.dawn-2 { --bloom: radial-gradient(ellipse 90% 55% at 50% 0%, #3a0e3c 0%, transparent 62%),
                           radial-gradient(ellipse 55% 35% at 85% 60%, #1c0830 0%, transparent 60%), #130518; }
-body.dawn-3 { background: radial-gradient(ellipse 75% 50% at 85% 10%, #2e0c3e 0%, transparent 65%),
+body.dawn-3 { --bloom: radial-gradient(ellipse 75% 50% at 85% 10%, #2e0c3e 0%, transparent 65%),
                           radial-gradient(ellipse 70% 45% at 15% 70%, #2a0a34 0%, transparent 60%), #130518; }
-body.dawn-4 { background: radial-gradient(ellipse 80% 50% at 10% 5%, #3c0f38 0%, transparent 62%),
+body.dawn-4 { --bloom: radial-gradient(ellipse 80% 50% at 10% 5%, #3c0f38 0%, transparent 62%),
                           radial-gradient(ellipse 60% 40% at 70% 95%, #1e0832 0%, transparent 60%), #130518; }
-body.dawn-5 { background: radial-gradient(ellipse 85% 50% at 60% 0%, #34113c 0%, transparent 65%),
+body.dawn-5 { --bloom: radial-gradient(ellipse 85% 50% at 60% 0%, #34113c 0%, transparent 65%),
                           radial-gradient(ellipse 50% 35% at 5% 50%, #200934 0%, transparent 60%),
                           radial-gradient(ellipse 50% 30% at 95% 95%, #1a072c 0%, transparent 60%), #130518; }
-body.dawn-6 { background: radial-gradient(ellipse 70% 45% at 40% 0%, #2c0d40 0%, transparent 65%),
+body.dawn-6 { --bloom: radial-gradient(ellipse 70% 45% at 40% 0%, #2c0d40 0%, transparent 65%),
                           radial-gradient(ellipse 70% 45% at 60% 90%, #2a0c36 0%, transparent 60%), #130518; }
-body.dawn-7 { background: radial-gradient(ellipse 80% 50% at 95% 0%, #3a0e3c 0%, transparent 60%),
+body.dawn-7 { --bloom: radial-gradient(ellipse 80% 50% at 95% 0%, #3a0e3c 0%, transparent 60%),
                           radial-gradient(ellipse 65% 40% at 30% 80%, #240a38 0%, transparent 60%), #130518; }
 
 /* Header */
@@ -772,6 +790,29 @@ textarea.task-text-input {
   cursor: default;
 }
 
+/* Waiting: the button keeps its label and an amber light sweeps across it (no spinner, no words) */
+.btn-primary.is-waiting:disabled,
+.btn-secondary.is-waiting:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+
+.is-waiting::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(200, 168, 122, 0.45) 50%, transparent 70%);
+  background-size: 250% 100%;
+  animation: waitShimmer 1.8s linear infinite;
+}
+
+@keyframes waitShimmer {
+  from { background-position: 100% 0; }
+  to   { background-position: -150% 0; }
+}
+
 /* Pills are ~36px tall; an invisible extension makes each one a full 44px tap target
    without making it look bigger */
 .btn-primary, .btn-secondary, .btn-tertiary {
@@ -970,6 +1011,7 @@ textarea.task-text-input {
 }
 
 .olympus-card {
+  position: relative;
   padding: 28px 24px;
   background: rgba(255, 255, 255, 0.055);
   border: 1px solid rgba(255, 255, 255, 0.09);
@@ -978,6 +1020,24 @@ textarea.task-text-input {
   animation: fadeIn 0.2s ease;
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+
+/* Quiet design: a faint amber light breathes behind each ascended project's title.
+   Kept to the top of the card and ≤ 0.10 so the reflection text below keeps its contrast. */
+.olympus-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(ellipse 70% 45% at 50% 0%, rgba(200, 168, 122, 0.10) 0%, transparent 70%);
+  animation: olympusBreath 7s ease-in-out infinite alternate;
+}
+
+@keyframes olympusBreath {
+  from { opacity: 0.35; }
+  to   { opacity: 1; }
 }
 
 .olympus-card-header {
@@ -1758,6 +1818,8 @@ body.admin-mode .progress-btn:disabled {
 
 @media (prefers-reduced-motion: reduce) {
   .finish-beat, .undo-beat, .celebration-content.ceremony-epic::before { animation: none; }
+  body::before, .olympus-card::before { animation: none; }
+  .is-waiting::before { animation: none; background: rgba(200, 168, 122, 0.18); }
   .ceremony-word { transition: none; }
 }
 
@@ -2083,14 +2145,6 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   border-radius: 14px;
   margin-bottom: 16px;
   border: 1px solid rgba(255, 255, 255, 0.09);
-}
-
-.wardrobe-analyzing {
-  font-family: 'Instrument Serif', serif;
-  font-style: italic;
-  font-size: 0.85rem;
-  color: rgba(181, 201, 154, 0.72);
-  margin-bottom: 12px;
 }
 
 .wardrobe-form-fields {
@@ -2425,4 +2479,66 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 .wish-edit-actions {
   justify-content: space-between;
   margin-top: 24px;
+}
+
+/* ============ Quiet design ============ */
+
+/* One-time hints: shown on a first visit, then never again */
+.hint-line {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: rgba(240, 232, 224, 0.62); /* above the 0.58 floor on every surface */
+  margin: 8px 4px 4px;
+  list-style: none;
+}
+
+/* Saving is silent; only a failure speaks, in one plain line above the nav */
+.save-status {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(92px + env(safe-area-inset-bottom));
+  z-index: 70;
+  padding: 10px 18px;
+  border-radius: 100px;
+  background: rgba(30, 10, 36, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  font-size: 0.75rem;
+  color: rgba(240, 232, 224, 0.9);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.save-status.hidden {
+  display: none;
+}
+
+/* Asking before what can't be undone */
+.confirm-overlay-content {
+  max-width: 340px;
+  padding: 40px 32px 32px;
+}
+
+.confirm-text {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 1.25rem;
+  line-height: 1.4;
+  color: #f0e8e0;
+  margin-bottom: 28px;
+}
+
+/* Invisible native switch used only to trigger iOS's haptic tick */
+.haptic-switch {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
