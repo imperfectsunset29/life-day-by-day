@@ -172,9 +172,9 @@
         <button class="add-btn" data-category="shoppingList">+</button>
       </div>
       <ul id="list-shoppingList" class="task-list"></ul>
-      <input type="file" id="recipe-photo-input" accept="image/*" multiple style="display:none">
-      <div class="action-text-row action-text-row-start recipe-add-row">
-        <button id="recipe-photo-btn" class="btn-text">Add from a recipe</button>
+      <input type="file" id="shop-photo-input" accept="image/*" multiple style="display:none">
+      <div class="action-text-row action-text-row-start shop-photo-add-row">
+        <button id="shop-photo-btn" class="btn-text">Add from a photo</button>
       </div>
     </section>
     <section class="category done-section hidden" id="shopping-done-section">
@@ -554,18 +554,18 @@
     </nav>
   </div>
 
-  <!-- Recipe review: what Oedipa read from a recipe photo, ticked lines go to Errands -->
-  <div id="recipe-overlay" class="overlay hidden">
-    <div class="overlay-content recipe-overlay-content">
-      <button id="recipe-x-btn" class="oracle-x-btn">&times;</button>
-      <p class="overlay-label">From a recipe</p>
-      <p id="recipe-title" class="outfit-prompt-echo"></p>
-      <ul id="recipe-items" class="recipe-items"></ul>
-      <p id="recipe-pantry-label" class="recipe-pantry-label hidden">Probably in your pantry</p>
-      <ul id="recipe-pantry" class="recipe-items"></ul>
-      <p id="recipe-error" class="recipe-error hidden"></p>
+  <!-- Photo review: what Oedipa read from a photo (recipe, text screenshot, list), ticked lines go to Errands -->
+  <div id="shop-photo-overlay" class="overlay hidden">
+    <div class="overlay-content shop-photo-overlay-content">
+      <button id="shop-photo-x-btn" class="oracle-x-btn">&times;</button>
+      <p class="overlay-label">From a photo</p>
+      <p id="shop-photo-title" class="outfit-prompt-echo"></p>
+      <ul id="shop-photo-items" class="shop-photo-items"></ul>
+      <p id="shop-photo-pantry-label" class="shop-photo-pantry-label hidden">Probably in your pantry</p>
+      <ul id="shop-photo-pantry" class="shop-photo-items"></ul>
+      <p id="shop-photo-error" class="shop-photo-error hidden"></p>
       <div class="overlay-actions">
-        <button id="recipe-add-btn" class="btn-primary">Add to errands</button>
+        <button id="shop-photo-add-btn" class="btn-primary">Add to errands</button>
       </div>
     </div>
   </div>

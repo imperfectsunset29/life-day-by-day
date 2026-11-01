@@ -137,3 +137,7 @@ Built right away: each morning gets one of eight wordless background moods, so a
 ## 2026-11-01 — Recipes become errands
 **Decision:** A recipe photo (or a few pages) can now become groceries. Oedipa reads it into lines written the way you buy them ("2 lemons", "1 bunch mint"), shows them on a review card with pantry staples unticked, and adds only what you keep. Each recipe line carries a quiet "swap?" for when it's hard to find, favoring something Trader Joe's carries; "use this" makes the swap the item. Photos are never stored.
 **Why:** Copying a recipe into a list is pure chore. The review step keeps you in charge of what you already have, and the swap sits out of sight until a shelf comes up empty, so chores typed by hand stay as plain as before.
+
+## 2026-11-01 — Any photo becomes errands
+**Decision:** "Add from a recipe" became "Add from a photo". The same review card now reads a screenshot of a text asking for razors, a handwritten list or an empty package, not just recipes. Groceries still always get a Trader Joe's-first swap; other things get one only when there's a real alternative, so "swap?" doesn't appear on razors for nothing.
+**Why:** Requests to buy something arrive as messages as often as recipes. One door for every photo keeps Shopping simple.

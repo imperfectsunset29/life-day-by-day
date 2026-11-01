@@ -2550,20 +2550,20 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   pointer-events: none;
 }
 
-/* ============ Recipe → Errands ============ */
+/* ============ Photo → Errands ============ */
 
-/* "Add from a recipe" is a write action: only in admin mode, like the + beside Errands */
-.recipe-add-row { display: none; margin: 8px 0 0; }
-body.admin-mode .recipe-add-row { display: flex; }
+/* "Add from a photo" is a write action: only in admin mode, like the + beside Errands */
+.shop-photo-add-row { display: none; margin: 8px 0 0; }
+body.admin-mode .shop-photo-add-row { display: flex; }
 
 /* Review card: one row per line to buy, the whole row toggles its checkbox (44px tall) */
-.recipe-items {
+.shop-photo-items {
   list-style: none;
   margin: 0 0 8px;
   padding: 0;
 }
 
-.recipe-item {
+.shop-photo-item {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2581,16 +2581,16 @@ body.admin-mode .recipe-add-row { display: flex; }
 }
 
 /* The checkbox here is a picture of state, not its own control: the row is the button */
-.recipe-item .task-checkbox {
+.shop-photo-item .task-checkbox {
   pointer-events: none;
   flex-shrink: 0;
 }
 
-.recipe-item:not(.chosen) .recipe-item-text {
+.shop-photo-item:not(.chosen) .shop-photo-item-text {
   color: rgba(240, 232, 224, 0.58); /* unticked stays at the 4.5:1 floor, only quieter */
 }
 
-.recipe-pantry-label {
+.shop-photo-pantry-label {
   margin: 20px 0 4px;
   font-size: 0.7rem;
   letter-spacing: 0.14em;
@@ -2598,7 +2598,7 @@ body.admin-mode .recipe-add-row { display: flex; }
   color: rgba(240, 232, 224, 0.62);
 }
 
-.recipe-error {
+.shop-photo-error {
   font-family: 'Instrument Serif', Georgia, serif;
   font-style: italic;
   font-size: 0.95rem;
@@ -2606,7 +2606,7 @@ body.admin-mode .recipe-add-row { display: flex; }
   margin: 8px 0 20px;
 }
 
-.recipe-overlay-content .overlay-actions {
+.shop-photo-overlay-content .overlay-actions {
   margin-top: 24px;
 }
 

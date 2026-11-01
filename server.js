@@ -1100,11 +1100,12 @@ app.post('/api/shopping/move', requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
-// ---- Shopping: a recipe photo becomes errands ----
-// The photo is read for this one request and never saved. Oedipa lists what to buy; the
-// review card (frontend) lets the user untick what they have before anything is added.
+// ---- Shopping: a photo becomes errands ----
+// A recipe, a screenshot of a text ("can you grab razors?"), a handwritten list, an empty
+// package. Read for this one request and never saved. Oedipa lists what to buy; the review
+// card (frontend) lets the user untick what they have before anything is added.
 
-const RECIPE_SCHEMA = {
+const SHOP_PHOTO_SCHEMA = {
   type: 'object',
   properties: {
     title: { type: 'string' },
@@ -1126,16 +1127,16 @@ const RECIPE_SCHEMA = {
   additionalProperties: false
 };
 
-const RECIPE_RULES = `You turn photos of a recipe into a grocery list.
+const SHOP_PHOTO_RULES = `You turn photos into a shopping list. A photo may be a recipe, a screenshot of a message asking for something ("can you pick up razors?"), a handwritten or typed list, a product or empty package, or a page of a store. Several photos may belong together (pages of one recipe, a long chat).
 
-- Read every ingredient, including those in sub-recipes (sauce, marinade, garnish). The photos may be pages of the same recipe.
-- One line per thing to buy, written the way it's bought, with the total the recipe needs: "2 lemons", "1 bunch cilantro", "1 lb ground pork", "1 can coconut milk". Merge repeats (zest and juice of the same lemons is one line). Leave out water and ice.
-- "staple" is true for pantry basics most kitchens already have: salt, black pepper, olive oil, neutral oil, sugar, all-purpose flour, baking soda, baking powder, vinegar, soy sauce, common dried spices. Everything fresh, and anything specialty, is false.
-- "swap" is what to buy instead if the item is hard to find, in under 10 words. Prefer a product Trader Joe's usually carries, named plainly ("TJ's Gochujang", "TJ's frozen garlic cubes"). If Trader Joe's is unlikely to have anything close, give a common supermarket substitute ("sriracha + a little miso"). Give a swap for every line.
-- "title" is the recipe's name, short and lowercase (e.g. "pork larb"), or "" if there isn't one.
-- If the photos aren't a recipe or ingredient list, return no items and an empty title.`;
+- Find everything the photos ask to buy. In a conversation, only what someone is asking to get, not things mentioned in passing. For a recipe, every ingredient, including sub-recipes (sauce, marinade, garnish).
+- One line per thing, written the way it's bought. Keep the details given (brand, size, count, kind): "razors (Venus, sensitive)", "2 lemons". For a recipe, give the total it needs ("1 bunch cilantro", "1 lb ground pork") and merge repeats; leave out water and ice.
+- "staple" is true only for recipe ingredients that are pantry basics most kitchens already have: salt, black pepper, olive oil, neutral oil, sugar, all-purpose flour, baking soda, baking powder, vinegar, soy sauce, common dried spices. Anything someone explicitly asked for is never a staple.
+- "swap" is what to buy instead if the item is hard to find, in under 10 words. For food and groceries, always give one, preferring a product Trader Joe's usually carries, named plainly ("TJ's Gochujang", "TJ's frozen garlic cubes"); if Trader Joe's is unlikely to have anything close, give a common supermarket substitute. For everything else, give a swap only when there's a genuinely useful alternative (another kind or brand that does the same job, or Trader Joe's if it carries one); otherwise "".
+- "title" says in a few lowercase words what the photo is: the recipe's name ("pork larb"), or the source ("text from mom", "handwritten list"). "" if unclear.
+- If there's nothing to buy, return no items and an empty title.`;
 
-app.post('/api/shopping/read-recipe', requireAdmin, async (req, res) => {
+app.post('/api/shopping/read-photo', requireAdmin, async (req, res) => {
   if (!anthropic) return res.status(503).json({ error: 'AI not configured — set ANTHROPIC_API_KEY' });
   const photos = (Array.isArray(req.body.photos) ? req.body.photos : []).map(p => uploadedPhotoFrom({ photo: p })).filter(Boolean).slice(0, 4);
   if (!photos.length) return res.status(400).json({ error: 'No photo provided' });
@@ -1145,13 +1146,13 @@ app.post('/api/shopping/read-recipe', requireAdmin, async (req, res) => {
       max_tokens: 8000,
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: RECIPE_SCHEMA } },
-      system: RECIPE_RULES,
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: SHOP_PHOTO_SCHEMA } },
+      system: SHOP_PHOTO_RULES,
       messages: [{
         role: 'user',
         content: [
           ...photos.map(p => ({ type: 'image', source: { type: 'base64', media_type: p.mimeType, data: p.image } })),
-          { type: 'text', text: 'Make the grocery list for this recipe.' }
+          { type: 'text', text: 'Make the shopping list from these photos.' }
         ]
       }]
     });
@@ -1162,13 +1163,13 @@ app.post('/api/shopping/read-recipe', requireAdmin, async (req, res) => {
       .filter(i => i.text);
     res.json({ title: String(result.title || '').trim().slice(0, 80), items });
   } catch (err) {
-    console.error('Recipe reading failed:', err);
+    console.error('Shopping photo reading failed:', err);
     res.status(500).json({ error: friendlyAnthropicError(err) });
   }
 });
 
-// Adds the reviewed recipe lines to Errands, together at the top, each keeping its swap
-app.post('/api/shopping/from-recipe', requireAdmin, (req, res) => {
+// Adds the reviewed lines to Errands, together at the top, each keeping its swap (if any)
+app.post('/api/shopping/from-photo', requireAdmin, (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const lines = (Array.isArray(req.body.items) ? req.body.items : [])
@@ -1180,7 +1181,7 @@ app.post('/api/shopping/from-recipe', requireAdmin, (req, res) => {
   const added = lines.map(l => ({ id: data.nextId++, text: l.text, done: false, swap: l.swap, createdAt }));
   data.shoppingList.unshift(...added);
   writeTasks(data, profile);
-  logEvent('recipe_added', { title: String(req.body.title || '').slice(0, 80), count: added.length }, profile);
+  logEvent('photo_list_added', { title: String(req.body.title || '').slice(0, 80), count: added.length }, profile);
   res.json({ items: added });
 });
 

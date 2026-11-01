@@ -1418,7 +1418,7 @@ function renderShoppingList() {
       li.className = 'task-item';
       li.dataset.id = item.id;
       li.dataset.category = 'shoppingList';
-      // Lines from a recipe carry a swap (what to buy if it's hard to find); "swap?" reveals it
+      // Lines read from a photo may carry a swap (what to buy if it's hard to find); "swap?" reveals it
       const swapOpen = item.swap && openSwaps.has(item.id);
       li.innerHTML = `
         <button class="task-checkbox" data-id="${item.id}" data-category="shoppingList"></button>
@@ -1480,21 +1480,22 @@ async function useSwap(id) {
   await apiFetch(`${API}/tasks/shoppingList/${id}`, { method: 'PUT', body: JSON.stringify({ text: item.text, swap: '' }) });
 }
 
-// ---- Recipe → Errands ----
-// A recipe photo (or a few pages) is read into lines to buy. The review card shows them
-// ticked, pantry staples unticked below; only ticked lines are added. Photos are never saved.
-let recipeTitle = '';
-let recipeLines = []; // [{ text, staple, swap, chosen }]
+// ---- Photo → Errands ----
+// A photo (a recipe, a screenshot of a text asking for razors, a handwritten list; up to 4)
+// is read into lines to buy. The review card shows them ticked, pantry staples (recipes only)
+// unticked below; only ticked lines are added. Photos are never saved.
+let shopTitle = '';
+let shopLines = []; // [{ text, staple, swap, chosen }]
 
-async function readRecipe(files) {
+async function readShopPhoto(files) {
   if (!files.length) return;
-  recipeTitle = '';
-  recipeLines = [];
-  const addBtn = document.getElementById('recipe-add-btn');
-  const errorEl = document.getElementById('recipe-error');
+  shopTitle = '';
+  shopLines = [];
+  const addBtn = document.getElementById('shop-photo-add-btn');
+  const errorEl = document.getElementById('shop-photo-error');
   errorEl.classList.add('hidden');
-  renderRecipeReview();
-  document.getElementById('recipe-overlay').classList.remove('hidden');
+  renderShopReview();
+  document.getElementById('shop-photo-overlay').classList.remove('hidden');
   addBtn.classList.add('is-waiting'); // waiting is wordless: the button keeps its label
   addBtn.disabled = true;
 
@@ -1503,47 +1504,47 @@ async function readRecipe(files) {
       const dataUri = await resizeImageForStorage(f, 1568, 0.85); // sharp enough for small print
       return { image: dataUri.split(',')[1], mimeType: 'image/jpeg' };
     }));
-    const res = await apiFetch(`${API}/shopping/read-recipe`, { method: 'POST', body: JSON.stringify({ photos }) });
+    const res = await apiFetch(`${API}/shopping/read-photo`, { method: 'POST', body: JSON.stringify({ photos }) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Reading failed');
-    recipeTitle = data.title || '';
-    recipeLines = (data.items || []).map(i => ({ ...i, chosen: !i.staple }));
-    if (!recipeLines.length) {
-      errorEl.textContent = "Couldn't find a recipe in that photo.";
+    shopTitle = data.title || '';
+    shopLines = (data.items || []).map(i => ({ ...i, chosen: !i.staple }));
+    if (!shopLines.length) {
+      errorEl.textContent = "Couldn't find anything to buy in that photo.";
       errorEl.classList.remove('hidden');
     }
   } catch (err) {
-    console.error('Recipe reading failed:', err);
+    console.error('Shopping photo reading failed:', err);
     errorEl.textContent = "Couldn't read that. Try another photo.";
     errorEl.classList.remove('hidden');
   } finally {
     addBtn.classList.remove('is-waiting');
-    renderRecipeReview();
+    renderShopReview();
   }
 }
 
-function renderRecipeReview() {
-  document.getElementById('recipe-title').textContent = recipeTitle;
+function renderShopReview() {
+  document.getElementById('shop-photo-title').textContent = shopTitle;
   const row = (line, i) => `
-    <li><button class="recipe-item${line.chosen ? ' chosen' : ''}" data-recipe-index="${i}">
+    <li><button class="shop-photo-item${line.chosen ? ' chosen' : ''}" data-shop-index="${i}">
       <span class="task-checkbox${line.chosen ? ' checked' : ''}"></span>
-      <span class="recipe-item-text">${escapeHtml(line.text)}</span>
+      <span class="shop-photo-item-text">${escapeHtml(line.text)}</span>
     </button></li>`;
-  const toBuy = recipeLines.map((l, i) => [l, i]).filter(([l]) => !l.staple);
-  const pantry = recipeLines.map((l, i) => [l, i]).filter(([l]) => l.staple);
-  document.getElementById('recipe-items').innerHTML = toBuy.map(([l, i]) => row(l, i)).join('');
-  document.getElementById('recipe-pantry').innerHTML = pantry.map(([l, i]) => row(l, i)).join('');
-  document.getElementById('recipe-pantry-label').classList.toggle('hidden', !pantry.length);
-  const addBtn = document.getElementById('recipe-add-btn');
-  if (!addBtn.classList.contains('is-waiting')) addBtn.disabled = !recipeLines.some(l => l.chosen);
+  const toBuy = shopLines.map((l, i) => [l, i]).filter(([l]) => !l.staple);
+  const pantry = shopLines.map((l, i) => [l, i]).filter(([l]) => l.staple);
+  document.getElementById('shop-photo-items').innerHTML = toBuy.map(([l, i]) => row(l, i)).join('');
+  document.getElementById('shop-photo-pantry').innerHTML = pantry.map(([l, i]) => row(l, i)).join('');
+  document.getElementById('shop-photo-pantry-label').classList.toggle('hidden', !pantry.length);
+  const addBtn = document.getElementById('shop-photo-add-btn');
+  if (!addBtn.classList.contains('is-waiting')) addBtn.disabled = !shopLines.some(l => l.chosen);
 }
 
-async function addRecipeToErrands() {
-  const chosen = recipeLines.filter(l => l.chosen).map(({ text, swap }) => ({ text, swap }));
+async function addShopLinesToErrands() {
+  const chosen = shopLines.filter(l => l.chosen).map(({ text, swap }) => ({ text, swap }));
   if (!chosen.length) return;
-  document.getElementById('recipe-overlay').classList.add('hidden');
-  await apiFetch(`${API}/shopping/from-recipe`, { method: 'POST', body: JSON.stringify({ title: recipeTitle, items: chosen }) });
-  recipeLines = [];
+  document.getElementById('shop-photo-overlay').classList.add('hidden');
+  await apiFetch(`${API}/shopping/from-photo`, { method: 'POST', body: JSON.stringify({ title: shopTitle, items: chosen }) });
+  shopLines = [];
   await loadTasks();
   renderShoppingList();
 }
@@ -2891,20 +2892,20 @@ document.getElementById('outfit-close-btn').addEventListener('click', () => {
   lastOutfitPrompt = '';
   setOutfitPhoto(null); // also resets shownOutfits
 });
-document.getElementById('recipe-photo-btn').addEventListener('click', () => document.getElementById('recipe-photo-input').click());
-document.getElementById('recipe-photo-input').addEventListener('change', e => {
-  readRecipe([...e.target.files]);
+document.getElementById('shop-photo-btn').addEventListener('click', () => document.getElementById('shop-photo-input').click());
+document.getElementById('shop-photo-input').addEventListener('change', e => {
+  readShopPhoto([...e.target.files]);
   e.target.value = ''; // so the same photo can be picked again
 });
-document.getElementById('recipe-items').parentElement.addEventListener('click', e => {
-  const btn = e.target.closest('.recipe-item');
+document.getElementById('shop-photo-items').parentElement.addEventListener('click', e => {
+  const btn = e.target.closest('.shop-photo-item');
   if (!btn) return;
-  const line = recipeLines[Number(btn.dataset.recipeIndex)];
+  const line = shopLines[Number(btn.dataset.shopIndex)];
   line.chosen = !line.chosen;
-  renderRecipeReview();
+  renderShopReview();
 });
-document.getElementById('recipe-add-btn').addEventListener('click', addRecipeToErrands);
-document.getElementById('recipe-x-btn').addEventListener('click', () => document.getElementById('recipe-overlay').classList.add('hidden'));
+document.getElementById('shop-photo-add-btn').addEventListener('click', addShopLinesToErrands);
+document.getElementById('shop-photo-x-btn').addEventListener('click', () => document.getElementById('shop-photo-overlay').classList.add('hidden'));
 document.getElementById('outfit-photo-btn').addEventListener('click', () => document.getElementById('outfit-photo-input').click());
 document.getElementById('outfit-photo-input').addEventListener('change', e => {
   attachOutfitPhoto(e.target.files[0]);
