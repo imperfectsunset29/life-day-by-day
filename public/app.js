@@ -1154,12 +1154,7 @@ async function addTask(category) {
   input.focus();
   scrollToInput(input);
 
-  // Errands: the + also offers a photo, right under the new row, for as long as it's open
-  const photoRow = category === 'shoppingList' ? document.querySelector('.shop-photo-add-row') : null;
-  if (photoRow) photoRow.classList.add('is-open');
-
   const save = async () => {
-    if (photoRow) photoRow.classList.remove('is-open');
     const text = input.value.trim();
     if (text) {
       await apiFetch(`${API}/tasks/${category}`, {
@@ -1501,7 +1496,6 @@ let shopLines = []; // [{ text, staple, swap, chosen }]
 
 async function readShopPhoto(files) {
   if (!files.length) return;
-  if (document.activeElement && document.activeElement.classList.contains('task-text-input')) document.activeElement.blur(); // closes the empty "New errand..." row
   shopTitle = '';
   shopLines = [];
   const addBtn = document.getElementById('shop-photo-add-btn');
@@ -2614,6 +2608,29 @@ function openActionDropdown(editBtn) {
   document.body.appendChild(dropdown);
 }
 
+// The Errands + offers two ways in: type it, or read it from a photo. Same small menu as
+// a row's edit menu on phones, opening under the +.
+function openAddErrandMenu(addBtn) {
+  closeActionDropdown();
+  const rect = addBtn.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.className = 'action-dropdown';
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.right = (window.innerWidth - rect.right) + 'px';
+
+  const type = document.createElement('button');
+  type.textContent = 'type it';
+  type.addEventListener('click', (e) => { e.stopPropagation(); closeActionDropdown(); addTask('shoppingList'); });
+
+  const photo = document.createElement('button');
+  photo.textContent = 'from a photo';
+  // Opening the picker must happen inside the tap itself, or phones block it
+  photo.addEventListener('click', (e) => { e.stopPropagation(); closeActionDropdown(); document.getElementById('shop-photo-input').click(); });
+
+  menu.append(type, photo);
+  document.body.appendChild(menu);
+}
+
 // Event delegation
 document.addEventListener('click', (e) => {
   const target = e.target;
@@ -2648,7 +2665,8 @@ document.addEventListener('click', (e) => {
     openDreamAddModal();
   }
   else if (target.classList.contains('add-btn')) {
-    addTask(target.dataset.category);
+    if (target.dataset.category === 'shoppingList') openAddErrandMenu(target);
+    else addTask(target.dataset.category);
   }
   else if (target.classList.contains('wardrobe-add-btn')) {
     openWardrobeAddModal(target.dataset.wardrobeCat);
@@ -2974,9 +2992,6 @@ document.getElementById('outfit-close-btn').addEventListener('click', () => {
   lastOutfitPrompt = '';
   setOutfitPhoto(null); // also resets shownOutfits
 });
-// Keep the "New errand..." input focused through the tap, so its blur doesn't hide this link first
-document.getElementById('shop-photo-btn').addEventListener('pointerdown', e => e.preventDefault());
-document.getElementById('shop-photo-btn').addEventListener('click', () => document.getElementById('shop-photo-input').click());
 document.getElementById('shop-photo-input').addEventListener('change', e => {
   readShopPhoto([...e.target.files]);
   e.target.value = ''; // so the same photo can be picked again

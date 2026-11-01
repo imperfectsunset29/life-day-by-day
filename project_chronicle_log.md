@@ -153,3 +153,7 @@ Built right away: each morning gets one of eight wordless background moods, so a
 ## 2026-11-01 — The photo goes behind the +
 **Decision:** "Add from a photo" no longer sits on the Shopping page. Tapping the Errands + opens the "New errand..." row with "Or add from a photo" just beneath it; it disappears when the row closes.
 **Why:** A photo is just another way to add an errand, so it belongs with the add action. At rest the page shows only what's on the list (principle 5: quiet design).
+
+## 2026-11-01 — The + asks how
+**Decision:** The Errands + now opens a two-line menu: "type it" or "from a photo". It replaces the link that appeared under the typing row. Menu rows are 44px tall, the tap floor, which now applies to every small menu.
+**Why:** Two ways to add belong side by side at the moment you choose to add, rather than one hiding under the other.

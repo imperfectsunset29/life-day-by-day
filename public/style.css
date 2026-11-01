@@ -1118,6 +1118,7 @@ textarea.task-text-input {
   background: none;
   border: none;
   padding: 11px 16px;
+  min-height: 44px; /* tap target floor */
   text-align: left;
   font-size: 0.7rem;
   letter-spacing: 0.05em;
@@ -2598,11 +2599,6 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 }
 
 /* ============ Photo → Errands ============ */
-
-/* "Or add from a photo" is another way to add an errand, so it lives behind the + :
-   it shows only under the open "New errand..." row, never on the page at rest */
-.shop-photo-add-row { display: none; margin: 8px 0 0; }
-body.admin-mode .shop-photo-add-row.is-open { display: flex; }
 
 /* Review card: one row per line to buy, the whole row toggles its checkbox (44px tall) */
 .shop-photo-items {
