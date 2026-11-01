@@ -225,16 +225,8 @@
     </div>
     <p class="olympus-subtitle">life tells me what to wear</p>
 
+    <!-- The page offers one honest button; asking and answering happen in the outfit sheet -->
     <div class="wardrobe-suggest-row">
-      <input id="outfit-prompt-input" class="wardrobe-prompt-input" placeholder="hot day, important meeting, rainy lunch…" type="text">
-      <input type="file" id="outfit-photo-input" accept="image/*" style="display:none">
-      <div class="action-text-row action-text-row-start">
-        <button id="outfit-photo-btn" class="btn-text">Add photo</button>
-      </div>
-      <img id="outfit-photo-preview" class="dream-photo-preview outfit-photo-preview hidden" alt="Photo for this outfit">
-      <div class="action-text-row action-text-row-start">
-        <button id="outfit-photo-remove-btn" class="btn-text hidden">Remove photo</button>
-      </div>
       <button id="suggest-outfit-btn" class="btn-primary wardrobe-suggest-btn">What should I wear?</button>
     </div>
 
@@ -496,21 +488,46 @@
   </div>
 
   <!-- Outfit suggestion overlay -->
-  <div id="outfit-overlay" class="overlay hidden">
-    <div class="overlay-content outfit-overlay-content">
-      <button id="outfit-x-btn" class="oracle-x-btn">&times;</button>
-      <p class="overlay-label">Today's outfit</p>
-      <p id="outfit-prompt-echo" class="outfit-prompt-echo"></p>
-      <p id="outfit-weather" class="outfit-weather hidden"></p>
-      <div id="outfit-items" class="outfit-items"></div>
-      <p id="outfit-why" class="outfit-why hidden"></p>
-      <p id="outfit-spin-nudge" class="spin-nudge hidden"></p>
-      <div class="overlay-actions">
-        <button id="outfit-respin-btn" class="btn-secondary">Re-spin</button>
-        <button id="outfit-close-btn" class="btn-primary">Love it</button>
+  <!-- Outfit sheet: rises from the bottom (above the keyboard) with two states in one place.
+       Asking: the question, your words, an optional photo, "Build outfit".
+       Answering: what you asked on one line (edit goes back), the pieces, why, then
+       Re-spin / Love it, "Not my style", and "Say more?" to steer the next spin. -->
+  <div id="outfit-overlay" class="overlay sheet-overlay hidden">
+    <div class="overlay-content sheet-content outfit-overlay-content" role="dialog" aria-modal="true" aria-labelledby="outfit-question">
+      <button id="outfit-x-btn" class="oracle-x-btn" aria-label="Close">&times;</button>
+
+      <div id="outfit-compose">
+        <label id="outfit-question" for="outfit-prompt-input" class="sheet-question">What's the day?</label>
+        <textarea id="outfit-prompt-input" class="wardrobe-prompt-input outfit-prompt-textarea" rows="1" placeholder="hot day, important meeting, rainy lunch…"></textarea>
+        <input type="file" id="outfit-photo-input" accept="image/*" style="display:none">
+        <img id="outfit-photo-preview" class="dream-photo-preview outfit-photo-preview hidden" alt="Photo for this outfit">
+        <div class="action-text-row action-text-row-start">
+          <button id="outfit-photo-btn" class="btn-text">Add photo</button>
+          <button id="outfit-photo-remove-btn" class="btn-text hidden">Remove photo</button>
+        </div>
+        <div class="overlay-actions">
+          <button id="outfit-build-btn" class="btn-primary">Build outfit</button>
+        </div>
       </div>
-      <div class="action-text-row">
-        <button id="outfit-pass-btn" class="btn-text">Not my style</button>
+
+      <div id="outfit-result" class="hidden">
+        <p class="overlay-label">Today's outfit</p>
+        <div class="outfit-echo-row">
+          <p id="outfit-prompt-echo" class="outfit-prompt-echo"></p>
+          <button id="outfit-edit-btn" class="task-action-btn outfit-edit-btn" title="Change what you asked">edit</button>
+        </div>
+        <p id="outfit-weather" class="outfit-weather hidden"></p>
+        <div id="outfit-items" class="outfit-items"></div>
+        <p id="outfit-why" class="outfit-why hidden"></p>
+        <p id="outfit-spin-nudge" class="spin-nudge hidden"></p>
+        <input id="outfit-refine-input" class="wardrobe-prompt-input outfit-refine-input" type="text" placeholder="Say more?" aria-label="Say more, then re-spin" enterkeyhint="go">
+        <div class="overlay-actions">
+          <button id="outfit-respin-btn" class="btn-secondary">Re-spin</button>
+          <button id="outfit-close-btn" class="btn-primary">Love it</button>
+        </div>
+        <div class="action-text-row">
+          <button id="outfit-pass-btn" class="btn-text">Not my style</button>
+        </div>
       </div>
     </div>
   </div>

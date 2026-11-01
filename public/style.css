@@ -2685,3 +2685,85 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 .task-action-btn.swap { display: inline-block; }
 .task-action-btn.use-swap { display: none; }
 body.admin-mode .task-action-btn.use-swap { display: inline-block; }
+
+/* ============ Bottom sheet (outfit) ============ */
+
+/* A sheet rises from the bottom edge rather than floating mid-screen: with the keyboard up,
+   a centered card would be squeezed into the top third. --keyboard-inset (set from
+   visualViewport in app.js) lifts it to sit on the keyboard. */
+.sheet-overlay {
+  align-items: flex-end;
+}
+
+.sheet-content {
+  width: 100%;
+  max-width: 520px;
+  text-align: left;
+  border-radius: 28px 28px 0 0;
+  border-bottom: none;
+  padding: 44px 24px calc(24px + env(safe-area-inset-bottom));
+  margin-bottom: var(--keyboard-inset, 0px);
+  max-height: calc(92dvh - var(--keyboard-inset, 0px));
+  animation: sheetUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); /* eases in, no overshoot */
+}
+
+@keyframes sheetUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-content { animation: none; }
+}
+
+/* The question is the sheet's title: serif, large, ivory */
+.sheet-question {
+  display: block;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 1.7rem;
+  line-height: 1.15;
+  color: #f0e8e0;
+  margin: 0 0 18px;
+}
+
+/* The box grows with the text (growOutfitBox), up to about six lines */
+.outfit-prompt-textarea {
+  display: block;
+  resize: none;
+  overflow-y: auto;
+  min-height: 52px;
+  max-height: 168px;
+  line-height: 1.45;
+  margin-bottom: 4px;
+}
+
+.outfit-overlay-content .outfit-photo-preview {
+  margin: 8px 0 0;
+}
+
+/* What you asked, on one line, with "edit" to go back and change it */
+.outfit-echo-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.outfit-echo-row .outfit-prompt-echo {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The edit link reads here even though the app may be locked: it only changes the question */
+.outfit-edit-btn {
+  display: inline-block;
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+/* "Say more?": a quiet one-line field above Re-spin, steering the next spin */
+.outfit-refine-input {
+  margin: 4px 0 24px; /* clear air before Re-spin / Love it, so the field doesn't read as part of the buttons */
+}

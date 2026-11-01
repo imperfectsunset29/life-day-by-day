@@ -758,6 +758,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { prompt, lat, lon } = req.body;
+  const refine = String(req.body.refine || '').trim().slice(0, 200); // "Say more?" on the answer, steering the next spin
   const photo = uploadedPhotoFrom(req.body);
   // Outfits already shown for this prompt (Re-spin), as arrays of garment IDs
   const exclude = Array.isArray(req.body.exclude) ? req.body.exclude.filter(Array.isArray).slice(-8) : [];
@@ -795,7 +796,8 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
         .map(p => `- "${p.prompt}": ${p.itemIds.map(nameOf).filter(Boolean).join(' + ')}`);
       const words = String(prompt || '').slice(0, 300);
       const request = [
-        words ? `Occasion: "${words}"` : 'Occasion: see the attached photo.',
+        words ? `Occasion: "${words}"` : photo ? 'Occasion: see the attached photo.' : 'Occasion: an ordinary day, no details given. Dress for the weather and the user\'s taste.',
+        refine ? `After seeing the last outfit, the user adds: "${refine}". Follow it.` : '',
         photo ? `The user attached a photo. Work out what it is. If it's a flier, invitation or event page, read it for the occasion: the event, theme, dress code, venue, date and time, and dress for that event (if it's on another day or at night, the weather below is only a hint). If it's an outfit or a look, take its inspiration (silhouette, color story, mood, level of dressiness) and recreate its spirit from the closet only; never describe pieces the user doesn't own. If it's something else, take its mood as the brief. "occasion" is what you read from the photo in under 8 words, lowercase, plain (e.g. "70s disco night at a bar", "relaxed linen look in cream"). "why" may refer to the photo.` : '"occasion" is an empty string.',
         weather ? `Weather now: ${weather.tempF}°F, ${weather.description}.` : 'Weather: unknown.',
         loved.length ? `Outfits the user loved recently:\n${loved.join('\n')}` : '',

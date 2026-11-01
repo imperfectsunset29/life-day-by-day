@@ -2445,10 +2445,49 @@ function getUserLocation() {
   return Promise.race([geo, timeout]);
 }
 
-// The label is fixed rather than read back from the button: a second request started
-// mid-flight (e.g. a quick Re-spin) once read "Asking…" and restored that instead.
-const SUGGEST_OUTFIT_LABEL = 'What should I wear?';
 let outfitRequestInFlight = false;
+
+// ---- Outfit sheet ----
+// One surface for the whole exchange. The page's "What should I wear?" opens it in its
+// asking state with the cursor in the box (focus happens inside the tap, so phones raise
+// the keyboard); "Build outfit" turns the same sheet into its answering state.
+function showOutfitState(state) {
+  document.getElementById('outfit-compose').classList.toggle('hidden', state !== 'compose');
+  document.getElementById('outfit-result').classList.toggle('hidden', state !== 'result');
+}
+
+function openOutfitSheet() {
+  showOutfitState('compose');
+  outfitOverlay.classList.remove('hidden');
+  const box = document.getElementById('outfit-prompt-input');
+  box.focus();
+  growOutfitBox();
+}
+
+function closeOutfitSheet() {
+  outfitOverlay.classList.add('hidden');
+  document.activeElement && document.activeElement.blur();
+}
+
+// The box grows with what you write (up to its max-height in CSS), so nothing scrolls inside it
+function growOutfitBox() {
+  const box = document.getElementById('outfit-prompt-input');
+  box.style.height = 'auto';
+  box.style.height = box.scrollHeight + 'px';
+}
+
+// Keeps the sheet sitting on the keyboard: on phones the keyboard covers the bottom of the
+// page without resizing it, so the sheet is lifted by however much the keyboard takes.
+function liftSheetAboveKeyboard() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const covered = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  outfitOverlay.style.setProperty('--keyboard-inset', `${covered}px`);
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', liftSheetAboveKeyboard);
+  window.visualViewport.addEventListener('scroll', liftSheetAboveKeyboard);
+}
 
 // A photo for the outfit (a party flier, an outfit to echo). Resized like dream photos, but
 // sharper (1568px is what the model reads best), so small print on a flier stays legible.
@@ -2474,14 +2513,16 @@ function setOutfitPhoto(photo, dataUri) {
 
 async function suggestOutfit() {
   if (outfitRequestInFlight) return; // one request at a time — Re-spin taps while asking are ignored
-  const promptEl = document.getElementById('outfit-prompt-input');
-  const prompt = (promptEl && promptEl.value.trim()) || lastOutfitPrompt;
-  if (!prompt && !outfitPhoto) return; // words, a photo, or both
+  // Words, a photo, both, or neither: an empty request means "just today" (weather and taste)
+  const prompt = document.getElementById('outfit-prompt-input').value.trim();
+  const refine = document.getElementById('outfit-refine-input').value.trim();
   if (prompt !== lastOutfitPrompt) shownOutfits = []; // a new occasion starts a fresh set of spins
   lastOutfitPrompt = prompt;
 
   outfitRequestInFlight = true;
-  const btn = document.getElementById('suggest-outfit-btn');
+  // The button that was tapped waits: Build outfit while asking, Re-spin while answering
+  const asking = !document.getElementById('outfit-compose').classList.contains('hidden');
+  const btn = document.getElementById(asking ? 'outfit-build-btn' : 'outfit-respin-btn');
   const respinBtn = document.getElementById('outfit-respin-btn');
   const passBtn = document.getElementById('outfit-pass-btn');
   btn.classList.add('is-waiting');
@@ -2494,13 +2535,13 @@ async function suggestOutfit() {
     const res = await fetch(`${API}/wardrobe/suggest-outfit`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ prompt, photo: outfitPhoto, lat: location && location.lat, lon: location && location.lon, exclude: shownOutfits })
+      body: JSON.stringify({ prompt, refine, photo: outfitPhoto, lat: location && location.lat, lon: location && location.lon, exclude: shownOutfits })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Outfit suggestion failed');
     const { items, weather, wardrobeEmpty, why, occasion } = data;
     // With only a photo, the stylist's reading of it ("70s disco night at a bar") stands in for the words
-    const label = prompt || occasion || 'from a photo';
+    const label = prompt || occasion || (outfitPhoto ? 'from a photo' : 'just today');
     if (items && items.length) shownOutfits.push(items.map(i => i.id));
     const whyEl = document.getElementById('outfit-why');
     whyEl.textContent = why || '';
@@ -2540,12 +2581,12 @@ async function suggestOutfit() {
       }
     }
 
-    outfitOverlay.classList.remove('hidden');
+    document.getElementById('outfit-prompt-input').blur(); // keyboard down: the answer gets the room
+    showOutfitState('result');
   } catch (err) {
     console.error('Outfit suggestion failed:', err);
     alert(`Couldn't get an outfit suggestion: ${err.message}`);
   } finally {
-    btn.textContent = SUGGEST_OUTFIT_LABEL;
     btn.classList.remove('is-waiting');
     btn.disabled = false;
     respinBtn.disabled = false;
@@ -3002,12 +3043,19 @@ document.getElementById('wf-cat').addEventListener('change', e => populateSubcat
 document.getElementById('wardrobe-add-x-btn').addEventListener('click', () => wardrobeAddOverlay.classList.add('hidden'));
 wardrobeAddOverlay.addEventListener('click', e => { if (e.target === wardrobeAddOverlay) wardrobeAddOverlay.classList.add('hidden'); });
 
-document.getElementById('suggest-outfit-btn').addEventListener('click', async () => {
+document.getElementById('suggest-outfit-btn').addEventListener('click', openOutfitSheet);
+document.getElementById('outfit-prompt-input').addEventListener('input', growOutfitBox);
+document.getElementById('outfit-build-btn').addEventListener('click', async () => {
   outfitRespins = 0;
+  document.getElementById('outfit-refine-input').value = ''; // a fresh ask starts unsteered
   await suggestOutfit();
   updateSpinNudge(document.getElementById('outfit-spin-nudge'), outfitRespins);
 });
-document.getElementById('outfit-x-btn').addEventListener('click', () => outfitOverlay.classList.add('hidden'));
+document.getElementById('outfit-edit-btn').addEventListener('click', openOutfitSheet); // back to asking, words kept
+document.getElementById('outfit-refine-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); document.getElementById('outfit-respin-btn').click(); }
+});
+document.getElementById('outfit-x-btn').addEventListener('click', closeOutfitSheet);
 document.getElementById('outfit-respin-btn').addEventListener('click', async () => {
   if (outfitRequestInFlight) return;
   outfitRespins++;
@@ -3016,11 +3064,12 @@ document.getElementById('outfit-respin-btn').addEventListener('click', async () 
 });
 document.getElementById('outfit-pass-btn').addEventListener('click', passOnOutfit);
 document.getElementById('outfit-close-btn').addEventListener('click', () => {
-  outfitOverlay.classList.add('hidden');
+  closeOutfitSheet();
   recordOutfitWorn();
   // "Love it" ends the flow: clear the prompt so the box is ready for the next occasion.
   // (Closing with × keeps the text, so it can be tweaked and asked again.)
   document.getElementById('outfit-prompt-input').value = '';
+  document.getElementById('outfit-refine-input').value = '';
   lastOutfitPrompt = '';
   setOutfitPhoto(null); // also resets shownOutfits
 });
@@ -3072,7 +3121,7 @@ document.getElementById('garment-edit-btn').addEventListener('click', (e) => {
   garmentOverlay.classList.add('hidden');
   openWardrobeEditModal(Number(e.currentTarget.dataset.id));
 });
-outfitOverlay.addEventListener('click', e => { if (e.target === outfitOverlay) outfitOverlay.classList.add('hidden'); });
+outfitOverlay.addEventListener('click', e => { if (e.target === outfitOverlay) closeOutfitSheet(); });
 
 // Init — show profile selector or resume stored profile
 (async () => {
