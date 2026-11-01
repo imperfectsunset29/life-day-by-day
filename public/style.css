@@ -2414,32 +2414,11 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   letter-spacing: 0;
 }
 
-#dreams-fab {
-  position: fixed;
-  right: 24px;
-  bottom: calc(96px + env(safe-area-inset-bottom));
-  width: 56px;
-  height: 56px;
-  font-size: 1.6rem;
-  background: rgba(181, 201, 154, 0.85);
-  color: #1a0820;
-  border: 1px solid rgba(181, 201, 154, 0.5);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 28px rgba(181, 201, 154, 0.3), 0 4px 20px rgba(0, 0, 0, 0.35);
-  z-index: 50;
-}
-
-#dreams-fab:hover {
-  background: rgba(196, 216, 168, 0.95);
-}
-
-@media (max-width: 480px) {
-  #dreams-fab {
-    width: 50px;
-    height: 50px;
-    font-size: 1.4rem;
-    right: 20px;
-    bottom: calc(90px + env(safe-area-inset-bottom));
-  }
+/* Dreams' + lives at the end of the title row (pushed right), the same small + as every
+   other list heading: one way to add, one look, nothing floating over the photos */
+.dreams-add-btn {
+  margin-left: auto;
+  align-self: center;
 }
 
 /* ============ Shopping: wishlist + acquired ============ */

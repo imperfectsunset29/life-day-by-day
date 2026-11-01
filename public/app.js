@@ -2722,7 +2722,7 @@ document.addEventListener('click', (e) => {
   else if (target.classList.contains('progress-btn') && !target.disabled) {
     updateProgress(Number(target.dataset.id), Number(target.dataset.delta));
   }
-  else if (target.id === 'dreams-fab') {
+  else if (target.id === 'dreams-add-btn') {
     openDreamAddModal();
   }
   else if (target.classList.contains('add-btn')) {
