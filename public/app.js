@@ -1154,7 +1154,12 @@ async function addTask(category) {
   input.focus();
   scrollToInput(input);
 
+  // Errands: the + also offers a photo, right under the new row, for as long as it's open
+  const photoRow = category === 'shoppingList' ? document.querySelector('.shop-photo-add-row') : null;
+  if (photoRow) photoRow.classList.add('is-open');
+
   const save = async () => {
+    if (photoRow) photoRow.classList.remove('is-open');
     const text = input.value.trim();
     if (text) {
       await apiFetch(`${API}/tasks/${category}`, {
@@ -1496,6 +1501,7 @@ let shopLines = []; // [{ text, staple, swap, chosen }]
 
 async function readShopPhoto(files) {
   if (!files.length) return;
+  if (document.activeElement && document.activeElement.classList.contains('task-text-input')) document.activeElement.blur(); // closes the empty "New errand..." row
   shopTitle = '';
   shopLines = [];
   const addBtn = document.getElementById('shop-photo-add-btn');
@@ -2968,6 +2974,8 @@ document.getElementById('outfit-close-btn').addEventListener('click', () => {
   lastOutfitPrompt = '';
   setOutfitPhoto(null); // also resets shownOutfits
 });
+// Keep the "New errand..." input focused through the tap, so its blur doesn't hide this link first
+document.getElementById('shop-photo-btn').addEventListener('pointerdown', e => e.preventDefault());
 document.getElementById('shop-photo-btn').addEventListener('click', () => document.getElementById('shop-photo-input').click());
 document.getElementById('shop-photo-input').addEventListener('change', e => {
   readShopPhoto([...e.target.files]);

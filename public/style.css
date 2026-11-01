@@ -2599,9 +2599,10 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
 
 /* ============ Photo → Errands ============ */
 
-/* "Add from a photo" is a write action: only in admin mode, like the + beside Errands */
+/* "Or add from a photo" is another way to add an errand, so it lives behind the + :
+   it shows only under the open "New errand..." row, never on the page at rest */
 .shop-photo-add-row { display: none; margin: 8px 0 0; }
-body.admin-mode .shop-photo-add-row { display: flex; }
+body.admin-mode .shop-photo-add-row.is-open { display: flex; }
 
 /* Review card: one row per line to buy, the whole row toggles its checkbox (44px tall) */
 .shop-photo-items {

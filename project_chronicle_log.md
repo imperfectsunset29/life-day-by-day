@@ -149,3 +149,7 @@ Built right away: each morning gets one of eight wordless background moods, so a
 ## 2026-11-01 — The done treatment
 **Decision:** A rule for finished things: greyed out and last on the page. Done rows lose the glass card (no fill, border, shadow or blur; a hairline beneath), their text sits at ivory 0.58 with the name struck through, the checked box keeps a quieter sage fill with no glow, and the Done heading turns from sage to grey. Done sections are always the last list on their page, so Shopping's Done moved from between Errands and Wishlist to the bottom. Checked habits take the same look where they stand rather than sinking, so their order holds when they uncheck at 5 AM.
 **Why:** Done items looked as alive as open ones: the same glowing cards, competing for the eye. What's finished should read as a quiet record, below what still needs you.
+
+## 2026-11-01 — The photo goes behind the +
+**Decision:** "Add from a photo" no longer sits on the Shopping page. Tapping the Errands + opens the "New errand..." row with "Or add from a photo" just beneath it; it disappears when the row closes.
+**Why:** A photo is just another way to add an errand, so it belongs with the add action. At rest the page shows only what's on the list (principle 5: quiet design).
