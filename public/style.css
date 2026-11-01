@@ -2549,3 +2549,95 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   opacity: 0;
   pointer-events: none;
 }
+
+/* ============ Recipe → Errands ============ */
+
+/* "Add from a recipe" is a write action: only in admin mode, like the + beside Errands */
+.recipe-add-row { display: none; margin: 8px 0 0; }
+body.admin-mode .recipe-add-row { display: flex; }
+
+/* Review card: one row per line to buy, the whole row toggles its checkbox (44px tall) */
+.recipe-items {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.recipe-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #f0e8e0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The checkbox here is a picture of state, not its own control: the row is the button */
+.recipe-item .task-checkbox {
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.recipe-item:not(.chosen) .recipe-item-text {
+  color: rgba(240, 232, 224, 0.58); /* unticked stays at the 4.5:1 floor, only quieter */
+}
+
+.recipe-pantry-label {
+  margin: 20px 0 4px;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(240, 232, 224, 0.62);
+}
+
+.recipe-error {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: rgba(240, 232, 224, 0.72);
+  margin: 8px 0 20px;
+}
+
+.recipe-overlay-content .overlay-actions {
+  margin-top: 24px;
+}
+
+/* Errand with a swap: the text and its swap line stack in one column */
+.errand-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.errand-main .task-text {
+  display: block;
+}
+
+/* The swap, revealed by "swap?": amber, small, a hint rather than a second item.
+   Amber at 0.85 clears the 0.82 floor for 4.5:1. */
+.errand-swap {
+  margin: 4px 0 0;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: rgba(200, 168, 122, 0.85);
+}
+
+.errand-swap .task-action-btn {
+  padding-left: 8px;
+  font-family: 'Inter', sans-serif;
+  font-style: normal;
+}
+
+/* "swap?" reads whether or not the app is unlocked; "use this" changes the list, so admin only */
+.task-action-btn.swap { display: inline-block; }
+.task-action-btn.use-swap { display: none; }
+body.admin-mode .task-action-btn.use-swap { display: inline-block; }

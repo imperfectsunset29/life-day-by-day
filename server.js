@@ -746,7 +746,7 @@ const OUTFIT_SCHEMA = {
 const OUTFIT_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const OUTFIT_PHOTO_MAX_CHARS = 7 * 1024 * 1024; // base64; the app sends ~1568px JPEGs, well under this
 
-function outfitPhotoFrom(body) {
+function uploadedPhotoFrom(body) {
   const photo = body && body.photo;
   if (!photo || typeof photo.image !== 'string' || !photo.image) return null;
   if (photo.image.length > OUTFIT_PHOTO_MAX_CHARS) return null;
@@ -758,7 +758,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const { prompt, lat, lon } = req.body;
-  const photo = outfitPhotoFrom(req.body);
+  const photo = uploadedPhotoFrom(req.body);
   // Outfits already shown for this prompt (Re-spin), as arrays of garment IDs
   const exclude = Array.isArray(req.body.exclude) ? req.body.exclude.filter(Array.isArray).slice(-8) : [];
   if (!data.wardrobe || !data.wardrobe.length) return res.json({ items: [], wardrobeEmpty: true });
@@ -1100,6 +1100,90 @@ app.post('/api/shopping/move', requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
+// ---- Shopping: a recipe photo becomes errands ----
+// The photo is read for this one request and never saved. Oedipa lists what to buy; the
+// review card (frontend) lets the user untick what they have before anything is added.
+
+const RECIPE_SCHEMA = {
+  type: 'object',
+  properties: {
+    title: { type: 'string' },
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          text: { type: 'string' },
+          staple: { type: 'boolean' },
+          swap: { type: 'string' }
+        },
+        required: ['text', 'staple', 'swap'],
+        additionalProperties: false
+      }
+    }
+  },
+  required: ['title', 'items'],
+  additionalProperties: false
+};
+
+const RECIPE_RULES = `You turn photos of a recipe into a grocery list.
+
+- Read every ingredient, including those in sub-recipes (sauce, marinade, garnish). The photos may be pages of the same recipe.
+- One line per thing to buy, written the way it's bought, with the total the recipe needs: "2 lemons", "1 bunch cilantro", "1 lb ground pork", "1 can coconut milk". Merge repeats (zest and juice of the same lemons is one line). Leave out water and ice.
+- "staple" is true for pantry basics most kitchens already have: salt, black pepper, olive oil, neutral oil, sugar, all-purpose flour, baking soda, baking powder, vinegar, soy sauce, common dried spices. Everything fresh, and anything specialty, is false.
+- "swap" is what to buy instead if the item is hard to find, in under 10 words. Prefer a product Trader Joe's usually carries, named plainly ("TJ's Gochujang", "TJ's frozen garlic cubes"). If Trader Joe's is unlikely to have anything close, give a common supermarket substitute ("sriracha + a little miso"). Give a swap for every line.
+- "title" is the recipe's name, short and lowercase (e.g. "pork larb"), or "" if there isn't one.
+- If the photos aren't a recipe or ingredient list, return no items and an empty title.`;
+
+app.post('/api/shopping/read-recipe', requireAdmin, async (req, res) => {
+  if (!anthropic) return res.status(503).json({ error: 'AI not configured — set ANTHROPIC_API_KEY' });
+  const photos = (Array.isArray(req.body.photos) ? req.body.photos : []).map(p => uploadedPhotoFrom({ photo: p })).filter(Boolean).slice(0, 4);
+  if (!photos.length) return res.status(400).json({ error: 'No photo provided' });
+  try {
+    const message = await anthropic.beta.messages.create({
+      model: 'claude-opus-5-5',
+      max_tokens: 8000,
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: RECIPE_SCHEMA } },
+      system: RECIPE_RULES,
+      messages: [{
+        role: 'user',
+        content: [
+          ...photos.map(p => ({ type: 'image', source: { type: 'base64', media_type: p.mimeType, data: p.image } })),
+          { type: 'text', text: 'Make the grocery list for this recipe.' }
+        ]
+      }]
+    });
+    if (message.stop_reason === 'refusal') throw new Error('declined the request');
+    const result = JSON.parse(message.content.find(b => b.type === 'text').text);
+    const items = result.items
+      .map(i => ({ text: String(i.text).trim().slice(0, 120), staple: !!i.staple, swap: String(i.swap || '').trim().slice(0, 120) }))
+      .filter(i => i.text);
+    res.json({ title: String(result.title || '').trim().slice(0, 80), items });
+  } catch (err) {
+    console.error('Recipe reading failed:', err);
+    res.status(500).json({ error: friendlyAnthropicError(err) });
+  }
+});
+
+// Adds the reviewed recipe lines to Errands, together at the top, each keeping its swap
+app.post('/api/shopping/from-recipe', requireAdmin, (req, res) => {
+  const profile = profileFrom(req);
+  const data = readTasks(profile);
+  const lines = (Array.isArray(req.body.items) ? req.body.items : [])
+    .map(i => ({ text: String((i && i.text) || '').trim().slice(0, 120), swap: String((i && i.swap) || '').trim().slice(0, 120) }))
+    .filter(i => i.text)
+    .slice(0, 60);
+  if (!lines.length) return res.status(400).json({ error: 'Nothing to add' });
+  const createdAt = new Date().toISOString();
+  const added = lines.map(l => ({ id: data.nextId++, text: l.text, done: false, swap: l.swap, createdAt }));
+  data.shoppingList.unshift(...added);
+  writeTasks(data, profile);
+  logEvent('recipe_added', { title: String(req.body.title || '').slice(0, 80), count: added.length }, profile);
+  res.json({ items: added });
+});
+
 // Update oracle
 app.put('/api/oracle', requireAdmin, (req, res) => {
   const profile = profileFrom(req);
@@ -1157,6 +1241,11 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
 
   if (category === 'wishlist') {
     if (req.body.note !== undefined) task.note = String(req.body.note).slice(0, 200);
+  }
+
+  // "Use this" on an errand's swap: the swap becomes the item, and there's nothing left to swap
+  if (category === 'shoppingList') {
+    if (req.body.swap !== undefined) task.swap = String(req.body.swap).slice(0, 120);
   }
 
   if (category === 'wardrobe') {

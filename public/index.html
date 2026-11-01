@@ -172,6 +172,10 @@
         <button class="add-btn" data-category="shoppingList">+</button>
       </div>
       <ul id="list-shoppingList" class="task-list"></ul>
+      <input type="file" id="recipe-photo-input" accept="image/*" multiple style="display:none">
+      <div class="action-text-row action-text-row-start recipe-add-row">
+        <button id="recipe-photo-btn" class="btn-text">Add from a recipe</button>
+      </div>
     </section>
     <section class="category done-section hidden" id="shopping-done-section">
       <div class="category-header">
@@ -548,6 +552,22 @@
         <span class="floating-nav-label">Dreams</span>
       </button>
     </nav>
+  </div>
+
+  <!-- Recipe review: what Oedipa read from a recipe photo, ticked lines go to Errands -->
+  <div id="recipe-overlay" class="overlay hidden">
+    <div class="overlay-content recipe-overlay-content">
+      <button id="recipe-x-btn" class="oracle-x-btn">&times;</button>
+      <p class="overlay-label">From a recipe</p>
+      <p id="recipe-title" class="outfit-prompt-echo"></p>
+      <ul id="recipe-items" class="recipe-items"></ul>
+      <p id="recipe-pantry-label" class="recipe-pantry-label hidden">Probably in your pantry</p>
+      <ul id="recipe-pantry" class="recipe-items"></ul>
+      <p id="recipe-error" class="recipe-error hidden"></p>
+      <div class="overlay-actions">
+        <button id="recipe-add-btn" class="btn-primary">Add to errands</button>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>

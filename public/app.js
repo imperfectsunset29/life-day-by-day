@@ -1418,10 +1418,16 @@ function renderShoppingList() {
       li.className = 'task-item';
       li.dataset.id = item.id;
       li.dataset.category = 'shoppingList';
+      // Lines from a recipe carry a swap (what to buy if it's hard to find); "swap?" reveals it
+      const swapOpen = item.swap && openSwaps.has(item.id);
       li.innerHTML = `
         <button class="task-checkbox" data-id="${item.id}" data-category="shoppingList"></button>
-        <span class="task-text">${renderTaskText(item.text)}</span>
+        <div class="errand-main">
+          <span class="task-text">${renderTaskText(item.text)}</span>
+          ${swapOpen ? `<p class="errand-swap">${escapeHtml(item.swap)}<button class="task-action-btn use-swap" data-id="${item.id}">use this</button></p>` : ''}
+        </div>
         <div class="task-actions">
+          ${item.swap ? `<button class="task-action-btn swap" data-id="${item.id}" title="If it's hard to find">${swapOpen ? 'hide' : 'swap?'}</button>` : ''}
           <button class="task-action-btn move" data-id="${item.id}" data-category="shoppingList" title="Move to wishlist">→ wishlist</button>
           <button class="task-action-btn edit" data-id="${item.id}" data-category="shoppingList" title="Edit">edit</button>
           <button class="task-action-btn delete" data-id="${item.id}" data-category="shoppingList" title="Delete">delete</button>
@@ -1456,6 +1462,91 @@ function renderShoppingList() {
 // ---- Wishlist (longer-term wants) and the Acquired archive ----
 
 const SHOPPING_CATS = ['shoppingList', 'wishlist', 'acquired'];
+const openSwaps = new Set(); // errand ids whose swap line is showing (this visit only)
+
+function toggleSwap(id) {
+  if (openSwaps.has(id)) openSwaps.delete(id); else openSwaps.add(id);
+  renderShoppingList();
+}
+
+// "Use this": the swap becomes the errand, and there's nothing left to swap
+async function useSwap(id) {
+  const item = tasks.shoppingList.find(i => i.id === id);
+  if (!item || !item.swap) return;
+  item.text = item.swap;
+  item.swap = '';
+  openSwaps.delete(id);
+  renderShoppingList();
+  await apiFetch(`${API}/tasks/shoppingList/${id}`, { method: 'PUT', body: JSON.stringify({ text: item.text, swap: '' }) });
+}
+
+// ---- Recipe → Errands ----
+// A recipe photo (or a few pages) is read into lines to buy. The review card shows them
+// ticked, pantry staples unticked below; only ticked lines are added. Photos are never saved.
+let recipeTitle = '';
+let recipeLines = []; // [{ text, staple, swap, chosen }]
+
+async function readRecipe(files) {
+  if (!files.length) return;
+  recipeTitle = '';
+  recipeLines = [];
+  const addBtn = document.getElementById('recipe-add-btn');
+  const errorEl = document.getElementById('recipe-error');
+  errorEl.classList.add('hidden');
+  renderRecipeReview();
+  document.getElementById('recipe-overlay').classList.remove('hidden');
+  addBtn.classList.add('is-waiting'); // waiting is wordless: the button keeps its label
+  addBtn.disabled = true;
+
+  try {
+    const photos = await Promise.all([...files].slice(0, 4).map(async f => {
+      const dataUri = await resizeImageForStorage(f, 1568, 0.85); // sharp enough for small print
+      return { image: dataUri.split(',')[1], mimeType: 'image/jpeg' };
+    }));
+    const res = await apiFetch(`${API}/shopping/read-recipe`, { method: 'POST', body: JSON.stringify({ photos }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Reading failed');
+    recipeTitle = data.title || '';
+    recipeLines = (data.items || []).map(i => ({ ...i, chosen: !i.staple }));
+    if (!recipeLines.length) {
+      errorEl.textContent = "Couldn't find a recipe in that photo.";
+      errorEl.classList.remove('hidden');
+    }
+  } catch (err) {
+    console.error('Recipe reading failed:', err);
+    errorEl.textContent = "Couldn't read that. Try another photo.";
+    errorEl.classList.remove('hidden');
+  } finally {
+    addBtn.classList.remove('is-waiting');
+    renderRecipeReview();
+  }
+}
+
+function renderRecipeReview() {
+  document.getElementById('recipe-title').textContent = recipeTitle;
+  const row = (line, i) => `
+    <li><button class="recipe-item${line.chosen ? ' chosen' : ''}" data-recipe-index="${i}">
+      <span class="task-checkbox${line.chosen ? ' checked' : ''}"></span>
+      <span class="recipe-item-text">${escapeHtml(line.text)}</span>
+    </button></li>`;
+  const toBuy = recipeLines.map((l, i) => [l, i]).filter(([l]) => !l.staple);
+  const pantry = recipeLines.map((l, i) => [l, i]).filter(([l]) => l.staple);
+  document.getElementById('recipe-items').innerHTML = toBuy.map(([l, i]) => row(l, i)).join('');
+  document.getElementById('recipe-pantry').innerHTML = pantry.map(([l, i]) => row(l, i)).join('');
+  document.getElementById('recipe-pantry-label').classList.toggle('hidden', !pantry.length);
+  const addBtn = document.getElementById('recipe-add-btn');
+  if (!addBtn.classList.contains('is-waiting')) addBtn.disabled = !recipeLines.some(l => l.chosen);
+}
+
+async function addRecipeToErrands() {
+  const chosen = recipeLines.filter(l => l.chosen).map(({ text, swap }) => ({ text, swap }));
+  if (!chosen.length) return;
+  document.getElementById('recipe-overlay').classList.add('hidden');
+  await apiFetch(`${API}/shopping/from-recipe`, { method: 'POST', body: JSON.stringify({ title: recipeTitle, items: chosen }) });
+  recipeLines = [];
+  await loadTasks();
+  renderShoppingList();
+}
 let acquiredExpanded = false;
 let openWishId = null;       // wish shown in the wish card
 let lastAcquired = null;     // the wish just bought, for "Add to wardrobe"
@@ -2479,6 +2570,12 @@ document.addEventListener('click', (e) => {
   else if (target.classList.contains('wardrobe-add-btn')) {
     openWardrobeAddModal(target.dataset.wardrobeCat);
   }
+  else if (target.classList.contains('swap')) {
+    toggleSwap(Number(target.dataset.id));
+  }
+  else if (target.classList.contains('use-swap')) {
+    useSwap(Number(target.dataset.id));
+  }
   else if (target.classList.contains('move')) {
     moveShoppingItem(Number(target.dataset.id), target.dataset.category === 'shoppingList' ? 'wishlist' : 'shoppingList');
   }
@@ -2794,6 +2891,20 @@ document.getElementById('outfit-close-btn').addEventListener('click', () => {
   lastOutfitPrompt = '';
   setOutfitPhoto(null); // also resets shownOutfits
 });
+document.getElementById('recipe-photo-btn').addEventListener('click', () => document.getElementById('recipe-photo-input').click());
+document.getElementById('recipe-photo-input').addEventListener('change', e => {
+  readRecipe([...e.target.files]);
+  e.target.value = ''; // so the same photo can be picked again
+});
+document.getElementById('recipe-items').parentElement.addEventListener('click', e => {
+  const btn = e.target.closest('.recipe-item');
+  if (!btn) return;
+  const line = recipeLines[Number(btn.dataset.recipeIndex)];
+  line.chosen = !line.chosen;
+  renderRecipeReview();
+});
+document.getElementById('recipe-add-btn').addEventListener('click', addRecipeToErrands);
+document.getElementById('recipe-x-btn').addEventListener('click', () => document.getElementById('recipe-overlay').classList.add('hidden'));
 document.getElementById('outfit-photo-btn').addEventListener('click', () => document.getElementById('outfit-photo-input').click());
 document.getElementById('outfit-photo-input').addEventListener('change', e => {
   attachOutfitPhoto(e.target.files[0]);

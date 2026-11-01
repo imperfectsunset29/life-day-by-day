@@ -133,3 +133,7 @@ Built right away: each morning gets one of eight wordless background moods, so a
 ## 2026-10-30 — Wardrobe reads a photo
 **Decision:** "What should I wear?" can now take a photo as well as (or instead of) words: a party flier, an invitation, or an outfit for inspiration. The stylist sees the picture, works out which it is, and either dresses for the event it describes or rebuilds the look from pieces already in the closet. With no words typed, its short reading of the photo stands in for the prompt. The photo is never stored.
 **Why:** The occasion often arrives as an image, not a sentence. Typing out a flier's theme and dress code is the kind of choosing Oedipa exists to take off your hands (principle 2), and "Add photo" stays a quiet text action so "What should I wear?" is still the screen's one primary button.
+
+## 2026-11-01 — Recipes become errands
+**Decision:** A recipe photo (or a few pages) can now become groceries. Oedipa reads it into lines written the way you buy them ("2 lemons", "1 bunch mint"), shows them on a review card with pantry staples unticked, and adds only what you keep. Each recipe line carries a quiet "swap?" for when it's hard to find, favoring something Trader Joe's carries; "use this" makes the swap the item. Photos are never stored.
+**Why:** Copying a recipe into a list is pure chore. The review step keeps you in charge of what you already have, and the swap sits out of sight until a shelf comes up empty, so chores typed by hand stay as plain as before.
