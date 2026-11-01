@@ -381,11 +381,6 @@ h1 {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.task-item.done .task-text {
-  text-decoration: line-through;
-  color: rgba(240, 232, 224, 0.58);
-}
-
 .task-checkbox {
   width: 20px;
   height: 20px;
@@ -631,14 +626,40 @@ textarea.task-text-input {
   flex-shrink: 0;
 }
 
-/* Done section */
-.done-section .task-item {
-  opacity: 0.85; /* settled, not illegible: text inside is tuned so the effective contrast clears 4.5:1 */
+/* Done — the rule (CLAUDE.md, "Done treatment"): finished things are greyed out and sit
+   last. A done row drops the glass card (no fill, border, shadow or blur): only a hairline
+   under it, so it reads as settled rather than as something to act on. All its text is
+   ivory 0.58 — the 4.5:1 floor on every surface — with the name struck through. No container
+   opacity: it would multiply into the text and push it under the floor. */
+.done-section .task-item,
+.task-item.done {
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
-.done-section .task-text {
+.done-section .task-text,
+.task-item.done .task-text {
   text-decoration: line-through;
-  color: rgba(240, 232, 224, 0.7);
+  color: rgba(240, 232, 224, 0.58);
+}
+
+.done-section .category-header h2 {
+  color: rgba(240, 232, 224, 0.58); /* the heading greys with its rows: ivory at the floor, not sage */
+}
+
+/* A checked box keeps its fill (it says "done") but loses its glow; at 0.7 the sage still
+   clears the 3:1 floor for a control */
+.done-section .task-checkbox.checked,
+.task-item.done .task-checkbox.checked {
+  opacity: 0.7;
+  box-shadow: none;
 }
 
 .done-date {
