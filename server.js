@@ -971,11 +971,115 @@ function isPrivateHostname(hostname) {
 }
 
 function decodeHtmlEntities(s) {
-  return s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  // Named entities shops actually use, plus every numeric form (&#39; and &#x27; alike)
+  const named = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ', ndash: '–', mdash: '—', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“', eacute: 'é', reg: '®', trade: '™' };
+  return s
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+    .replace(/&([a-z]+);/gi, (m, n) => named[n.toLowerCase()] ?? m);
 }
 
-// Fetches a linked page's title (and image, if any) so a pasted URL can show real
-// context instead of just its domain — plain HTTP fetch, no AI/paid API involved.
+// A <meta> tag's content by property or name, whichever order the attributes come in
+function metaContent(html, key) {
+  const tags = html.match(/<meta\b[^>]*>/gi) || [];
+  for (const tag of tags) {
+    const k = tag.match(/\b(?:property|name)\s*=\s*["']([^"']+)["']/i);
+    if (!k || k[1].toLowerCase() !== key) continue;
+    const c = tag.match(/\bcontent\s*=\s*"([^"]*)"/i) || tag.match(/\bcontent\s*=\s*'([^']*)'/i);
+    if (c && c[1].trim()) return decodeHtmlEntities(c[1]).trim();
+  }
+  return null;
+}
+
+// The product's own name and photo from the page's structured data (schema.org Product),
+// which most shops include for search engines and which is usually the cleanest name.
+function jsonLdProduct(html) {
+  const blocks = html.match(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi) || [];
+  for (const block of blocks) {
+    let json;
+    try { json = JSON.parse(block.replace(/^<script[^>]*>|<\/script>$/gi, '')); } catch { continue; }
+    const queue = [json];
+    while (queue.length) {
+      const node = queue.shift();
+      if (!node || typeof node !== 'object') continue;
+      if (Array.isArray(node)) { queue.push(...node); continue; }
+      const type = [].concat(node['@type'] || []).map(String);
+      if (type.includes('Product') && typeof node.name === 'string') {
+        const img = [].concat(node.image || [])[0];
+        return { name: decodeHtmlEntities(node.name).trim(), image: typeof img === 'string' ? img : (img && img.url) || null };
+      }
+      if (node['@graph']) queue.push(node['@graph']);
+    }
+  }
+  return null;
+}
+
+// Names that aren't names: bot walls, error pages, the shop's own name, bare product codes
+const NOT_A_NAME = /^(product|products|home|shop|store|item|untitled|access denied|just a moment.*|attention required.*|are you a robot.*|robot check|captcha|page not found|404.*|403.*|error.*|sign in|log in|welcome.*)$/i;
+
+function cleanProductName(title, siteName, hostname) {
+  if (!title) return null;
+  let t = title.replace(/\s+/g, ' ').trim();
+  // Drop a trailing " | Shop" / " - Shop" / " – Shop" when it's the shop's name
+  const brand = (siteName || hostname.replace(/^www\./, '').split('.')[0]).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const parts = t.split(/\s+[|–—-]\s+/);
+  if (parts.length > 1) {
+    const last = parts[parts.length - 1].toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (last && (last.includes(brand) || brand.includes(last))) t = parts.slice(0, -1).join(' - ').trim();
+  }
+  const bare = t.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (t.length < 3 || NOT_A_NAME.test(t) || bare === brand || bare === hostname.toLowerCase().replace(/[^a-z0-9]/g, '')) return null;
+  if (!/[a-z]{3,}/i.test(t) || /^[a-z]{0,4}\d[\w-]*$/i.test(t)) return null; // codes like "Kp228"
+  return t.slice(0, 140);
+}
+
+function absoluteHttpUrl(src, base) {
+  try {
+    const u = new URL(src, base);
+    return /^https?:$/.test(u.protocol) ? u.href : null;
+  } catch { return null; }
+}
+
+// Reads a linked page for its product name and photo — plain HTTP, no AI or paid API.
+// Shops that block bots return nothing useful; callers fall back to the shop's name.
+async function fetchLinkPreview(href) {
+  const parsed = new URL(href);
+  const response = await fetch(parsed.href, {
+    signal: AbortSignal.timeout(8000),
+    redirect: 'follow',
+    headers: {
+      // A browser's headers: many shops turn away anything that looks like a bot
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9'
+    }
+  });
+  if (!response.ok) return { title: null, image: null };
+  const html = (await response.text()).slice(0, 400000);
+  const product = jsonLdProduct(html);
+  const siteName = metaContent(html, 'og:site_name');
+  const titleTag = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  const candidates = [
+    product && product.name,
+    metaContent(html, 'og:title'),
+    metaContent(html, 'twitter:title'),
+    titleTag && decodeHtmlEntities(titleTag[1]).trim()
+  ];
+  let title = null;
+  for (const c of candidates) { title = cleanProductName(c, siteName, parsed.hostname); if (title) break; }
+  const imageSrc = (product && product.image) || metaContent(html, 'og:image') || metaContent(html, 'twitter:image');
+  return { title, image: imageSrc ? absoluteHttpUrl(imageSrc, response.url || parsed.href) : null };
+}
+
+function linkFromText(text) {
+  const m = String(text || '').match(/https?:\/\/[^\s<]+/);
+  if (!m) return null;
+  try {
+    const u = new URL(m[0].replace(/[.,;:!?)\]]+$/, ''));
+    return /^https?:$/.test(u.protocol) && !isPrivateHostname(u.hostname) ? u : null;
+  } catch { return null; }
+}
+
 app.get('/api/link-preview', requireAdmin, async (req, res) => {
   const { url } = req.query;
   let parsed;
@@ -986,27 +1090,37 @@ app.get('/api/link-preview', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Invalid URL' });
   }
   if (isPrivateHostname(parsed.hostname)) return res.status(400).json({ error: 'Invalid URL' });
-
   try {
-    const response = await fetch(parsed.href, {
-      signal: AbortSignal.timeout(8000),
-      redirect: 'follow',
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LifeDayByDayBot/1.0)' }
-    });
-    if (!response.ok) return res.json({ title: null, image: null });
-
-    const html = (await response.text()).slice(0, 200000);
-    const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
-    const titleTag = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    const ogImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
-
-    const title = ogTitle ? decodeHtmlEntities(ogTitle[1]).trim() : titleTag ? decodeHtmlEntities(titleTag[1]).trim() : null;
-    const image = ogImage ? ogImage[1].trim() : null;
-    res.json({ title, image });
+    res.json(await fetchLinkPreview(parsed.href));
   } catch (err) {
     console.error('Link preview failed for', url, err.message);
     res.json({ title: null, image: null });
   }
+});
+
+// Looks up a wish's link once and keeps what it finds on the wish (name, photo), so the
+// list doesn't depend on a shop answering on every visit. resolvedAt records the try, so a
+// shop that blocks us isn't asked again on every render (the app retries after a week).
+app.post('/api/wishlist/:id/resolve', requireAdmin, async (req, res) => {
+  const profile = profileFrom(req);
+  const wish = readTasks(profile).wishlist.find(w => w.id === Number(req.params.id));
+  if (!wish) return res.status(404).json({ error: 'Wish not found' });
+  const link = linkFromText(wish.text);
+  if (!link) return res.json({ name: wish.name || '', image: wish.image || '' });
+
+  let preview = { title: null, image: null };
+  try { preview = await fetchLinkPreview(link.href); }
+  catch (err) { console.error('Wish lookup failed for', link.href, err.message); }
+
+  // The lookup took seconds: re-read, and only touch the wish if its link is unchanged
+  const fresh = readTasks(profile);
+  const w = fresh.wishlist.find(x => x.id === wish.id);
+  if (!w || w.text !== wish.text) return res.json({ name: '', image: '' });
+  w.resolvedAt = new Date().toISOString();
+  if (preview.title) w.name = preview.title;
+  if (preview.image) w.image = preview.image;
+  writeTasks(fresh, profile);
+  res.json({ name: w.name || '', image: w.image || '', resolvedAt: w.resolvedAt });
 });
 
 // Get all tasks
@@ -1073,7 +1187,7 @@ app.post('/api/wishlist/:id/acquire', requireAdmin, (req, res) => {
   if (!wish) return res.status(404).json({ error: 'Wish not found' });
 
   const acquiredAt = new Date().toISOString();
-  const entry = { id: wish.id, text: wish.text, note: wish.note || '', createdAt: wish.createdAt, acquiredAt };
+  const entry = { id: wish.id, text: wish.text, note: wish.note || '', name: wish.name || '', image: wish.image || '', createdAt: wish.createdAt, acquiredAt };
   data.acquired.push(entry);
   data.wishlist = data.wishlist.filter(w => w.id !== wish.id);
   writeTasks(data, profile);
@@ -1242,6 +1356,9 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
 
   if (category === 'wishlist') {
     if (req.body.note !== undefined) task.note = String(req.body.note).slice(0, 200);
+    if (req.body.text !== undefined && req.body.text !== before.text) {
+      delete task.name; delete task.image; delete task.resolvedAt; // a new link gets looked up afresh
+    }
   }
 
   // "Use this" on an errand's swap: the swap becomes the item, and there's nothing left to swap

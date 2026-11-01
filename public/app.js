@@ -632,20 +632,27 @@ function urlSlugTitle(url) {
   let last = decodeURIComponent(segments[segments.length - 1]);
   last = last.replace(/\.(html?|aspx|php|asp|jsp)$/i, '');
   last = last.replace(/[-_+]+/g, ' ').trim();
-  last = last.replace(/\b\w*\d{4,}\w*\b/g, '').replace(/\s+/g, ' ').trim(); // drop SKU/ID-looking tokens
+  last = last.replace(/\b\w*\d\w*\b/g, '').replace(/\s+/g, ' ').trim(); // drop SKU/ID-looking tokens ("Wo11", "Kp228")
   if (!last || last.length < 3) return null;
+  if (!last.includes(' ') && !/[aeiouy]/i.test(last)) return null; // a lone code like "Srgr" isn't a name
   return last.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
 
-function renderLinkChip(url) {
+// opts.title: a name already settled (your words, or one saved on a wish), so the live
+// lookup must not overwrite it. opts.image: the product's photo, shown in place of the
+// shop's icon; if the shop won't serve it, the icon comes back.
+function renderLinkChip(url, opts = {}) {
   const hostname = url.hostname.replace(/^www\./, '');
   const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(hostname)}`;
   const cached = linkPreviewCache.get(url.href);
-  const title = (cached && cached.title) || urlSlugTitle(url) || '';
+  const title = opts.title || (cached && cached.title) || urlSlugTitle(url) || '';
   const showDomain = title && title.toLowerCase() !== hostname.toLowerCase();
+  const icon = opts.image
+    ? `<img class="task-link-thumb" src="${escapeHtml(opts.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.className='task-link-favicon';this.src='${favicon}'">`
+    : `<img class="task-link-favicon" src="${favicon}" alt="" loading="lazy" onerror="this.remove()">`;
 
-  return `<a class="task-link" href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(title || url.href)}" data-link-url="${escapeHtml(url.href)}">
-    <img class="task-link-favicon" src="${favicon}" alt="" loading="lazy" onerror="this.remove()">
+  return `<a class="task-link" href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(title || url.href)}"${opts.title ? '' : ` data-link-url="${escapeHtml(url.href)}"`}>
+    ${icon}
     <span class="task-link-text">
       <span class="task-link-title">${escapeHtml(title || hostname)}</span>
       ${showDomain ? `<span class="task-link-domain">${escapeHtml(hostname)}</span>` : ''}
@@ -1563,15 +1570,18 @@ function renderWishlist() {
     list.appendChild(li);
     return;
   }
-  for (const wish of wishes) {
+  wishes.forEach((wish, i) => {
     const li = document.createElement('li');
     li.className = 'task-item wish-row';
+    // Calm list: the first few show, the rest wait behind "— N more"
+    if (i >= WISH_VISIBLE && !wishlistExpanded) li.classList.add('list-hidden');
     li.dataset.id = wish.id;
     li.dataset.category = 'wishlist';
+    const { noteUsed } = wishName(wish);
     li.innerHTML = `
       <div class="wish-row-body">
-        <span class="task-text">${renderTaskText(wish.text)}</span>
-        ${wish.note ? `<span class="wish-row-note">${escapeHtml(wish.note)}</span>` : ''}
+        <span class="task-text">${wishTextHTML(wish)}</span>
+        ${wish.note && !noteUsed ? `<span class="wish-row-note">${escapeHtml(wish.note)}</span>` : ''}
       </div>
       <div class="task-actions">
         <button class="task-action-btn move" data-id="${wish.id}" data-category="wishlist" title="Move to errands">→ errands</button>
@@ -1580,8 +1590,73 @@ function renderWishlist() {
       </div>
     `;
     list.appendChild(li);
-  }
+  });
   initSortable('list-wishlist', 'wishlist');
+
+  const section = list.parentElement;
+  const existingMore = section.querySelector('.show-more-btn');
+  if (existingMore) existingMore.remove();
+  if (wishes.length > WISH_VISIBLE && !wishlistExpanded) {
+    const btn = document.createElement('button');
+    btn.className = 'show-more-btn';
+    btn.textContent = `— ${wishes.length - WISH_VISIBLE} more`;
+    btn.addEventListener('click', () => { wishlistExpanded = true; renderWishlist(); hydrateLinkPreviews(); });
+    section.appendChild(btn);
+  }
+  lookUpWishNames();
+}
+
+const WISH_VISIBLE = 3;           // wishes shown before the fold
+const WISH_RELOOK_DAYS = 7;       // a shop that gave nothing is asked again after a week
+let wishlistExpanded = false;     // this visit only
+const wishLookups = new Set();    // wish ids already looked up this visit
+
+// The clearest name for a wish, in order: words you typed with the link, your note
+// (when the wish is only a link), the name saved from the shop's page. null = let the
+// chip fall back to a live lookup, the link's own words, then the shop's name.
+function wishName(wish) {
+  const link = wish.text.match(/https?:\/\/[^\s<]+/);
+  if (!link) return { title: wish.text, noteUsed: false };
+  const words = wish.text.replace(link[0], '').trim();
+  if (words) return { title: words, noteUsed: false };
+  if (wish.note) return { title: wish.note, noteUsed: true };
+  if (wish.name) return { title: wish.name, noteUsed: false };
+  return { title: null, noteUsed: false };
+}
+
+// A wish (or acquired item) as one chip: its name, the shop beneath, the photo if there is one
+function wishTextHTML(wish) {
+  const link = wish.text.match(/https?:\/\/[^\s<]+/);
+  if (!link) return escapeHtml(wish.text);
+  let url;
+  try { url = new URL(link[0].replace(/[.,;:!?)\]]+$/, '')); } catch { return escapeHtml(wish.text); }
+  return renderLinkChip(url, { title: wishName(wish).title, image: wish.image });
+}
+
+// Each wish's link is looked up once on the server and the name and photo are saved on
+// the wish, so the list reads the same on every visit. Admin only (it writes).
+function lookUpWishNames() {
+  if (!isAdmin()) return;
+  const weekAgo = Date.now() - WISH_RELOOK_DAYS * 86400000;
+  for (const wish of tasks.wishlist || []) {
+    if (wish.name || wishLookups.has(wish.id) || !/https?:\/\//.test(wish.text)) continue;
+    if (wish.resolvedAt && new Date(wish.resolvedAt).getTime() > weekAgo) continue;
+    wishLookups.add(wish.id);
+    apiFetch(`${API}/wishlist/${wish.id}/resolve`, { method: 'POST' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        const w = data && (tasks.wishlist || []).find(x => x.id === wish.id);
+        if (!w) return;
+        w.resolvedAt = data.resolvedAt || w.resolvedAt;
+        if ((data.name && data.name !== w.name) || (data.image && data.image !== w.image)) {
+          w.name = data.name || w.name;
+          w.image = data.image || w.image;
+          renderWishlist();
+          hydrateLinkPreviews();
+        }
+      })
+      .catch(err => console.error('Wish lookup failed:', err));
+  }
 }
 
 function renderAcquired() {
@@ -1599,7 +1674,7 @@ function renderAcquired() {
     li.dataset.id = item.id;
     li.dataset.category = 'acquired';
     li.innerHTML = `
-      <span class="task-text">${renderTaskText(item.text)}</span>
+      <span class="task-text">${wishTextHTML(item)}</span>
       <span class="acquired-row-meta">${escapeHtml(`wanted ${wantedFor(item.createdAt, item.acquiredAt)} · ${formatShortDate(item.acquiredAt)}`)}</span>
       <div class="task-actions">
         <button class="task-action-btn delete" data-id="${item.id}" data-category="acquired" title="Delete">delete</button>
@@ -1641,12 +1716,13 @@ function openWishCard(id) {
   openWishId = id;
   document.getElementById('wish-label').textContent = 'Wishlist';
   // Title is a plain name; the link (if any) sits beneath it as a normal chip
-  document.getElementById('wish-title').textContent = wishDisplayName(wish.text);
+  const named = wishName(wish);
+  document.getElementById('wish-title').textContent = named.title || wishDisplayName(wish.text);
   const link = wish.text.match(/https?:\/\/[^\s<]+/);
   document.getElementById('wish-link').innerHTML = link ? renderTaskText(link[0]) : '';
   const note = document.getElementById('wish-note');
   note.textContent = wish.note || '';
-  note.classList.toggle('hidden', !wish.note);
+  note.classList.toggle('hidden', !wish.note || named.noteUsed); // already the title
   document.getElementById('wish-since').textContent = `On your list since ${formatShortDate(wish.createdAt)}`;
   document.getElementById('wish-actions').classList.toggle('hidden', !isAdmin());
   document.getElementById('wish-acquired-actions').classList.add('hidden');
@@ -1679,7 +1755,7 @@ function addAcquiredToWardrobe() {
   if (match) {
     try { origin = new URL(match[0]).hostname.replace(/^www\./, ''); } catch {}
   }
-  document.getElementById('wf-name').value = wishDisplayName(lastAcquired.text);
+  document.getElementById('wf-name').value = wishName(lastAcquired).title || wishDisplayName(lastAcquired.text);
   document.getElementById('wf-origin').value = origin;
   document.getElementById('wf-acquired').value = new Date(lastAcquired.acquiredAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   if (lastAcquired.note) document.getElementById('wf-memory').value = lastAcquired.note;

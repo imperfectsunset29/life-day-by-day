@@ -141,3 +141,7 @@ Built right away: each morning gets one of eight wordless background moods, so a
 ## 2026-11-01 — Any photo becomes errands
 **Decision:** "Add from a recipe" became "Add from a photo". The same review card now reads a screenshot of a text asking for razors, a handwritten list or an empty package, not just recipes. Groceries still always get a Trader Joe's-first swap; other things get one only when there's a real alternative, so "swap?" doesn't appear on razors for nothing.
 **Why:** Requests to buy something arrive as messages as often as recipes. One door for every photo keeps Shopping simple.
+
+## 2026-11-01 — Wishes say what they are
+**Decision:** Wishlist rows now name the thing. Your own words win (text typed with the link, or the note when the wish is only a link), then the product name read from the shop's page, saved on the wish so it doesn't change between visits. Product codes ("Kp228"), "Product" and bot walls are no longer shown as names; when nothing is known, the row honestly shows the shop. The product photo replaces the shop icon when the shop allows it. Only three wishes show; the rest wait behind "— N more".
+**Why:** A wishlist of "Srgr Wo11" and "Ccd42" isn't a mirror of what you want. Shops that block lookups can't be fixed from the outside, so your note is the dependable name, and the fold keeps a long list calm (principle 5).
