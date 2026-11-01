@@ -161,3 +161,4 @@ Built right away: each morning gets one of eight wordless background moods, so a
 ## 2026-11-01 — One way to add, everywhere
 **Decision:** The "type it / from a photo" menu became a rule: any + whose item can be read from a photo opens it. Wardrobe now follows Errands: "+ Add garment" and each category's + offer both, and "from a photo" goes straight to the camera, then opens the garment form already reading the photo. Lists with nothing to read keep a plain +; photos that are attached rather than read (dreams, the outfit prompt) stay inside their own forms.
 **Why:** The same gesture should mean the same thing on every page. Choosing "from a photo" and then having to find "Add photo" inside a form was a step too many.
+**Rule, made general:** whenever there are two or more different ways to add something, the + opens the menu of those ways. A + with one way in goes straight to it; a new input method anywhere brings the menu with it.
