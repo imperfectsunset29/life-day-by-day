@@ -2414,11 +2414,19 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   letter-spacing: 0;
 }
 
-/* Dreams' + lives at the end of the title row (pushed right), the same small + as every
-   other list heading: one way to add, one look, nothing floating over the photos */
-.dreams-add-btn {
-  margin-left: auto;
-  align-self: center;
+/* A one-list page (Dreams) has no section header, so its + ends the subtitle line, pushed
+   right: the same small + as every list heading, never beside the page title, never floating.
+   The row takes over the subtitle's bottom margin so the page keeps its rhythm. */
+.subtitle-add-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 56px;
+}
+
+.subtitle-add-row .olympus-subtitle {
+  margin-bottom: 0;
 }
 
 /* ============ Shopping: wishlist + acquired ============ */

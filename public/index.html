@@ -325,13 +325,15 @@
 
   <!-- Dreams view -->
   <main id="dreams-view" class="hidden">
-    <!-- The + sits beside the list's heading like every other list's, not floating over the feed -->
     <div class="olympus-header">
       <button id="dreams-back" class="back-btn"></button>
       <h2 class="olympus-title">Dreams</h2>
-      <button id="dreams-add-btn" class="add-btn dreams-add-btn" data-category="dreams" title="Add a dream">+</button>
     </div>
-    <p class="olympus-subtitle">Things worth wanting, someday</p>
+    <!-- The + never shares the page title's line; on a one-list page it ends the subtitle line -->
+    <div class="subtitle-add-row">
+      <p class="olympus-subtitle">Things worth wanting, someday</p>
+      <button id="dreams-add-btn" class="add-btn" data-category="dreams" title="Add a dream">+</button>
+    </div>
     <ul id="list-dreams" class="task-list dream-feed"></ul>
   </main>
 
