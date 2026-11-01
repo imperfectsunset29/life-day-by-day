@@ -2339,7 +2339,7 @@ function setWardrobeCameraBtn(hasPhotos) {
   btn.textContent = hasPhotos ? 'Add another photo' : 'Add photo';
 }
 
-function capturePhoto(file) {
+function capturePhoto(file, { analyze = false } = {}) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -2352,6 +2352,7 @@ function capturePhoto(file) {
     document.getElementById('wardrobe-analyze-btn').classList.remove('hidden');
     setWardrobeCameraBtn(true);
     wardrobePhotoInput.value = '';
+    if (analyze) analyzePhotos();
   };
   reader.readAsDataURL(file);
 }
@@ -2608,9 +2609,11 @@ function openActionDropdown(editBtn) {
   document.body.appendChild(dropdown);
 }
 
-// The Errands + offers two ways in: type it, or read it from a photo. Same small menu as
-// a row's edit menu on phones, opening under the +.
-function openAddErrandMenu(addBtn) {
+// The rule for adding: wherever something can be added either by typing or by reading a
+// photo (Errands, Wardrobe), its + opens this small menu, "type it" / "from a photo", the
+// same .action-dropdown as a row's edit menu on phones, opening under the +. Lists with
+// nothing to read from a photo keep a + that goes straight to typing.
+function openAddMenu(addBtn, { onType, onPhoto }) {
   closeActionDropdown();
   const rect = addBtn.getBoundingClientRect();
   const menu = document.createElement('div');
@@ -2620,15 +2623,32 @@ function openAddErrandMenu(addBtn) {
 
   const type = document.createElement('button');
   type.textContent = 'type it';
-  type.addEventListener('click', (e) => { e.stopPropagation(); closeActionDropdown(); addTask('shoppingList'); });
+  type.addEventListener('click', (e) => { e.stopPropagation(); closeActionDropdown(); onType(); });
 
   const photo = document.createElement('button');
   photo.textContent = 'from a photo';
-  // Opening the picker must happen inside the tap itself, or phones block it
-  photo.addEventListener('click', (e) => { e.stopPropagation(); closeActionDropdown(); document.getElementById('shop-photo-input').click(); });
+  // onPhoto opens the picker, which must happen inside the tap itself, or phones block it
+  photo.addEventListener('click', (e) => { e.stopPropagation(); closeActionDropdown(); onPhoto(); });
 
   menu.append(type, photo);
   document.body.appendChild(menu);
+}
+
+function openAddErrandMenu(addBtn) {
+  openAddMenu(addBtn, {
+    onType: () => addTask('shoppingList'),
+    onPhoto: () => document.getElementById('shop-photo-input').click()
+  });
+}
+
+// Wardrobe: "from a photo" goes straight to the camera / library; once a photo is picked the
+// add-garment form opens with it in and already being read, so the fields fill themselves.
+let wardrobePhotoFirstCat = undefined; // set while the picker is open from the menu
+function openAddGarmentMenu(addBtn, wardrobeCat) {
+  openAddMenu(addBtn, {
+    onType: () => openWardrobeAddModal(wardrobeCat),
+    onPhoto: () => { wardrobePhotoFirstCat = wardrobeCat || null; wardrobePhotoInput.click(); }
+  });
 }
 
 // Event delegation
@@ -2669,7 +2689,7 @@ document.addEventListener('click', (e) => {
     else addTask(target.dataset.category);
   }
   else if (target.classList.contains('wardrobe-add-btn')) {
-    openWardrobeAddModal(target.dataset.wardrobeCat);
+    openAddGarmentMenu(target, target.dataset.wardrobeCat);
   }
   else if (target.classList.contains('swap')) {
     toggleSwap(Number(target.dataset.id));
@@ -2961,9 +2981,21 @@ function initSortable(listId, category) {
 
 // Wardrobe listeners
 document.getElementById('wardrobe-back').addEventListener('click', showMain);
-wardrobeGlobalAddBtn.addEventListener('click', () => openWardrobeAddModal(null));
-document.getElementById('wardrobe-camera-btn').addEventListener('click', () => wardrobePhotoInput.click());
-wardrobePhotoInput.addEventListener('change', e => capturePhoto(e.target.files[0]));
+// stopPropagation: the page's click handler closes open menus, and would close this one at once
+wardrobeGlobalAddBtn.addEventListener('click', e => { e.stopPropagation(); openAddGarmentMenu(wardrobeGlobalAddBtn, null); });
+document.getElementById('wardrobe-camera-btn').addEventListener('click', () => { wardrobePhotoFirstCat = undefined; wardrobePhotoInput.click(); });
+wardrobePhotoInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (wardrobePhotoFirstCat !== undefined) {
+    // Picked from the + menu: open a fresh form, then read the photo straight away
+    openWardrobeAddModal(wardrobePhotoFirstCat);
+    wardrobePhotoFirstCat = undefined;
+    capturePhoto(file, { analyze: true });
+  } else {
+    capturePhoto(file);
+  }
+});
 document.getElementById('wardrobe-analyze-btn').addEventListener('click', analyzePhotos);
 document.getElementById('wardrobe-save-btn').addEventListener('click', saveWardrobeItem);
 document.getElementById('wf-cat').addEventListener('change', e => populateSubcatOptions(e.target.value));
