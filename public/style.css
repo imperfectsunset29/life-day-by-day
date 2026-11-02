@@ -846,6 +846,24 @@ textarea.task-text-input {
   inset: -5px 0; /* 34px visible + 10px = 44px */
 }
 
+/* The small + circles (24px) and "— N more" keep their look but get the 44px tap floor:
+   an invisible ::after reaches about 10px past each side of the circle, and the text link
+   takes a 44px line. */
+.add-btn, .wardrobe-add-btn {
+  position: relative;
+  z-index: 1; /* above the list that starts just below, so its tap area isn't covered */
+}
+
+.add-btn::after, .wardrobe-add-btn::after {
+  content: '';
+  position: absolute;
+  inset: -11px; /* measured from inside the 1px border: 22px + 22px = 44px square */
+}
+
+.show-more-btn {
+  min-height: 44px;
+}
+
 /* Text action: the third action in a group. A group shows at most two buttons;
    anything beyond them is plain text on its own line, never a third pill. */
 .btn-text {
