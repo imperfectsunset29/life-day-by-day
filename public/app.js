@@ -1222,7 +1222,7 @@ async function restoreTask(category, id) {
   if (category === 'olympus') {
     const entry = tasks.olympus.find(t => t.id === id);
     const name = entry ? entry.text : 'this project';
-    const ok = await askConfirm(`Send “${name}” back to Projects? It starts again at 0%, and its quote is let go.`, 'Send it back', 'Keep it here');
+    const ok = await askConfirm(`Send “${name}” back to Projects? It starts again at 0%, and its quote is let go.`, 'Send back', 'Cancel');
     if (!ok) return;
   }
   await apiFetch(`${API}/restore/${category}/${id}`, { method: 'POST' });
