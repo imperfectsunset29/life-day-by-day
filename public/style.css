@@ -1842,14 +1842,23 @@ body.admin-mode .progress-btn:disabled {
    focus, and settles into sharp ivory, starting at the centre of the light and spreading out
    (--d, set per word by its distance from the centre; --dur slows for work carried longer). */
 .ceremony-word {
-  opacity: 0;
   animation: wordBloom var(--dur, 1.3s) ease-out var(--d, 0s) both;
 }
 
+/* Settled: the animation is gone and the word is plain, sharp ivory */
+.ceremony-word.is-settled {
+  animation: none;
+  color: #f0e8e0;
+  text-shadow: none;
+}
+
+/* Soft focus without a blur filter (iOS Safari can leave a filtered inline word stuck blurred):
+   the letters start see-through with an amber glow standing in for them, then come into focus. */
 @keyframes wordBloom {
-  0%   { opacity: 0; filter: blur(8px); color: #e8c48c; text-shadow: 0 0 18px rgba(212, 144, 42, 0.8); }
-  45%  { opacity: 1; filter: blur(1.5px); color: #e0bd88; text-shadow: 0 0 12px rgba(212, 144, 42, 0.5); }
-  100% { opacity: 1; filter: none; color: #f0e8e0; text-shadow: 0 0 0 rgba(212, 144, 42, 0); }
+  0%   { color: rgba(232, 196, 140, 0); text-shadow: 0 0 12px rgba(232, 196, 140, 0); }
+  30%  { color: rgba(232, 196, 140, 0); text-shadow: 0 0 10px rgba(232, 196, 140, 0.9); }
+  60%  { color: rgba(224, 189, 136, 0.75); text-shadow: 0 0 4px rgba(212, 144, 42, 0.6); }
+  100% { color: #f0e8e0; text-shadow: 0 0 0 rgba(212, 144, 42, 0); }
 }
 
 /* Principle 3: small finishes settle with a calm amber beat; undoing gets a quieter sage one */
@@ -1879,7 +1888,7 @@ body.admin-mode .progress-btn:disabled {
   .is-waiting::before { animation: none; background: rgba(200, 168, 122, 0.18); }
   .btn-primary.is-waiting { animation: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 22px rgba(200, 168, 122, 0.45); }
   .btn-primary.is-waiting::before { background: rgba(255, 232, 196, 0.35); }
-  .ceremony-word { animation: none; opacity: 1; }
+  .ceremony-word { animation: none; color: #f0e8e0; }
 }
 
 .celebration-dismiss {

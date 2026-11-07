@@ -816,10 +816,14 @@ function playCeremony(quote, tier = 'ceremony-base') {
 
   textEl.className = 'celebration-text ceremony-bloom';
   textEl.textContent = '';
-  const words = quote.split(' ').map((word, i, all) => {
+  // No blur filter here: iOS Safari can leave a filtered inline word stuck out of focus. The soft
+  // focus is a text shadow (style.css), and once a word has settled its animation is removed.
+  const words = quote.split(' ').map((word, i) => {
+    if (i) textEl.appendChild(document.createTextNode(' '));
     const span = document.createElement('span');
     span.className = 'ceremony-word';
-    span.textContent = word + (i < all.length - 1 ? ' ' : '');
+    span.textContent = word;
+    span.addEventListener('animationend', () => span.classList.add('is-settled'), { once: true });
     textEl.appendChild(span);
     return span;
   });
