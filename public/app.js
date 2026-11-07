@@ -788,7 +788,10 @@ function playBeat(selector, kind) {
   });
 }
 
-const CEREMONIES = ['sand', 'ink', 'type', 'rise'];
+// The quote is performed by a block reveal: line by line, an amber block sweeps in from the
+// left, holds, then retracts off the right, uncovering the words beneath it; a faint amber rule
+// draws under the quote last. The words are always new; the longer the work was carried, the
+// slower the reveal and the brighter the glow behind it (tier).
 const CEREMONY_TIERS = ['ceremony-base', 'ceremony-long', 'ceremony-epic'];
 const CEREMONY_SPEED = { 'ceremony-base': 1, 'ceremony-long': 1.35, 'ceremony-epic': 1.7 };
 let ceremonyTimers = [];
@@ -799,65 +802,52 @@ function ceremonyTierFor(carriedDays) {
   return 'ceremony-epic';
 }
 
-function pickCeremony() {
-  let last = null;
-  try { last = localStorage.getItem('lastCeremony'); } catch {}
-  const options = CEREMONIES.filter(c => c !== last);
-  const pick = options[Math.floor(Math.random() * options.length)];
-  try { localStorage.setItem('lastCeremony', pick); } catch {}
-  return pick;
-}
-
 function playCeremony(quote, tier = 'ceremony-base') {
   const el = document.getElementById('oneoff-celebration-overlay');
   const content = el.querySelector('.celebration-content');
-  const canvas = el.querySelector('.celebration-canvas');
   const textEl = el.querySelector('.celebration-text');
   stopQuoteWait();
   content.classList.remove(...CEREMONY_TIERS, 'is-waiting-quote');
   content.classList.add(tier);
-  const speed = CEREMONY_SPEED[tier] || 1;
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const ceremony = reduced ? 'still' : pickCeremony();
+  textEl.style.setProperty('--ceremony-speed', CEREMONY_SPEED[tier] || 1);
 
-  if (ceremony === 'sand') {
-    textEl.classList.add('hidden');
-    canvas.classList.remove('hidden');
-    animateSandText(canvas, quote, speed);
-    return;
-  }
-
-  canvas.classList.add('hidden');
-  textEl.classList.remove('hidden');
-  textEl.className = `celebration-text ceremony-${ceremony}`;
+  // Let the browser wrap the quote, then read its lines back so each gets its own block
+  textEl.className = 'celebration-text';
   textEl.textContent = '';
-
-  if (ceremony === 'still') {
-    textEl.textContent = quote;
-    return;
-  }
-
-  if (ceremony === 'type') {
-    // Typed out letter by letter, with a soft caret
-    const typed = document.createElement('span');
-    const caret = document.createElement('span');
-    caret.className = 'ceremony-caret';
-    textEl.append(typed, caret);
-    [...quote].forEach((ch, i) => {
-      ceremonyTimers.push(setTimeout(() => { typed.textContent += ch; }, i * 32 * speed));
-    });
-    ceremonyTimers.push(setTimeout(() => caret.remove(), quote.length * 32 * speed + 1200));
-    return;
-  }
-
-  // ink: words sharpen out of a blur; rise: words float up into place
-  quote.split(' ').forEach((word, i, all) => {
+  const words = quote.split(' ').map(word => {
     const span = document.createElement('span');
-    span.className = 'ceremony-word';
-    span.textContent = word + (i < all.length - 1 ? ' ' : '');
+    span.textContent = word + ' ';
     textEl.appendChild(span);
-    ceremonyTimers.push(setTimeout(() => span.classList.add('in'), (ceremony === 'ink' ? 110 : 70) * i * speed));
+    return span;
   });
+  if (!textEl.offsetParent) { textEl.textContent = quote; return; } // closed before it arrived
+  const lines = [];
+  let top = null;
+  for (const span of words) {
+    if (span.offsetTop !== top) { lines.push([]); top = span.offsetTop; }
+    lines[lines.length - 1].push(span.textContent);
+  }
+
+  textEl.textContent = '';
+  textEl.classList.add('ceremony-block');
+  lines.forEach((line, i) => {
+    const row = document.createElement('span');
+    row.className = 'ceremony-line';
+    row.style.setProperty('--line', i);
+    const text = document.createElement('span');
+    text.className = 'ceremony-line-text';
+    text.textContent = line.join('').trim();
+    const block = document.createElement('span');
+    block.className = 'ceremony-line-block';
+    block.setAttribute('aria-hidden', 'true');
+    row.append(text, block);
+    textEl.appendChild(row);
+  });
+  const rule = document.createElement('span');
+  rule.className = 'ceremony-rule';
+  rule.setAttribute('aria-hidden', 'true');
+  rule.style.setProperty('--line', lines.length);
+  textEl.appendChild(rule);
 }
 
 function openCelebrationOverlay() {
@@ -865,8 +855,6 @@ function openCelebrationOverlay() {
   // Wipe the previous quote so it doesn't flash while the new one is on its way
   ceremonyTimers.forEach(clearTimeout);
   ceremonyTimers = [];
-  const canvas = el.querySelector('.celebration-canvas');
-  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
   el.querySelector('.celebration-text').textContent = '';
   // Waiting shows: until the quote arrives, the quote is visibly being gathered (playCeremony stops it)
   el.querySelector('.celebration-content').classList.add('is-waiting-quote');
@@ -963,7 +951,7 @@ async function showCelebration(quote, tier = 'ceremony-base') {
 
 async function showOneOffCelebration() {
   // Open the overlay immediately rather than waiting on the quote round-trip first —
-  // the panel appears right away, and the sand-text animation fills in once it arrives.
+  // the panel appears right away, and the block reveal plays once it arrives.
   const el = document.getElementById('oneoff-celebration-overlay');
   openCelebrationOverlay();
   await document.fonts.ready;
@@ -980,153 +968,6 @@ async function showOneOffCelebration() {
   }
 
   requestAnimationFrame(() => playCeremony(quote, 'ceremony-base'));
-}
-
-function animateSandText(canvas, text, speed = 1) {
-  const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth;
-  if (!W) return;
-
-  const fontSize = 20;
-  const lineHeight = fontSize * 1.85;
-
-  // Word-wrap first so we can compute the required canvas height
-  const measure = Object.assign(document.createElement('canvas'), { width: 1, height: 1 }).getContext('2d');
-  measure.font = `italic ${fontSize}px "Instrument Serif", serif`;
-  const maxLineW = W - 48;
-  const words = text.split(' ');
-  const lines = [];
-  let cur = '';
-  for (const word of words) {
-    const test = cur ? cur + ' ' + word : word;
-    if (measure.measureText(test).width > maxLineW && cur) {
-      lines.push(cur);
-      cur = word;
-    } else {
-      cur = test;
-    }
-  }
-  if (cur) lines.push(cur);
-
-  const totalTextH = lines.length * lineHeight;
-  const H = totalTextH + lineHeight; // one line of vertical padding
-  canvas.style.height = H + 'px';
-
-  canvas.width = W * dpr;
-  canvas.height = H * dpr;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-
-  // Render text offscreen to sample pixel positions
-  const off = document.createElement('canvas');
-  off.width = W * dpr;
-  off.height = H * dpr;
-  const octx = off.getContext('2d');
-  octx.scale(dpr, dpr);
-  octx.font = `italic ${fontSize}px "Instrument Serif", serif`;
-  octx.textAlign = 'center';
-  octx.textBaseline = 'alphabetic';
-  octx.fillStyle = '#fff';
-
-  const topPad = (H - totalTextH) / 2;
-  for (let i = 0; i < lines.length; i++) {
-    octx.fillText(lines[i], W / 2, topPad + (i + 1) * lineHeight - fontSize * 0.2);
-  }
-
-  // Sample filled pixels
-  const imgData = octx.getImageData(0, 0, W * dpr, H * dpr).data;
-  const targets = [];
-  const step = Math.ceil(dpr * 2);
-  for (let py = 0; py < H * dpr; py += step) {
-    for (let px = 0; px < W * dpr; px += step) {
-      if (imgData[(py * Math.round(W * dpr) + px) * 4 + 3] > 60) {
-        targets.push({ x: px / dpr, y: py / dpr });
-      }
-    }
-  }
-  if (!targets.length) return;
-
-  // y range for stagger (bottom rows start first)
-  let yMin = Infinity, yMax = -Infinity;
-  for (const t of targets) {
-    if (t.y < yMin) yMin = t.y;
-    if (t.y > yMax) yMax = t.y;
-  }
-  const ySpan = yMax - yMin || 1;
-
-  const particles = targets.map(t => ({
-    tx: t.x,
-    ty: t.y,
-    sx: t.x + (Math.random() - 0.5) * 60,
-    delay: ((yMax - t.y) / ySpan) * 700 * speed,   // bottom-first; slower for longer-carried work
-    dur: (850 + Math.random() * 400) * speed,
-    color: Math.random() < 0.6 ? '#f0e8e0' : '#c8a87a',
-    r: 0.3 + Math.random() * 0.5,
-  }));
-
-  let t0 = null;
-
-  function frame(ts) {
-    if (!t0) t0 = ts;
-    const elapsed = ts - t0;
-    ctx.clearRect(0, 0, W, H);
-
-    let allDone = true;
-    for (const p of particles) {
-      const local = elapsed - p.delay;
-      if (local <= 0) { allDone = false; continue; }
-
-      const prog = Math.min(1, local / p.dur);
-      if (prog < 1) allDone = false;
-
-      // ease-out cubic: fast fall, gentle settle
-      const ease = 1 - Math.pow(1 - prog, 3);
-
-      const x = p.sx + (p.tx - p.sx) * ease;
-      const y = -10 + (p.ty + 10) * ease;
-
-      ctx.globalAlpha = Math.min(1, local / 120);
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(x, y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.globalAlpha = 1;
-    if (!allDone) {
-      requestAnimationFrame(frame);
-    } else {
-      // Cross-fade: particles dissolve out as text materialises in (~250ms)
-      const fadeDur = 500;
-      let f0 = null;
-      function fadeFrame(ts) {
-        if (!f0) f0 = ts;
-        const prog = Math.min(1, (ts - f0) / fadeDur);
-        const ease = 1 - Math.pow(1 - prog, 3);
-        ctx.clearRect(0, 0, W, H);
-        for (const p of particles) {
-          ctx.globalAlpha = (1 - ease);
-          ctx.fillStyle = p.color;
-          ctx.beginPath();
-          ctx.arc(p.tx, p.ty, p.r, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.globalAlpha = ease;
-        ctx.font = `italic ${fontSize}px "Instrument Serif", serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillStyle = '#f0e8e0';
-        for (let i = 0; i < lines.length; i++) {
-          ctx.fillText(lines[i], W / 2, topPad + (i + 1) * lineHeight - fontSize * 0.2);
-        }
-        ctx.globalAlpha = 1;
-        if (prog < 1) requestAnimationFrame(fadeFrame);
-      }
-      requestAnimationFrame(fadeFrame);
-    }
-  }
-
-  requestAnimationFrame(frame);
 }
 
 // Edit task
