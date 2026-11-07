@@ -718,11 +718,12 @@ Rules:
 - Color: one clear color story. At most one strong color; everything else neutral or deliberately tonal. Never pair near-miss shades of one color family (bright red with burgundy, navy with black) unless the whole outfit is tonal on purpose.
 - Formality: every piece shares one level of dressiness that matches the occasion. Don't mix office tailoring, casual daywear and evening pieces in one outfit.
 - Practicality: dress for the given weather and for any walking, standing or travel the request implies. Shoes must suit the distance. Add a layer when it's cool or will get colder after dark.
+- Setting: think about what the place will do to the clothes, and choose fabrics that survive it. Smoke and grease (Korean BBQ, hot pot, a grill, a bonfire, a fried-food spot): washable pieces only (cotton, denim, linen, easy synthetics), never cashmere, wool knits, silk, suede or anything dry-clean-only, and no white or pale delicates. Messy or saucy food: nothing precious near the hands and lap. Grass, sand, cobblestones or gravel: no thin heels or delicate soles. Sitting on the floor or low seats: nothing short or tight. Crowds, dancing or heat indoors: breathable, nothing heavy. This outranks rotation and taste.
 - Structure: at most one item per category. A dress or jumpsuit/romper replaces a top and bottom; otherwise pick one top and one bottom. Include shoes if the closet has any. Add outerwear or an accessory only when it helps.
 - Rotation: among choices that work equally well, prefer pieces worn least recently or never — but not ones you suggested recently (listed in the request). Spread suggestions across the closet; don't build every outfit around the same favorite.
 - Taste: outfits the user loved show their style; echo their spirit, don't repeat them. Outfits they marked "not my style" show what to steer away from: avoid that direction, not just those exact pieces.
 
-Check the outfit against every rule before answering. "itemIds" are the chosen garments' IDs. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion.`;
+Check the outfit against every rule (including the setting) before answering. "itemIds" are the chosen garments' IDs. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion.`;
 
 // Principle 2 (off the hook): taste chooses the outfit, but now and then chance slips one
 // of your own pieces in. Unmarked: the outfit looks like any other.
@@ -804,10 +805,14 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
         passed.length ? `Outfits the user marked "not my style":\n${passed.join('\n')}` : '',
         recent.length ? `Pieces you suggested recently (any occasion) — don't lean on them again unless nothing else fits:\n${recent.map(id => `- ${nameOf(id)}`).join('\n')}` : '',
         wildCard ? `A piece chosen by chance for this outfit: "${wildCard.text}" (ID ${wildCard.id}). Include it and build the rest around it, following every rule. Don't mention that it was chosen by chance.` : '',
-        exclude.length ? `Already shown for this occasion — pick a genuinely different outfit with a different main piece (the dress or jumpsuit, or the top), not just new shoes or a layer:\n${exclude.map(ids => `- ${ids.map(nameOf).filter(Boolean).join(' + ')}`).join('\n')}` : ''
+        exclude.length ? `Already shown for this occasion. Pick a genuinely different outfit: reuse none of these main pieces (dresses, jumpsuits, tops or bottoms), unless the user asked to keep one or the closet has nothing else in that category. Shoes and layers may repeat:\n${exclude.map(ids => `- ${ids.map(nameOf).filter(Boolean).join(' + ')}`).join('\n')}` : ''
       ].filter(Boolean).join('\n\n');
 
-      const message = await anthropic.beta.messages.create({
+      const userContent = photo
+        ? [{ type: 'image', source: { type: 'base64', media_type: photo.mimeType, data: photo.image } }, { type: 'text', text: request }]
+        : request;
+
+      const askStylist = messages => anthropic.beta.messages.create({
         model: 'claude-opus-5-5',
         max_tokens: 8000,
         betas: ['server-side-fallback-2026-07-01'],
@@ -817,17 +822,31 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
           { type: 'text', text: STYLIST_RULES },
           { type: 'text', text: `Closet (ID | category | name | details | wear history):\n${inventory}`, cache_control: { type: 'ephemeral' } }
         ],
-        messages: [{
-          role: 'user',
-          content: photo
-            ? [{ type: 'image', source: { type: 'base64', media_type: photo.mimeType, data: photo.image } }, { type: 'text', text: request }]
-            : request
-        }]
+        messages
       });
 
+      let messages = [{ role: 'user', content: userContent }];
+      let message = await askStylist(messages);
       if (message.stop_reason === 'refusal') throw new Error('stylist declined the request');
-      const text = message.content.find(b => b.type === 'text');
-      const result = JSON.parse(text.text);
+      let text = message.content.find(b => b.type === 'text');
+      let result = JSON.parse(text.text);
+
+      // A re-spin must actually change the outfit. The prompt says so, but at low effort the
+      // stylist sometimes clings to one piece (the same culottes every spin). If it reused a
+      // main piece that has an unshown alternative in its category, ask once more, naming it.
+      // Skipped when the user said more ("Say more?"), since they may have asked to keep it.
+      const reused = refine ? [] : result.itemIds
+        .map(id => data.wardrobe.find(i => i.id === id))
+        .filter(i => i && shownIds.has(i.id) && MAIN_CATEGORIES.includes(i.wardrobeCategory)
+          && data.wardrobe.some(o => o.wardrobeCategory === i.wardrobeCategory && !shownIds.has(o.id)));
+      if (reused.length) {
+        messages = [...messages,
+          { role: 'assistant', content: text.text },
+          { role: 'user', content: `${reused.map(i => `"${i.text}" (ID ${i.id})`).join(' and ')} ${reused.length > 1 ? 'were' : 'was'} already shown for this occasion. Replace ${reused.length > 1 ? 'them' : 'it'} with a different piece from the closet and rebuild the outfit around the change, following every rule.` }];
+        const retry = await askStylist(messages);
+        const retryText = retry.stop_reason !== 'refusal' && retry.content.find(b => b.type === 'text');
+        if (retryText) { text = retryText; result = JSON.parse(retryText.text); }
+      }
       items = result.itemIds.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
       why = typeof result.why === 'string' ? result.why.trim() : '';
       if (photo && typeof result.occasion === 'string') occasion = result.occasion.trim().slice(0, 80);
