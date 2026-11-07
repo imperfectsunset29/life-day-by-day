@@ -410,12 +410,12 @@ function renderProjects() {
         </div>
       </div>
       <div class="progress-row">
-        <button class="progress-btn" data-id="${task.id}" data-delta="-10">&minus;</button>
-        <div class="progress-track">
-          <div class="progress-fill" style="width: ${task.progress}%"></div>
+        <div class="progress-slider" data-id="${task.id}" style="--p: ${task.progress}">
+          <div class="progress-track"><div class="progress-fill"></div></div>
+          <span class="progress-thumb" role="slider" tabindex="0" data-id="${task.id}"
+            aria-label="Progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${task.progress}"></span>
         </div>
         <span class="progress-label">${task.progress}%</span>
-        <button class="progress-btn" data-id="${task.id}" data-delta="10">+</button>
       </div>
       ${isExpanded ? renderStepsHTML(task) : ''}
     `;
@@ -509,18 +509,79 @@ function startEditStep(projectId, stepId) {
   });
 }
 
-async function updateProgress(id, delta) {
+// Project progress is a slider: drag the circle along the bar (admin only). Only the circle
+// moves it (a tap on the bar does nothing), so a stray tap can't send a project to Olympus.
+// It moves in steps of PROGRESS_STEP with a soft tick at every 10%, and saves on release.
+const PROGRESS_STEP = 5;
+
+function showProgress(slider, value) {
+  slider.style.setProperty('--p', value);
+  slider.querySelector('.progress-thumb').setAttribute('aria-valuenow', value);
+  const label = slider.closest('.progress-row').querySelector('.progress-label');
+  if (label) label.textContent = `${value}%`;
+}
+
+document.addEventListener('pointerdown', (e) => {
+  const thumb = e.target.closest('.progress-thumb');
+  if (!thumb || !isAdmin()) return;
+  e.preventDefault();
+  const slider = thumb.closest('.progress-slider');
+  const id = Number(slider.dataset.id);
   const task = tasks.projects.find(t => t.id === id);
   if (!task) return;
-  const newProgress = Math.max(0, Math.min(100, task.progress + delta));
+  const track = slider.querySelector('.progress-track');
+  let value = task.progress;
+  thumb.setPointerCapture(e.pointerId);
+  slider.classList.add('is-dragging');
+
+  const onMove = (ev) => {
+    const rect = track.getBoundingClientRect();
+    const raw = ((ev.clientX - rect.left) / rect.width) * 100;
+    const next = Math.max(0, Math.min(100, Math.round(raw / PROGRESS_STEP) * PROGRESS_STEP));
+    if (next === value) return;
+    if (Math.floor(next / 10) !== Math.floor(value / 10)) haptic(); // a soft tick every 10%
+    value = next;
+    showProgress(slider, value);
+  };
+  const onUp = () => {
+    thumb.removeEventListener('pointermove', onMove);
+    thumb.removeEventListener('pointerup', onUp);
+    thumb.removeEventListener('pointercancel', onUp);
+    slider.classList.remove('is-dragging');
+    if (value !== task.progress) setProgress(id, value);
+  };
+  thumb.addEventListener('pointermove', onMove);
+  thumb.addEventListener('pointerup', onUp);
+  thumb.addEventListener('pointercancel', onUp);
+});
+
+// Keyboard: arrows nudge by a step, Home/End go to the ends
+document.addEventListener('keydown', (e) => {
+  const thumb = e.target.closest && e.target.closest('.progress-thumb');
+  if (!thumb || !isAdmin()) return;
+  const id = Number(thumb.dataset.id);
+  const task = tasks.projects.find(t => t.id === id);
+  if (!task) return;
+  const moves = { ArrowRight: PROGRESS_STEP, ArrowUp: PROGRESS_STEP, ArrowLeft: -PROGRESS_STEP, ArrowDown: -PROGRESS_STEP };
+  let next = null;
+  if (e.key in moves) next = task.progress + moves[e.key];
+  else if (e.key === 'Home') next = 0;
+  else if (e.key === 'End') next = 100;
+  if (next === null) return;
+  e.preventDefault();
+  next = Math.max(0, Math.min(100, next));
+  if (next !== task.progress) setProgress(id, next);
+});
+
+async function setProgress(id, newProgress) {
+  const task = tasks.projects.find(t => t.id === id);
+  if (!task) return;
+  newProgress = Math.max(0, Math.min(100, newProgress));
 
   // Optimistic DOM update — avoids full re-render blip
   task.progress = newProgress;
-  const li = document.querySelector(`#list-projects li[data-id="${id}"]`);
-  if (li) {
-    li.querySelector('.progress-fill').style.width = `${newProgress}%`;
-    li.querySelector('.progress-label').textContent = `${newProgress}%`;
-  }
+  const slider = document.querySelector(`#list-projects .progress-slider[data-id="${id}"]`);
+  if (slider) showProgress(slider, newProgress);
 
   // At 100% the server writes a fresh quote, which takes a moment — open the
   // overlay now so the finish feels instant, and let the quote fill in when it lands.
@@ -2649,9 +2710,6 @@ document.addEventListener('click', (e) => {
   else if (target.classList.contains('restore')) {
     restoreTask(target.dataset.category, Number(target.dataset.id));
   }
-  else if (target.classList.contains('progress-btn') && !target.disabled) {
-    updateProgress(Number(target.dataset.id), Number(target.dataset.delta));
-  }
   else if (target.id === 'dreams-add-btn') {
     openDreamAddModal();
   }
@@ -2932,6 +2990,8 @@ function initSortable(listId, category) {
     animation: 150,
     delay: 300,
     delayOnTouchOnly: true,
+    filter: '.progress-slider', // dragging a project's progress circle isn't reordering
+    preventOnFilter: false,
     disabled: !isAdmin(),
     ghostClass: 'sortable-ghost',
     chosenClass: 'sortable-chosen',
