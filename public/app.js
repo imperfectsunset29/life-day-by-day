@@ -813,7 +813,7 @@ function playCeremony(quote, tier = 'ceremony-base') {
   const content = el.querySelector('.celebration-content');
   const canvas = el.querySelector('.celebration-canvas');
   const textEl = el.querySelector('.celebration-text');
-  content.classList.remove(...CEREMONY_TIERS);
+  content.classList.remove(...CEREMONY_TIERS, 'is-waiting-quote');
   content.classList.add(tier);
   const speed = CEREMONY_SPEED[tier] || 1;
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -867,6 +867,8 @@ function openCelebrationOverlay() {
   const canvas = el.querySelector('.celebration-canvas');
   canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
   el.querySelector('.celebration-text').textContent = '';
+  // Waiting shows: until the quote arrives, the amber light behind it breathes (playCeremony stops it)
+  el.querySelector('.celebration-content').classList.add('is-waiting-quote');
   el.classList.remove('hidden');
 }
 
