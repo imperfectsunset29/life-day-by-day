@@ -1795,10 +1795,13 @@ body.admin-mode .progress-btn:disabled {
 }
 
 /* While the quote is being written (a few seconds), the panel isn't left empty: amber motes
-   gather into a light where the words will appear (drawn by startQuoteWait() in app.js), then
-   dissolve as the ceremony begins. The panel keeps the ceremony's height so it doesn't jump. */
+   gather into a light where the words will appear (drawn by startQuoteWait() in app.js), which
+   blooms open as the words arrive. The panel keeps the ceremony's height so it doesn't jump. */
+.celebration-content {
+  min-height: 260px; /* the same height waiting and blooming, so the light doesn't stretch */
+}
+
 .celebration-content.is-waiting-quote {
-  min-height: 260px;
   justify-content: flex-end;
 }
 
@@ -1813,12 +1816,6 @@ body.admin-mode .progress-btn:disabled {
   height: 100%;
   border-radius: inherit;
   pointer-events: none;
-  opacity: 1;
-  transition: opacity 0.7s ease;
-}
-
-.celebration-wait.is-fading {
-  opacity: 0;
 }
 
 .celebration-wait.hidden {
@@ -1841,70 +1838,18 @@ body.admin-mode .progress-btn:disabled {
   text-wrap: balance;
 }
 
-/* Block reveal: each line sits under an amber block that sweeps in from the left, holds,
-   then retracts off the right, uncovering the words as it goes. Lines follow each other a
-   beat apart (--line, set in playCeremony) and a faint amber rule draws beneath the quote last.
-   Slower the longer the work was carried (--ceremony-speed). */
-.celebration-text.ceremony-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  --ceremony-dur: calc(1.5s * var(--ceremony-speed, 1));
-  --ceremony-step: calc(0.16s * var(--ceremony-speed, 1));
+/* The quote surfaces out of the bloom (playCeremony): each word arrives as warm amber, out of
+   focus, and settles into sharp ivory, starting at the centre of the light and spreading out
+   (--d, set per word by its distance from the centre; --dur slows for work carried longer). */
+.ceremony-word {
+  opacity: 0;
+  animation: wordBloom var(--dur, 1.3s) ease-out var(--d, 0s) both;
 }
 
-.ceremony-line {
-  position: relative;
-  display: block;
-  white-space: nowrap;
-}
-
-.ceremony-line-text {
-  display: block;
-  clip-path: inset(0 100% 0 0);
-  animation: ceremonyReveal var(--ceremony-dur) cubic-bezier(0.76, 0, 0.24, 1) both;
-  animation-delay: calc(var(--line) * var(--ceremony-step));
-}
-
-.ceremony-line-block {
-  position: absolute;
-  inset: 0.32em -0.12em; /* the block covers the letters, not the generous line-height */
-  background: #c8a87a;
-  border-radius: 2px;
-  clip-path: inset(0 100% 0 0);
-  animation: ceremonyBlock var(--ceremony-dur) cubic-bezier(0.76, 0, 0.24, 1) both;
-  animation-delay: calc(var(--line) * var(--ceremony-step));
-}
-
-/* Block: sweep in from the left, hold, retract off the right */
-@keyframes ceremonyBlock {
-  0%       { clip-path: inset(0 100% 0 0); }
-  30%, 55% { clip-path: inset(0 0 0 0); }
-  100%     { clip-path: inset(0 0 0 100%); }
-}
-
-/* Text: hidden under the block, uncovered in step as it retracts, then stays */
-@keyframes ceremonyReveal {
-  0%, 55% { clip-path: inset(0 100% 0 0); }
-  100%    { clip-path: inset(0 0 0 0); }
-}
-
-.ceremony-rule {
-  display: block;
-  width: 70%;
-  height: 1px;
-  margin-top: 0.6em;
-  background: #c8a87a;
-  opacity: 0.35;
-  transform: scaleX(0);
-  transform-origin: left;
-  animation: ceremonyRule var(--ceremony-dur) cubic-bezier(0.76, 0, 0.24, 1) both;
-  animation-delay: calc(var(--line) * var(--ceremony-step));
-}
-
-@keyframes ceremonyRule {
-  0%, 30% { transform: scaleX(0); }
-  100%    { transform: scaleX(1); }
+@keyframes wordBloom {
+  0%   { opacity: 0; filter: blur(8px); color: #e8c48c; text-shadow: 0 0 18px rgba(212, 144, 42, 0.8); }
+  45%  { opacity: 1; filter: blur(1.5px); color: #e0bd88; text-shadow: 0 0 12px rgba(212, 144, 42, 0.5); }
+  100% { opacity: 1; filter: none; color: #f0e8e0; text-shadow: 0 0 0 rgba(212, 144, 42, 0); }
 }
 
 /* Principle 3: small finishes settle with a calm amber beat; undoing gets a quieter sage one */
@@ -1934,10 +1879,7 @@ body.admin-mode .progress-btn:disabled {
   .is-waiting::before { animation: none; background: rgba(200, 168, 122, 0.18); }
   .btn-primary.is-waiting { animation: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 22px rgba(200, 168, 122, 0.45); }
   .btn-primary.is-waiting::before { background: rgba(255, 232, 196, 0.35); }
-  .celebration-wait { transition: none; }
-  .ceremony-line-text { animation: none; clip-path: none; }
-  .ceremony-line-block { display: none; }
-  .ceremony-rule { animation: none; transform: none; }
+  .ceremony-word { animation: none; opacity: 1; }
 }
 
 .celebration-dismiss {

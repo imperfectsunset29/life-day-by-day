@@ -788,10 +788,13 @@ function playBeat(selector, kind) {
   });
 }
 
-// The quote is performed by a block reveal: line by line, an amber block sweeps in from the
-// left, holds, then retracts off the right, uncovering the words beneath it; a faint amber rule
-// draws under the quote last. The words are always new; the longer the work was carried, the
-// slower the reveal and the brighter the glow behind it (tier).
+// A big finish is one continuous scene in the logo's language (amber inner light in near-darkness).
+// While the quote is being written, amber motes drift in from the panel's edges and gather into a
+// soft light where the words will appear (startQuoteWait). When the quote lands, that light
+// blooms: it swells across the panel and fades, the motes scatter outward, and the words
+// surface from the centre out, warm amber settling into ivory (playCeremony). The words are
+// always new; the longer the work was carried, the slower the bloom and the brighter the glow
+// behind it (tier). Reduced motion: a still frame of the light, then the quote, still.
 const CEREMONY_TIERS = ['ceremony-base', 'ceremony-long', 'ceremony-epic'];
 const CEREMONY_SPEED = { 'ceremony-base': 1, 'ceremony-long': 1.35, 'ceremony-epic': 1.7 };
 let ceremonyTimers = [];
@@ -806,48 +809,33 @@ function playCeremony(quote, tier = 'ceremony-base') {
   const el = document.getElementById('oneoff-celebration-overlay');
   const content = el.querySelector('.celebration-content');
   const textEl = el.querySelector('.celebration-text');
-  stopQuoteWait();
+  const speed = CEREMONY_SPEED[tier] || 1;
   content.classList.remove(...CEREMONY_TIERS, 'is-waiting-quote');
   content.classList.add(tier);
-  textEl.style.setProperty('--ceremony-speed', CEREMONY_SPEED[tier] || 1);
 
-  // Let the browser wrap the quote, then read its lines back so each gets its own block
-  textEl.className = 'celebration-text';
+  textEl.className = 'celebration-text ceremony-bloom';
   textEl.textContent = '';
-  const words = quote.split(' ').map(word => {
+  const words = quote.split(' ').map((word, i, all) => {
     const span = document.createElement('span');
-    span.textContent = word + ' ';
+    span.className = 'ceremony-word';
+    span.textContent = word + (i < all.length - 1 ? ' ' : '');
     textEl.appendChild(span);
     return span;
   });
-  if (!textEl.offsetParent) { textEl.textContent = quote; return; } // closed before it arrived
-  const lines = [];
-  let top = null;
-  for (const span of words) {
-    if (span.offsetTop !== top) { lines.push([]); top = span.offsetTop; }
-    lines[lines.length - 1].push(span.textContent);
-  }
 
-  textEl.textContent = '';
-  textEl.classList.add('ceremony-block');
-  lines.forEach((line, i) => {
-    const row = document.createElement('span');
-    row.className = 'ceremony-line';
-    row.style.setProperty('--line', i);
-    const text = document.createElement('span');
-    text.className = 'ceremony-line-text';
-    text.textContent = line.join('').trim();
-    const block = document.createElement('span');
-    block.className = 'ceremony-line-block';
-    block.setAttribute('aria-hidden', 'true');
-    row.append(text, block);
-    textEl.appendChild(row);
+  // Each word surfaces after a delay set by its distance from the light's centre
+  const box = textEl.getBoundingClientRect();
+  const cx = box.left + box.width / 2, cy = box.top + box.height / 2;
+  const dists = words.map(w => {
+    const r = w.getBoundingClientRect();
+    return Math.hypot(r.left + r.width / 2 - cx, (r.top + r.height / 2 - cy) * 1.6);
   });
-  const rule = document.createElement('span');
-  rule.className = 'ceremony-rule';
-  rule.setAttribute('aria-hidden', 'true');
-  rule.style.setProperty('--line', lines.length);
-  textEl.appendChild(rule);
+  const far = Math.max(1, ...dists);
+  words.forEach((w, i) => {
+    w.style.setProperty('--d', `${(0.25 + (dists[i] / far) * 0.9) * speed}s`);
+    w.style.setProperty('--dur', `${1.3 * speed}s`);
+  });
+  bloomQuoteWait(speed);
 }
 
 function openCelebrationOverlay() {
@@ -856,26 +844,22 @@ function openCelebrationOverlay() {
   ceremonyTimers.forEach(clearTimeout);
   ceremonyTimers = [];
   el.querySelector('.celebration-text').textContent = '';
-  // Waiting shows: until the quote arrives, the quote is visibly being gathered (playCeremony stops it)
+  // Waiting shows: until the quote arrives, the quote is visibly being gathered (playCeremony blooms it)
   el.querySelector('.celebration-content').classList.add('is-waiting-quote');
   el.classList.remove('hidden');
   startQuoteWait();
 }
 
-// The wait before a big finish's quote: amber motes drift in from the panel's edges and
-// gather into a soft light at its centre, where the words will appear, as if the quote is
-// being collected. Wordless, in the logo's language (amber inner light in near-darkness).
-// When the quote lands the scene fades and the ceremony takes over. Reduced motion: one still frame.
 let quoteWaitFrame = null;
-let quoteWaitFade = null;
+let quoteWait = null; // { bloomAt, speed } once the quote has arrived
 
 function startQuoteWait() {
   const canvas = document.querySelector('#oneoff-celebration-overlay .celebration-wait');
-  clearTimeout(quoteWaitFade);
   cancelAnimationFrame(quoteWaitFrame);
-  canvas.classList.remove('hidden', 'is-fading');
+  canvas.classList.remove('hidden');
   const dpr = window.devicePixelRatio || 1;
   const W = canvas.clientWidth, H = canvas.clientHeight;
+  quoteWait = { bloomAt: null, speed: 1 };
   if (!W || !H) return;
   canvas.width = W * dpr;
   canvas.height = H * dpr;
@@ -893,53 +877,69 @@ function startQuoteWait() {
   const motes = Array.from({ length: 90 }, () => spawn(true));
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const start = performance.now();
+  const state = quoteWait;
   let last = start;
 
   const draw = (now) => {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
+    // Bloom progress: 0 while waiting, 0→1 once the quote has arrived
+    const bloom = state.bloomAt == null ? 0 : Math.min(1, (now - state.bloomAt) / (1600 * state.speed));
+    const ease = 1 - Math.pow(1 - bloom, 3);
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'lighter';
-    // The gathering light: swells as the motes arrive, breathing about every 2s
+    // The gathered light: breathes while waiting, then swells across the panel and fades
     const fadeIn = Math.min(1, (now - start) / 900);
     const breath = 0.5 + 0.5 * Math.sin((now - start) / 320);
-    const coreR = 55 + breath * 18;
+    const coreR = (55 + breath * 18) * (1 + ease * 3.5);
+    const glow = fadeIn * (1 - ease * 0.85);
     const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 1.6);
-    core.addColorStop(0, `rgba(255, 226, 180, ${(0.38 + breath * 0.22) * fadeIn})`);
-    core.addColorStop(0.3, `rgba(212, 144, 42, ${(0.2 + breath * 0.12) * fadeIn})`);
+    core.addColorStop(0, `rgba(255, 226, 180, ${(0.38 + breath * 0.22) * glow})`);
+    core.addColorStop(0.3, `rgba(212, 144, 42, ${(0.2 + breath * 0.12) * glow})`);
     core.addColorStop(1, 'rgba(212, 144, 42, 0)');
     ctx.fillStyle = core;
     ctx.fillRect(0, 0, W, H);
     for (const m of motes) {
       if (!reduced) {
-        m.r -= m.speed * dt * (1 + 40 / (m.r + 20)); // quicken near the light
+        if (state.bloomAt == null) {
+          m.r -= m.speed * dt * (1 + 40 / (m.r + 20)); // gather, quickening near the light
+          if (m.r < 6) Object.assign(m, spawn(false));
+        } else {
+          m.r += (m.speed * 4 + 160 * (1 - bloom)) * dt; // released outward with the bloom
+        }
         m.angle += m.swirl * dt;
-        if (m.r < 6) Object.assign(m, spawn(false));
       }
       const x = cx + Math.cos(m.angle) * m.r;
       const y = cy + Math.sin(m.angle) * m.r * 0.8;
       const near = 1 - Math.min(1, m.r / reach);
-      ctx.fillStyle = `rgba(232, 196, 140, ${(0.15 + near * 0.75) * fadeIn})`;
+      ctx.fillStyle = `rgba(232, 196, 140, ${(0.15 + near * 0.75) * fadeIn * (1 - ease)})`;
       ctx.beginPath();
       ctx.arc(x, y, m.size, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalCompositeOperation = 'source-over';
+    if (bloom >= 1) { canvas.classList.add('hidden'); return; }
     if (!reduced) quoteWaitFrame = requestAnimationFrame(draw);
   };
   if (reduced) draw(start + 900);
   else quoteWaitFrame = requestAnimationFrame(draw);
 }
 
+// The quote has arrived: the gathered light blooms open (the words surface as it does)
+function bloomQuoteWait(speed = 1) {
+  const canvas = document.querySelector('#oneoff-celebration-overlay .celebration-wait');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced) { stopQuoteWait(); return; }
+  if (canvas.classList.contains('hidden') || !quoteWait) startQuoteWait(); // nothing was waiting: gather and bloom at once
+  quoteWait.bloomAt = performance.now();
+  quoteWait.speed = speed;
+}
+
 function stopQuoteWait() {
   const canvas = document.querySelector('#oneoff-celebration-overlay .celebration-wait');
-  if (canvas.classList.contains('hidden')) return;
-  canvas.classList.add('is-fading'); // the gathered light dissolves as the words arrive
-  clearTimeout(quoteWaitFade);
-  quoteWaitFade = setTimeout(() => {
-    cancelAnimationFrame(quoteWaitFrame);
-    canvas.classList.add('hidden');
-  }, 700);
+  cancelAnimationFrame(quoteWaitFrame);
+  canvas.classList.add('hidden');
+  quoteWait = null;
 }
 
 async function showCelebration(quote, tier = 'ceremony-base') {
@@ -951,7 +951,7 @@ async function showCelebration(quote, tier = 'ceremony-base') {
 
 async function showOneOffCelebration() {
   // Open the overlay immediately rather than waiting on the quote round-trip first —
-  // the panel appears right away, and the block reveal plays once it arrives.
+  // the panel appears right away, and the light blooms into it once it arrives.
   const el = document.getElementById('oneoff-celebration-overlay');
   openCelebrationOverlay();
   await document.fonts.ready;
