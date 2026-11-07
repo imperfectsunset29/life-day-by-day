@@ -813,6 +813,7 @@ function playCeremony(quote, tier = 'ceremony-base') {
   const content = el.querySelector('.celebration-content');
   const canvas = el.querySelector('.celebration-canvas');
   const textEl = el.querySelector('.celebration-text');
+  stopQuoteWait();
   content.classList.remove(...CEREMONY_TIERS, 'is-waiting-quote');
   content.classList.add(tier);
   const speed = CEREMONY_SPEED[tier] || 1;
@@ -867,9 +868,90 @@ function openCelebrationOverlay() {
   const canvas = el.querySelector('.celebration-canvas');
   canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
   el.querySelector('.celebration-text').textContent = '';
-  // Waiting shows: until the quote arrives, the amber light behind it breathes (playCeremony stops it)
+  // Waiting shows: until the quote arrives, the quote is visibly being gathered (playCeremony stops it)
   el.querySelector('.celebration-content').classList.add('is-waiting-quote');
   el.classList.remove('hidden');
+  startQuoteWait();
+}
+
+// The wait before a big finish's quote: amber motes drift in from the panel's edges and
+// gather into a soft light at its centre, where the words will appear, as if the quote is
+// being collected. Wordless, in the logo's language (amber inner light in near-darkness).
+// When the quote lands the scene fades and the ceremony takes over. Reduced motion: one still frame.
+let quoteWaitFrame = null;
+let quoteWaitFade = null;
+
+function startQuoteWait() {
+  const canvas = document.querySelector('#oneoff-celebration-overlay .celebration-wait');
+  clearTimeout(quoteWaitFade);
+  cancelAnimationFrame(quoteWaitFrame);
+  canvas.classList.remove('hidden', 'is-fading');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (!W || !H) return;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const cx = W / 2, cy = H * 0.45;
+  const reach = Math.hypot(W, H) / 2;
+  const spawn = (fresh) => ({
+    angle: Math.random() * Math.PI * 2,
+    r: fresh ? reach * (0.25 + Math.random() * 0.8) : reach * (0.85 + Math.random() * 0.25),
+    speed: 22 + Math.random() * 30,          // px per second, inward
+    swirl: (Math.random() < 0.5 ? -1 : 1) * (0.12 + Math.random() * 0.2),
+    size: 0.7 + Math.random() * 1.4
+  });
+  const motes = Array.from({ length: 90 }, () => spawn(true));
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const start = performance.now();
+  let last = start;
+
+  const draw = (now) => {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    ctx.clearRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+    // The gathering light: swells as the motes arrive, breathing about every 2s
+    const fadeIn = Math.min(1, (now - start) / 900);
+    const breath = 0.5 + 0.5 * Math.sin((now - start) / 320);
+    const coreR = 55 + breath * 18;
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 1.6);
+    core.addColorStop(0, `rgba(255, 226, 180, ${(0.38 + breath * 0.22) * fadeIn})`);
+    core.addColorStop(0.3, `rgba(212, 144, 42, ${(0.2 + breath * 0.12) * fadeIn})`);
+    core.addColorStop(1, 'rgba(212, 144, 42, 0)');
+    ctx.fillStyle = core;
+    ctx.fillRect(0, 0, W, H);
+    for (const m of motes) {
+      if (!reduced) {
+        m.r -= m.speed * dt * (1 + 40 / (m.r + 20)); // quicken near the light
+        m.angle += m.swirl * dt;
+        if (m.r < 6) Object.assign(m, spawn(false));
+      }
+      const x = cx + Math.cos(m.angle) * m.r;
+      const y = cy + Math.sin(m.angle) * m.r * 0.8;
+      const near = 1 - Math.min(1, m.r / reach);
+      ctx.fillStyle = `rgba(232, 196, 140, ${(0.15 + near * 0.75) * fadeIn})`;
+      ctx.beginPath();
+      ctx.arc(x, y, m.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    if (!reduced) quoteWaitFrame = requestAnimationFrame(draw);
+  };
+  if (reduced) draw(start + 900);
+  else quoteWaitFrame = requestAnimationFrame(draw);
+}
+
+function stopQuoteWait() {
+  const canvas = document.querySelector('#oneoff-celebration-overlay .celebration-wait');
+  if (canvas.classList.contains('hidden')) return;
+  canvas.classList.add('is-fading'); // the gathered light dissolves as the words arrive
+  clearTimeout(quoteWaitFade);
+  quoteWaitFade = setTimeout(() => {
+    cancelAnimationFrame(quoteWaitFrame);
+    canvas.classList.add('hidden');
+  }, 700);
 }
 
 async function showCelebration(quote, tier = 'ceremony-base') {
@@ -2958,8 +3040,10 @@ document.getElementById('oracle-overlay').addEventListener('click', (e) => {
 
 const celebrationOverlay = document.getElementById('oneoff-celebration-overlay');
 celebrationOverlay.addEventListener('click', (e) => {
-  if (e.target === celebrationOverlay || e.target.classList.contains('celebration-dismiss'))
+  if (e.target === celebrationOverlay || e.target.classList.contains('celebration-dismiss')) {
     celebrationOverlay.classList.add('hidden');
+    stopQuoteWait();
+  }
 });
 
 document.getElementById('lock-btn').addEventListener('click', () => {
