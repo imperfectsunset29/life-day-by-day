@@ -834,6 +834,27 @@ textarea.task-text-input {
   to   { background-position: -150% 0; }
 }
 
+/* The light passes under the label, never over it, so the words stay crisp while it sweeps */
+.is-waiting { isolation: isolate; }
+.is-waiting::before { z-index: -1; }
+
+/* On the sage primary a 0.45 amber sweep all but vanishes, so the primary waits brighter:
+   a warm ivory-amber light crosses the pill and an amber halo breathes around it, the same
+   inner light as the logo's fissure. The dark label on a lighter pass stays above 7:1. */
+.btn-primary.is-waiting::before {
+  background: linear-gradient(100deg, transparent 22%, rgba(255, 232, 196, 0.75) 50%, transparent 78%);
+  background-size: 250% 100%;
+}
+
+.btn-primary.is-waiting {
+  animation: waitHalo 1.8s ease-in-out infinite;
+}
+
+@keyframes waitHalo {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(181, 201, 154, 0.25); }
+  50%      { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 26px rgba(200, 168, 122, 0.55); }
+}
+
 /* Pills are ~36px tall; an invisible extension makes each one a full 44px tap target
    without making it look bigger */
 .btn-primary, .btn-secondary, .btn-tertiary {
@@ -1860,6 +1881,8 @@ body.admin-mode .progress-btn:disabled {
   .finish-beat, .undo-beat, .celebration-content.ceremony-epic::before { animation: none; }
   body::before, .olympus-card::before { animation: none; }
   .is-waiting::before { animation: none; background: rgba(200, 168, 122, 0.18); }
+  .btn-primary.is-waiting { animation: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 22px rgba(200, 168, 122, 0.45); }
+  .btn-primary.is-waiting::before { background: rgba(255, 232, 196, 0.35); }
   .ceremony-word { transition: none; }
 }
 

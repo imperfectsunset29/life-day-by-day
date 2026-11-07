@@ -61,7 +61,7 @@ Every feature is checked against these. If it doesn't serve them, it doesn't shi
 - **Asks only before what can't be undone.** Deleting a project, garment or dream, or restoring from Olympus (which lets its quote go), goes through `askConfirm(text, okLabel)` (`#confirm-overlay`: "Keep it" secondary, the action primary). Everything else just happens.
 - **A soft haptic on small finishes.** `haptic()` fires at the tap of every finish-beat (`navigator.vibrate` on Android; on iOS, the native-switch tick via a hidden `<input switch>`). No sounds, ever.
 - **Gentle ambient life.** At rest, the day's blooms drift slowly (`body::before`, `bloomDrift`, ~50s) and a faint amber light breathes behind each Olympus title (`olympusBreath`, 7s). Visible if you look, never pulling the eye. Nothing else idles or loops.
-- **Waiting is wordless.** While Oedipa thinks (stylist, photo analysis), the button keeps its label and an amber light sweeps across it (`.is-waiting`). No spinners, no "Loading…".
+- **Waiting is wordless.** While Oedipa thinks (stylist, photo analysis), the button keeps its label and an amber light sweeps across it, under the label (`.is-waiting`). On a sage primary ("Build outfit") the sweep is a brighter ivory-amber and an amber halo breathes around the pill, since plain amber vanishes on sage. No spinners, no "Loading…".
 - Reduced motion: no drift, no breathing; the waiting button gets a still amber tint.
 
 ## Commands
