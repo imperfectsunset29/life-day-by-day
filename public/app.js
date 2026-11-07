@@ -511,11 +511,15 @@ function startEditStep(projectId, stepId) {
 
 // Project progress is a slider: drag the circle along the bar (admin only). Only the circle
 // moves it (a tap on the bar does nothing), so a stray tap can't send a project to Olympus.
-// It moves in steps of PROGRESS_STEP with a soft tick at every 10%, and saves on release.
+// The circle follows the finger continuously (no steps), the number counts by 1%, there's a soft
+// tick at every 10%, and the whole percent under the finger is saved on release. The keyboard
+// nudges by PROGRESS_STEP.
 const PROGRESS_STEP = 5;
 
-function showProgress(slider, value) {
-  slider.style.setProperty('--p', value);
+// position: where the circle sits (any fraction while dragging); the label shows it rounded
+function showProgress(slider, position) {
+  const value = Math.round(position);
+  slider.style.setProperty('--p', position);
   slider.querySelector('.progress-thumb').setAttribute('aria-valuenow', value);
   const label = slider.closest('.progress-row').querySelector('.progress-label');
   if (label) label.textContent = `${value}%`;
@@ -534,20 +538,27 @@ document.addEventListener('pointerdown', (e) => {
   thumb.setPointerCapture(e.pointerId);
   slider.classList.add('is-dragging');
 
+  // Grab the circle where the finger lands on it, so it doesn't jump to centre under the finger
+  const startRect = track.getBoundingClientRect();
+  const grabOffset = e.clientX - (startRect.left + (task.progress / 100) * startRect.width);
+  let frame = null;
+  let position = task.progress;
+
   const onMove = (ev) => {
     const rect = track.getBoundingClientRect();
-    const raw = ((ev.clientX - rect.left) / rect.width) * 100;
-    const next = Math.max(0, Math.min(100, Math.round(raw / PROGRESS_STEP) * PROGRESS_STEP));
-    if (next === value) return;
+    position = Math.max(0, Math.min(100, ((ev.clientX - grabOffset - rect.left) / rect.width) * 100));
+    const next = Math.round(position);
     if (Math.floor(next / 10) !== Math.floor(value / 10)) haptic(); // a soft tick every 10%
     value = next;
-    showProgress(slider, value);
+    if (!frame) frame = requestAnimationFrame(() => { frame = null; showProgress(slider, position); });
   };
   const onUp = () => {
     thumb.removeEventListener('pointermove', onMove);
     thumb.removeEventListener('pointerup', onUp);
     thumb.removeEventListener('pointercancel', onUp);
-    slider.classList.remove('is-dragging');
+    cancelAnimationFrame(frame);
+    slider.classList.remove('is-dragging'); // its transition settles the circle onto the whole percent
+    showProgress(slider, value);
     if (value !== task.progress) setProgress(id, value);
   };
   thumb.addEventListener('pointermove', onMove);
