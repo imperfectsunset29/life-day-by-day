@@ -46,12 +46,13 @@ function showSaveFailed() {
 }
 
 // Quiet design: only what can't be undone asks first. Resolves true to go ahead.
-function askConfirm(text, okLabel) {
+function askConfirm(text, okLabel, cancelLabel = 'Keep it') {
   const overlay = document.getElementById('confirm-overlay');
   document.getElementById('confirm-text').textContent = text;
   const ok = document.getElementById('confirm-ok-btn');
   const cancel = document.getElementById('confirm-cancel-btn');
   ok.textContent = okLabel;
+  cancel.textContent = cancelLabel;
   overlay.classList.remove('hidden');
   return new Promise(resolve => {
     const done = (answer) => {
@@ -1145,7 +1146,7 @@ async function restoreTask(category, id) {
   if (category === 'olympus') {
     const entry = tasks.olympus.find(t => t.id === id);
     const name = entry ? entry.text : 'this project';
-    const ok = await askConfirm(`Bring “${name}” back? It starts again at 0%, and its quote is let go.`, 'Bring it back');
+    const ok = await askConfirm(`Send “${name}” back to Projects? It starts again at 0%, and its quote is let go.`, 'Send it back', 'Keep it here');
     if (!ok) return;
   }
   await apiFetch(`${API}/restore/${category}/${id}`, { method: 'POST' });
