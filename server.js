@@ -268,22 +268,26 @@ function rotationScore(items, stats, recentMainIds) {
   return score;
 }
 
+// Returns { candidates, gates }. `candidates` is the item-array list the stylist judges.
+// `gates` records what each gate actually decided, so a real decision trace can be built
+// from it afterward — not just the final list, but why it looks the way it does.
 function buildOutfitCandidates(data, stats, weather, exclude) {
   const byCategory = cat => data.wardrobe.filter(i => i.wardrobeCategory === cat);
   const bases = [
     ...ONE_PIECE_CATEGORIES.flatMap(byCategory).map(p => [p]),
     ...byCategory('tops').flatMap(t => byCategory('bottoms').map(b => [t, b]))
   ];
-  if (!bases.length) return [];
+  if (!bases.length) return { candidates: [], gates: { basesCount: 0 } };
 
   const shoes = byCategory('shoes');
   const outerwear = byCategory('outerwear');
   const needsLayer = weather && typeof weather.tempF === 'number' && weather.tempF < LAYER_THRESHOLD_F;
+  const weatherGateRelaxed = Boolean(needsLayer && !outerwear.length);
 
-  let combos = bases.flatMap(base => {
-    const withShoes = shoes.length ? shoes.map(s => [...base, s]) : [base];
-    if (!needsLayer || !outerwear.length) return withShoes; // no layer required, or none owned — gate relaxes rather than emptying the pool
-    return withShoes.flatMap(c => outerwear.map(o => [...c, o]));
+  const beforeWeather = bases.flatMap(base => shoes.length ? shoes.map(s => [...base, s]) : [base]);
+  const combos = beforeWeather.flatMap(base => {
+    if (!needsLayer || !outerwear.length) return [base]; // no layer required, or none owned — gate relaxes rather than emptying the pool
+    return outerwear.map(o => [...base, o]);
   });
 
   // Don't repeat a main piece already shown this re-spin — but relax the gate rather than
@@ -293,18 +297,31 @@ function buildOutfitCandidates(data, stats, weather, exclude) {
     const main = c.find(i => MAIN_CATEGORIES.includes(i.wardrobeCategory));
     return !main || !excludedMainIds.has(main.id);
   });
-  if (withoutExcluded.length) combos = withoutExcluded;
+  const exclusionGateRelaxed = Boolean(excludedMainIds.size && !withoutExcluded.length);
+  const afterExclusion = withoutExcluded.length ? withoutExcluded : combos;
 
   const recentMainIds = new Set(
     data.recentSuggestions.slice(-10).flatMap(s => s.itemIds)
       .filter(id => MAIN_CATEGORIES.includes((data.wardrobe.find(i => i.id === id) || {}).wardrobeCategory))
   );
 
-  return combos
+  const scored = afterExclusion
     .map(items => ({ items, score: rotationScore(items, stats, recentMainIds) }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, CANDIDATE_LIMIT)
-    .map(c => c.items);
+    .slice(0, CANDIDATE_LIMIT);
+
+  return {
+    candidates: scored.map(c => c.items),
+    gates: {
+      basesCount: bases.length,
+      totalValidCombos: afterExclusion.length,
+      weatherGateApplied: Boolean(needsLayer && outerwear.length),
+      weatherGateRelaxed,
+      exclusionGateApplied: Boolean(excludedMainIds.size && withoutExcluded.length),
+      exclusionGateRelaxed,
+      rotationScores: scored.map(c => Number(c.score.toFixed(1)))
+    }
+  };
 }
 
 // WMO weather codes used by Open-Meteo — https://open-meteo.com/en/docs
@@ -476,6 +493,7 @@ function readTasks(profile) {
   if (!data.wearLog) data.wearLog = [];
   if (!data.outfitPasses) data.outfitPasses = [];
   if (!data.recentSuggestions) data.recentSuggestions = [];
+  if (!data.outfitTraces) data.outfitTraces = [];
   if (!data.wishlist) data.wishlist = [];
   if (!data.acquired) data.acquired = [];
   if (!data.oracle) data.oracle = { text: '', source: '', preview: '' };
@@ -777,24 +795,45 @@ const STYLIST_RULES = `You are a personal stylist. Every candidate below already
 - Setting: think about what the place will do to the clothes, and choose the candidate whose fabrics survive it. Smoke and grease (Korean BBQ, hot pot, a grill, a bonfire, a fried-food spot): washable pieces only (cotton, denim, linen, easy synthetics), never cashmere, wool knits, silk, suede or anything dry-clean-only, and no white or pale delicates. Messy or saucy food: nothing precious near the hands and lap. Grass, sand, cobblestones or gravel: no thin heels or delicate soles. Sitting on the floor or low seats: nothing short or tight. Crowds, dancing or heat indoors: breathable, nothing heavy. This outranks taste.
 - Taste: outfits the user loved show their style; echo their spirit, don't repeat them. Outfits they marked "not my style" show what to steer away from: avoid that direction, not just those exact pieces.
 
-"chosenIndex" is the index of the winning candidate. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion.`;
+"chosenIndex" is the index of the winning candidate. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion. "scores" rates every candidate (not just the one you pick) on each of the four criteria above, 0 (fails it) to 1 (fits perfectly) — this is a record of your reasoning, not a formula; your "chosenIndex" is the holistic call (setting outranks taste, for instance), which an average of these scores won't always match.`;
 
 // Principle 2 (off the hook): taste chooses the outfit, but now and then chance slips one
 // of your own pieces in. A roll of the dice, not a judgment call — decided in code below.
 const WILD_CARD_ODDS = 0.25;
 
-const OUTFIT_SCHEMA = {
-  type: 'object',
-  properties: {
-    chosenIndex: { type: 'integer' },
-    why: { type: 'string' },
-    // What the stylist read from an attached photo, in a few words ("70s disco night at a bar").
-    // Shown in place of the prompt and saved as the wear's prompt when no words were typed.
-    occasion: { type: 'string' }
-  },
-  required: ['chosenIndex', 'why', 'occasion'],
-  additionalProperties: false
-};
+// The schema is built per-request because "scores" must have exactly one entry per candidate,
+// and the candidate count varies (1 to CANDIDATE_LIMIT) with what the closet and gates allow.
+function buildOutfitSchema(candidateCount) {
+  return {
+    type: 'object',
+    properties: {
+      chosenIndex: { type: 'integer' },
+      why: { type: 'string' },
+      // What the stylist read from an attached photo, in a few words ("70s disco night at a bar").
+      // Shown in place of the prompt and saved as the wear's prompt when no words were typed.
+      occasion: { type: 'string' },
+      scores: {
+        type: 'array',
+        minItems: candidateCount,
+        maxItems: candidateCount,
+        items: {
+          type: 'object',
+          properties: {
+            index: { type: 'integer' },
+            color: { type: 'number' },
+            formality: { type: 'number' },
+            setting: { type: 'number' },
+            taste: { type: 'number' }
+          },
+          required: ['index', 'color', 'formality', 'setting', 'taste'],
+          additionalProperties: false
+        }
+      }
+    },
+    required: ['chosenIndex', 'why', 'occasion', 'scores'],
+    additionalProperties: false
+  };
+}
 
 // A photo attached to the outfit request (a party flier, an invitation, an outfit to echo).
 // Read for this one request and never saved, like the garment photos.
@@ -821,7 +860,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
 
   const weather = (typeof lat === 'number' && typeof lon === 'number') ? await fetchWeather(lat, lon) : null;
   const stats = computeWardrobeStats(data);
-  let candidates = buildOutfitCandidates(data, stats, weather, exclude);
+  let { candidates, gates } = buildOutfitCandidates(data, stats, weather, exclude);
 
   // Principle 2 (off the hook): now and then chance plays a piece into the outfit — a dice
   // roll, not a judgment, so it's decided here in code. Narrow to candidates that include it;
@@ -830,9 +869,15 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   const shownIds = new Set(exclude.flat());
   const wildPool = data.wardrobe.filter(i => !shownIds.has(i.id));
   const wildCard = candidates.length && wildPool.length && Math.random() < WILD_CARD_ODDS ? pickRandom(wildPool) : null;
+  let wildCardLanded = false;
   if (wildCard) {
-    const withWildCard = candidates.filter(c => c.some(i => i.id === wildCard.id));
-    if (withWildCard.length) candidates = withWildCard;
+    const keepIdx = candidates.reduce((acc, c, i) => { if (c.some(it => it.id === wildCard.id)) acc.push(i); return acc; }, []);
+    if (keepIdx.length) {
+      // Narrow rotationScores in lockstep so the trace's scores stay aligned to the narrowed list.
+      candidates = keepIdx.map(i => candidates[i]);
+      gates = { ...gates, rotationScores: keepIdx.map(i => gates.rotationScores[i]) };
+      wildCardLanded = true;
+    }
   }
 
   // Try the AI stylist, but never let it be a hard failure — any problem (usage limits,
@@ -841,6 +886,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   let items = null;
   let why = '';
   let occasion = '';
+  let trace = null; // only set once an AI judgment actually completes — a trace records a real decision, not a fallback
   if (anthropic && candidates.length) {
     try {
       const nameOf = id => (data.wardrobe.find(i => i.id === id) || {}).text;
@@ -871,7 +917,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
         max_tokens: 8000,
         betas: ['server-side-fallback-2026-07-01'],
         fallbacks: 'default', // a declined request is retried on Anthropic's recommended model
-        output_config: { effort: 'low', format: { type: 'json_schema', schema: OUTFIT_SCHEMA } },
+        output_config: { effort: 'low', format: { type: 'json_schema', schema: buildOutfitSchema(candidates.length) } },
         system: [{ type: 'text', text: STYLIST_RULES }],
         messages: [{ role: 'user', content: userContent }]
       });
@@ -882,6 +928,27 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
       items = candidates[result.chosenIndex] || null;
       why = typeof result.why === 'string' ? result.why.trim() : '';
       if (photo && typeof result.occasion === 'string') occasion = result.occasion.trim().slice(0, 80);
+
+      if (items && Array.isArray(result.scores)) {
+        trace = {
+          at: new Date().toISOString(),
+          occasion: words || (photo ? '(read from photo)' : '(none given)'),
+          refine: refine || '',
+          weather,
+          gates: { ...gates, wildCard: wildCard ? { id: wildCard.id, text: wildCard.text, landed: wildCardLanded } : null },
+          candidates: candidates.map((c, idx) => {
+            const s = result.scores.find(x => x && x.index === idx) || {};
+            return {
+              index: idx,
+              pieces: c.map(i => ({ id: i.id, text: i.text, category: i.wardrobeCategory })),
+              rotationScore: gates.rotationScores[idx],
+              scores: { color: s.color, formality: s.formality, setting: s.setting, taste: s.taste }
+            };
+          }),
+          chosenIndex: result.chosenIndex,
+          why
+        };
+      }
     } catch (err) {
       console.error('AI outfit suggestion unavailable, falling back to random pick:', friendlyAnthropicError(err));
     }
@@ -896,9 +963,24 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   const fresh = readTasks(profile);
   fresh.recentSuggestions.push({ date: getHabitDay(), itemIds: outfit.map(i => i.id) });
   fresh.recentSuggestions = fresh.recentSuggestions.slice(-10);
+  if (trace) {
+    fresh.outfitTraces.push(trace);
+    fresh.outfitTraces = fresh.outfitTraces.slice(-5);
+  }
   writeTasks(fresh, profile);
 
   res.json({ items: outfit, weather, why, occasion });
+});
+
+// Admin-only: the most recent real outfit decision — candidates, gate results, rotation
+// scores, the model's per-criterion scores, and the pick. Only set when the AI judgment
+// actually ran (not on a random-pick fallback). Not used by the app's own UI; for pulling
+// a real decision to show outside the app.
+app.get('/api/wardrobe/last-trace', requireAdmin, (req, res) => {
+  const data = readTasks(profileFrom(req));
+  const traces = data.outfitTraces || [];
+  if (!traces.length) return res.status(404).json({ error: 'No outfit trace recorded yet — ask for an outfit first.' });
+  res.json(traces[traces.length - 1]);
 });
 
 // ---- Wardrobe history: wear log and stats ----
