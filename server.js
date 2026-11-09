@@ -232,6 +232,7 @@ function friendlyAnthropicError(err) {
 // no repeated item, at most one item per category, and a single one-piece garment
 // (dress or jumpsuit/romper) replaces top+bottom rather than joining them.
 const ONE_PIECE_CATEGORIES = ['dresses', 'jumpsuitsRompers'];
+const MAIN_CATEGORIES = [...ONE_PIECE_CATEGORIES, 'tops', 'bottoms'];
 function sanitizeOutfit(items) {
   const seenIds = new Set();
   const seenCats = new Set();
@@ -247,6 +248,63 @@ function sanitizeOutfit(items) {
     i === onePiece ||
     (i.wardrobeCategory !== 'tops' && i.wardrobeCategory !== 'bottoms' && !ONE_PIECE_CATEGORIES.includes(i.wardrobeCategory))
   );
+}
+
+// Builds the short list of structurally-valid, weather-appropriate outfits for the stylist to
+// judge between. Everything here is a lookup or a number — no taste involved — so a bad outfit
+// can only come from a bad judgment call below, never from the model forgetting a rule.
+const LAYER_THRESHOLD_F = 55;   // below this, an outfit needs outerwear to pass the weather gate
+const ROTATION_CAP_DAYS = 60;   // days-since-worn is capped so one ancient item doesn't dominate the score
+const CANDIDATE_LIMIT = 8;      // how many candidates get sent to the stylist to choose among
+
+function rotationScore(items, stats, recentMainIds) {
+  const days = items.map(i => {
+    const daysSinceWorn = (stats.items[i.id] || {}).daysSinceWorn;
+    return daysSinceWorn == null ? ROTATION_CAP_DAYS : Math.min(daysSinceWorn, ROTATION_CAP_DAYS);
+  });
+  let score = days.reduce((a, b) => a + b, 0) / days.length;
+  const main = items.find(i => MAIN_CATEGORIES.includes(i.wardrobeCategory));
+  if (main && recentMainIds.has(main.id)) score -= ROTATION_CAP_DAYS / 2; // suggested recently — nudge it down, don't exclude it
+  return score;
+}
+
+function buildOutfitCandidates(data, stats, weather, exclude) {
+  const byCategory = cat => data.wardrobe.filter(i => i.wardrobeCategory === cat);
+  const bases = [
+    ...ONE_PIECE_CATEGORIES.flatMap(byCategory).map(p => [p]),
+    ...byCategory('tops').flatMap(t => byCategory('bottoms').map(b => [t, b]))
+  ];
+  if (!bases.length) return [];
+
+  const shoes = byCategory('shoes');
+  const outerwear = byCategory('outerwear');
+  const needsLayer = weather && typeof weather.tempF === 'number' && weather.tempF < LAYER_THRESHOLD_F;
+
+  let combos = bases.flatMap(base => {
+    const withShoes = shoes.length ? shoes.map(s => [...base, s]) : [base];
+    if (!needsLayer || !outerwear.length) return withShoes; // no layer required, or none owned — gate relaxes rather than emptying the pool
+    return withShoes.flatMap(c => outerwear.map(o => [...c, o]));
+  });
+
+  // Don't repeat a main piece already shown this re-spin — but relax the gate rather than
+  // return nothing if that would empty the pool (e.g. a thin category on a cold week).
+  const excludedMainIds = new Set(exclude.flat());
+  const withoutExcluded = combos.filter(c => {
+    const main = c.find(i => MAIN_CATEGORIES.includes(i.wardrobeCategory));
+    return !main || !excludedMainIds.has(main.id);
+  });
+  if (withoutExcluded.length) combos = withoutExcluded;
+
+  const recentMainIds = new Set(
+    data.recentSuggestions.slice(-10).flatMap(s => s.itemIds)
+      .filter(id => MAIN_CATEGORIES.includes((data.wardrobe.find(i => i.id === id) || {}).wardrobeCategory))
+  );
+
+  return combos
+    .map(items => ({ items, score: rotationScore(items, stats, recentMainIds) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, CANDIDATE_LIMIT)
+    .map(c => c.items);
 }
 
 // WMO weather codes used by Open-Meteo — https://open-meteo.com/en/docs
@@ -710,35 +768,31 @@ function randomOutfitPick(wardrobe) {
 }
 
 // The stylist: Claude Opus 5.5 at low effort (wardrobe is used occasionally, so each call is
-// kept lean). Stable rules + the closet go in a cached system prefix, so a Re-spin within a
-// few minutes re-reads them at a fraction of the cost. Output is schema-constrained JSON.
-const STYLIST_RULES = `You are a personal stylist choosing one outfit from the user's own closet (listed below).
+// kept lean). It only judges — structure, weather and rotation are decided by
+// buildOutfitCandidates() above, in code, before the model ever sees an outfit.
+const STYLIST_RULES = `You are a personal stylist. Every candidate below already satisfies structure, weather and rotation — don't re-judge those. Pick the one that best fits:
 
-Rules:
 - Color: one clear color story. At most one strong color; everything else neutral or deliberately tonal. Never pair near-miss shades of one color family (bright red with burgundy, navy with black) unless the whole outfit is tonal on purpose.
 - Formality: every piece shares one level of dressiness that matches the occasion. Don't mix office tailoring, casual daywear and evening pieces in one outfit.
-- Practicality: dress for the given weather and for any walking, standing or travel the request implies. Shoes must suit the distance. Add a layer when it's cool or will get colder after dark.
-- Setting: think about what the place will do to the clothes, and choose fabrics that survive it. Smoke and grease (Korean BBQ, hot pot, a grill, a bonfire, a fried-food spot): washable pieces only (cotton, denim, linen, easy synthetics), never cashmere, wool knits, silk, suede or anything dry-clean-only, and no white or pale delicates. Messy or saucy food: nothing precious near the hands and lap. Grass, sand, cobblestones or gravel: no thin heels or delicate soles. Sitting on the floor or low seats: nothing short or tight. Crowds, dancing or heat indoors: breathable, nothing heavy. This outranks rotation and taste.
-- Structure: at most one item per category. A dress or jumpsuit/romper replaces a top and bottom; otherwise pick one top and one bottom. Include shoes if the closet has any. Add outerwear or an accessory only when it helps.
-- Rotation: among choices that work equally well, prefer pieces worn least recently or never — but not ones you suggested recently (listed in the request). Spread suggestions across the closet; don't build every outfit around the same favorite.
+- Setting: think about what the place will do to the clothes, and choose the candidate whose fabrics survive it. Smoke and grease (Korean BBQ, hot pot, a grill, a bonfire, a fried-food spot): washable pieces only (cotton, denim, linen, easy synthetics), never cashmere, wool knits, silk, suede or anything dry-clean-only, and no white or pale delicates. Messy or saucy food: nothing precious near the hands and lap. Grass, sand, cobblestones or gravel: no thin heels or delicate soles. Sitting on the floor or low seats: nothing short or tight. Crowds, dancing or heat indoors: breathable, nothing heavy. This outranks taste.
 - Taste: outfits the user loved show their style; echo their spirit, don't repeat them. Outfits they marked "not my style" show what to steer away from: avoid that direction, not just those exact pieces.
 
-Check the outfit against every rule (including the setting) before answering. "itemIds" are the chosen garments' IDs. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion.`;
+"chosenIndex" is the index of the winning candidate. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion.`;
 
 // Principle 2 (off the hook): taste chooses the outfit, but now and then chance slips one
-// of your own pieces in. Unmarked: the outfit looks like any other.
+// of your own pieces in. A roll of the dice, not a judgment call — decided in code below.
 const WILD_CARD_ODDS = 0.25;
 
 const OUTFIT_SCHEMA = {
   type: 'object',
   properties: {
-    itemIds: { type: 'array', items: { type: 'integer' } },
+    chosenIndex: { type: 'integer' },
     why: { type: 'string' },
     // What the stylist read from an attached photo, in a few words ("70s disco night at a bar").
     // Shown in place of the prompt and saved as the wear's prompt when no words were typed.
     occasion: { type: 'string' }
   },
-  required: ['itemIds', 'why', 'occasion'],
+  required: ['chosenIndex', 'why', 'occasion'],
   additionalProperties: false
 };
 
@@ -766,6 +820,20 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   if (!data.wardrobe || !data.wardrobe.length) return res.json({ items: [], wardrobeEmpty: true });
 
   const weather = (typeof lat === 'number' && typeof lon === 'number') ? await fetchWeather(lat, lon) : null;
+  const stats = computeWardrobeStats(data);
+  let candidates = buildOutfitCandidates(data, stats, weather, exclude);
+
+  // Principle 2 (off the hook): now and then chance plays a piece into the outfit — a dice
+  // roll, not a judgment, so it's decided here in code. Narrow to candidates that include it;
+  // if none do (it doesn't suit today's weather gate, say), the roll just doesn't land today
+  // rather than forcing an unsuitable piece in.
+  const shownIds = new Set(exclude.flat());
+  const wildPool = data.wardrobe.filter(i => !shownIds.has(i.id));
+  const wildCard = candidates.length && wildPool.length && Math.random() < WILD_CARD_ODDS ? pickRandom(wildPool) : null;
+  if (wildCard) {
+    const withWildCard = candidates.filter(c => c.some(i => i.id === wildCard.id));
+    if (withWildCard.length) candidates = withWildCard;
+  }
 
   // Try the AI stylist, but never let it be a hard failure — any problem (usage limits,
   // rate limits, a refusal, a network hiccup) just falls back to a random pick so the
@@ -773,89 +841,53 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   let items = null;
   let why = '';
   let occasion = '';
-  if (anthropic) {
+  if (anthropic && candidates.length) {
     try {
-      const stats = computeWardrobeStats(data);
       const nameOf = id => (data.wardrobe.find(i => i.id === id) || {}).text;
-      const inventory = data.wardrobe.map(i => {
-        const st = stats.items[i.id];
-        const worn = st.timesWorn ? `worn ${st.timesWorn}x, last ${st.lastWorn}` : 'never worn';
-        return `${i.id} | ${i.wardrobeCategory} | ${i.brand ? i.brand + ' ' : ''}${i.text} | ${[i.color, i.material, i.pattern, i.occasion, i.season].filter(Boolean).join(', ')} | ${worn}`;
-      }).join('\n');
+      const describe = i => `${i.wardrobeCategory} | ${i.brand ? i.brand + ' ' : ''}${i.text} | ${[i.color, i.material, i.pattern, i.occasion].filter(Boolean).join(', ')}`;
+      const candidateList = candidates.map((c, idx) => `${idx}: ${c.map(describe).join(' + ')}`).join('\n');
 
       const loved = data.wearLog.slice(-6).reverse()
         .map(w => `- "${w.prompt}": ${w.itemIds.map(nameOf).filter(Boolean).join(' + ')}`);
-      // Main pieces (dress, jumpsuit, top, bottom) of the last few suggestions, so one favorite
-      // doesn't anchor every outfit. Shoes and layers repeat naturally and aren't listed.
-      const MAIN_CATEGORIES = ['dresses', 'jumpsuitsRompers', 'tops', 'bottoms'];
-      const recent = [...new Set(data.recentSuggestions.slice(-10).flatMap(s => s.itemIds))]
-        .filter(id => MAIN_CATEGORIES.includes((data.wardrobe.find(i => i.id === id) || {}).wardrobeCategory));
-      const shownIds = new Set(exclude.flat());
-      const wildPool = data.wardrobe.filter(i => !shownIds.has(i.id));
-      const wildCard = wildPool.length && Math.random() < WILD_CARD_ODDS ? pickRandom(wildPool) : null;
       const passed = data.outfitPasses.slice(-6).reverse()
         .map(p => `- "${p.prompt}": ${p.itemIds.map(nameOf).filter(Boolean).join(' + ')}`);
       const words = String(prompt || '').slice(0, 300);
       const request = [
+        `Candidates (index: pieces):\n${candidateList}`,
         words ? `Occasion: "${words}"` : photo ? 'Occasion: see the attached photo.' : 'Occasion: an ordinary day, no details given. Dress for the weather and the user\'s taste.',
         refine ? `After seeing the last outfit, the user adds: "${refine}". Follow it.` : '',
-        photo ? `The user attached a photo. Work out what it is. If it's a flier, invitation or event page, read it for the occasion: the event, theme, dress code, venue, date and time, and dress for that event (if it's on another day or at night, the weather below is only a hint). If it's an outfit or a look, take its inspiration (silhouette, color story, mood, level of dressiness) and recreate its spirit from the closet only; never describe pieces the user doesn't own. If it's something else, take its mood as the brief. "occasion" is what you read from the photo in under 8 words, lowercase, plain (e.g. "70s disco night at a bar", "relaxed linen look in cream"). "why" may refer to the photo.` : '"occasion" is an empty string.',
+        photo ? `The user attached a photo. Work out what it is. If it's a flier, invitation or event page, read it for the occasion: the event, theme, dress code, venue, date and time, and judge candidates for that event (if it's on another day or at night, the weather below is only a hint). If it's an outfit or a look, take its inspiration (silhouette, color story, mood, level of dressiness) and pick the candidate closest to its spirit. If it's something else, take its mood as the brief. "occasion" is what you read from the photo in under 8 words, lowercase, plain (e.g. "70s disco night at a bar", "relaxed linen look in cream"). "why" may refer to the photo.` : '"occasion" is an empty string.',
         weather ? `Weather now: ${weather.tempF}°F, ${weather.description}.` : 'Weather: unknown.',
         loved.length ? `Outfits the user loved recently:\n${loved.join('\n')}` : '',
-        passed.length ? `Outfits the user marked "not my style":\n${passed.join('\n')}` : '',
-        recent.length ? `Pieces you suggested recently (any occasion) — don't lean on them again unless nothing else fits:\n${recent.map(id => `- ${nameOf(id)}`).join('\n')}` : '',
-        wildCard ? `A piece chosen by chance for this outfit: "${wildCard.text}" (ID ${wildCard.id}). Include it and build the rest around it, following every rule. Don't mention that it was chosen by chance.` : '',
-        exclude.length ? `Already shown for this occasion. Pick a genuinely different outfit: reuse none of these main pieces (dresses, jumpsuits, tops or bottoms), unless the user asked to keep one or the closet has nothing else in that category. Shoes and layers may repeat:\n${exclude.map(ids => `- ${ids.map(nameOf).filter(Boolean).join(' + ')}`).join('\n')}` : ''
+        passed.length ? `Outfits the user marked "not my style":\n${passed.join('\n')}` : ''
       ].filter(Boolean).join('\n\n');
 
       const userContent = photo
         ? [{ type: 'image', source: { type: 'base64', media_type: photo.mimeType, data: photo.image } }, { type: 'text', text: request }]
         : request;
 
-      const askStylist = messages => anthropic.beta.messages.create({
+      const message = await anthropic.beta.messages.create({
         model: 'claude-opus-5-5',
         max_tokens: 8000,
         betas: ['server-side-fallback-2026-07-01'],
         fallbacks: 'default', // a declined request is retried on Anthropic's recommended model
         output_config: { effort: 'low', format: { type: 'json_schema', schema: OUTFIT_SCHEMA } },
-        system: [
-          { type: 'text', text: STYLIST_RULES },
-          { type: 'text', text: `Closet (ID | category | name | details | wear history):\n${inventory}`, cache_control: { type: 'ephemeral' } }
-        ],
-        messages
+        system: [{ type: 'text', text: STYLIST_RULES }],
+        messages: [{ role: 'user', content: userContent }]
       });
 
-      let messages = [{ role: 'user', content: userContent }];
-      let message = await askStylist(messages);
       if (message.stop_reason === 'refusal') throw new Error('stylist declined the request');
-      let text = message.content.find(b => b.type === 'text');
-      let result = JSON.parse(text.text);
-
-      // A re-spin must actually change the outfit. The prompt says so, but at low effort the
-      // stylist sometimes clings to one piece (the same culottes every spin). If it reused a
-      // main piece that has an unshown alternative in its category, ask once more, naming it.
-      // Skipped when the user said more ("Say more?"), since they may have asked to keep it.
-      const reused = refine ? [] : result.itemIds
-        .map(id => data.wardrobe.find(i => i.id === id))
-        .filter(i => i && shownIds.has(i.id) && MAIN_CATEGORIES.includes(i.wardrobeCategory)
-          && data.wardrobe.some(o => o.wardrobeCategory === i.wardrobeCategory && !shownIds.has(o.id)));
-      if (reused.length) {
-        messages = [...messages,
-          { role: 'assistant', content: text.text },
-          { role: 'user', content: `${reused.map(i => `"${i.text}" (ID ${i.id})`).join(' and ')} ${reused.length > 1 ? 'were' : 'was'} already shown for this occasion. Replace ${reused.length > 1 ? 'them' : 'it'} with a different piece from the closet and rebuild the outfit around the change, following every rule.` }];
-        const retry = await askStylist(messages);
-        const retryText = retry.stop_reason !== 'refusal' && retry.content.find(b => b.type === 'text');
-        if (retryText) { text = retryText; result = JSON.parse(retryText.text); }
-      }
-      items = result.itemIds.map(id => data.wardrobe.find(i => i.id === id)).filter(Boolean);
+      const text = message.content.find(b => b.type === 'text');
+      const result = JSON.parse(text.text);
+      items = candidates[result.chosenIndex] || null;
       why = typeof result.why === 'string' ? result.why.trim() : '';
       if (photo && typeof result.occasion === 'string') occasion = result.occasion.trim().slice(0, 80);
     } catch (err) {
       console.error('AI outfit suggestion unavailable, falling back to random pick:', friendlyAnthropicError(err));
     }
   }
-  // No AI configured, the AI call failed, or it picked nothing usable — random pick,
-  // rather than showing an empty "add clothes" result when the wardrobe has items.
+  // No AI configured, no candidate survived the gates, the AI call failed, or it picked
+  // nothing usable — random pick, rather than showing an empty "add clothes" result.
   if (!items || items.length === 0) { items = randomOutfitPick(data.wardrobe); why = ''; }
   const outfit = sanitizeOutfit(items);
 
