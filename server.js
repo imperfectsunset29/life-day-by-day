@@ -233,6 +233,16 @@ function friendlyAnthropicError(err) {
 // (dress or jumpsuit/romper) replaces top+bottom rather than joining them.
 const ONE_PIECE_CATEGORIES = ['dresses', 'jumpsuitsRompers'];
 const MAIN_CATEGORIES = [...ONE_PIECE_CATEGORIES, 'tops', 'bottoms'];
+
+// One-time migration default for garments saved before `openToe` existed: a closed/open
+// guess from the subcategory and name, since that's all the old data has. Wrong guesses
+// are just edited once by hand afterward — this only has to be a reasonable starting point.
+const OPEN_TOE_KEYWORDS = /sandal|mule|slide|slipper|thong|flip.?flop/i;
+function inferOpenToe(item) {
+  if (item.wardrobeCategory !== 'shoes') return false;
+  if (item.subcategory === 'Sandals') return true;
+  return OPEN_TOE_KEYWORDS.test(`${item.subcategory || ''} ${item.text || ''}`);
+}
 function sanitizeOutfit(items) {
   const seenIds = new Set();
   const seenCats = new Set();
@@ -284,9 +294,10 @@ function buildOutfitCandidates(data, stats, weather, exclude) {
   const needsLayer = weather && typeof weather.tempF === 'number' && weather.tempF < LAYER_THRESHOLD_F;
   const weatherGateRelaxed = Boolean(needsLayer && !outerwear.length);
 
-  // Open shoes (sandals) are unsuitable below the same layer threshold — a separate gate
-  // from the outerwear one, since a closet can own a coat but no closed shoes, or vice versa.
-  const closedShoes = allShoes.filter(s => s.subcategory !== 'Sandals');
+  // Open shoes (openToe: sandals, mules, slides...) are unsuitable below the same layer
+  // threshold — a separate gate from the outerwear one, since a closet can own a coat but
+  // no closed shoes, or vice versa.
+  const closedShoes = allShoes.filter(s => !s.openToe);
   const shoeGateRelaxed = Boolean(needsLayer && allShoes.length && !closedShoes.length);
   const shoes = needsLayer && closedShoes.length ? closedShoes : allShoes;
 
@@ -584,6 +595,12 @@ function readTasks(profile) {
     if (item.dossier !== undefined) { delete item.dossier; changed = true; }
   }
 
+  // openToe is new — give every existing garment a starting guess so the shoe weather
+  // gate has something to read immediately, instead of treating old shoes as closed by default.
+  for (const item of data.wardrobe) {
+    if (item.openToe === undefined) { item.openToe = inferOpenToe(item); changed = true; }
+  }
+
   // Clear done shopping list items at the end of each PT day
   const todayPT = getTodayPT();
   if (data.lastShoppingCleared !== todayPT) {
@@ -768,7 +785,7 @@ app.post('/api/wardrobe/analyze-photo', requireAdmin, async (req, res) => {
         role: 'user',
         content: [
           ...imageBlocks,
-          { type: 'text', text: `These are photos of the same clothing item. Analyze them together for accuracy. Return ONLY a JSON object with these keys: category (one of: tops, bottoms, dresses, jumpsuitsRompers, shoes, outerwear, accessories), subcategory (pick the single best match from the list for whichever category you chose above — ${Object.entries(WARDROBE_SUBCATS).map(([cat, subs]) => `${cat}: ${subs.join(', ')}`).join(' | ')}), brand (visible brand name or empty string), color (main color in 2-3 words), material (e.g. linen, denim, knit wool — infer from texture), pattern (one of: solid, stripes, plaid, floral, graphic, geometric, other), occasion (one of: casual, formal, sporty, evening, business), season (one of: summer, winter, spring, autumn, all), text (short descriptive name e.g. "white linen shirt"). Raw JSON only, no markdown.` }
+          { type: 'text', text: `These are photos of the same clothing item. Analyze them together for accuracy. Return ONLY a JSON object with these keys: category (one of: tops, bottoms, dresses, jumpsuitsRompers, shoes, outerwear, accessories), subcategory (pick the single best match from the list for whichever category you chose above — ${Object.entries(WARDROBE_SUBCATS).map(([cat, subs]) => `${cat}: ${subs.join(', ')}`).join(' | ')}), brand (visible brand name or empty string), color (main color in 2-3 words), material (e.g. linen, denim, knit wool — infer from texture), pattern (one of: solid, stripes, plaid, floral, graphic, geometric, other), occasion (one of: casual, formal, sporty, evening, business), season (one of: summer, winter, spring, autumn, all), openToe (boolean — true only if this is a shoe that's open-toe or open-back, e.g. a sandal, mule or slide; false for every closed shoe and for every non-shoe item), text (short descriptive name e.g. "white linen shirt"). Raw JSON only, no markdown.` }
         ]
       }]
     });
@@ -1296,7 +1313,7 @@ app.post('/api/tasks/:category', requireAdmin, (req, res) => {
     : category === 'projects'
     ? { id, text, progress: 0, createdAt }
     : category === 'wardrobe'
-    ? { id, text: body.text, brand: body.brand || '', color: body.color || '', material: body.material || '', pattern: body.pattern || '', occasion: body.occasion || '', season: body.season || 'all', wardrobeCategory: body.wardrobeCategory || 'tops', subcategory: body.subcategory || '', origin: body.origin || '', acquired: body.acquired || '', memory: body.memory || '', createdAt }
+    ? { id, text: body.text, brand: body.brand || '', color: body.color || '', material: body.material || '', pattern: body.pattern || '', occasion: body.occasion || '', season: body.season || 'all', wardrobeCategory: body.wardrobeCategory || 'tops', subcategory: body.subcategory || '', origin: body.origin || '', acquired: body.acquired || '', memory: body.memory || '', openToe: Boolean(body.openToe), createdAt }
     : { id, text, done: false, createdAt };
   data[category].unshift(task);
   logEvent('task_created', { taskId: id, text, category }, profile);
@@ -1509,10 +1526,10 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
   }
 
   if (category === 'wardrobe') {
-    const fields = ['text', 'brand', 'color', 'material', 'pattern', 'occasion', 'season', 'wardrobeCategory', 'subcategory', 'origin', 'acquired', 'memory'];
+    const fields = ['text', 'brand', 'color', 'material', 'pattern', 'occasion', 'season', 'wardrobeCategory', 'subcategory', 'origin', 'acquired', 'memory', 'openToe'];
     const changes = fields
-      .filter(f => req.body[f] !== undefined && req.body[f] !== (before[f] ?? ''))
-      .map(f => ({ field: f, from: before[f] ?? '', to: req.body[f] }));
+      .filter(f => req.body[f] !== undefined && req.body[f] !== (before[f] ?? (f === 'openToe' ? false : '')))
+      .map(f => ({ field: f, from: before[f] ?? (f === 'openToe' ? false : ''), to: req.body[f] }));
     if (changes.length) logEvent('garment_edited', { taskId: task.id, text: task.text, changes }, profile);
     if (req.body.brand !== undefined) task.brand = req.body.brand;
     if (req.body.color !== undefined) task.color = req.body.color;
@@ -1525,6 +1542,7 @@ app.put('/api/tasks/:category/:id', requireAdmin, async (req, res) => {
     if (req.body.origin !== undefined) task.origin = req.body.origin;
     if (req.body.acquired !== undefined) task.acquired = req.body.acquired;
     if (req.body.memory !== undefined) task.memory = req.body.memory;
+    if (req.body.openToe !== undefined) task.openToe = Boolean(req.body.openToe);
   }
 
   if (category === 'habits') {
