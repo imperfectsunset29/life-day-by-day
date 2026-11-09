@@ -2006,6 +2006,23 @@ body.admin-mode .wardrobe-global-add-btn { display: inline-block; align-self: fl
   display: none;
 }
 
+.wardrobe-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 0.8rem;
+  color: rgba(240, 232, 224, 0.72);
+  cursor: pointer;
+}
+
+.wardrobe-checkbox-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: #b5c99a;
+}
+
 .wf-section-label {
   font-size: 0.7rem;
   font-weight: 600;

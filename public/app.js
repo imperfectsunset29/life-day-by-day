@@ -2092,6 +2092,7 @@ function populateSubcatOptions(cat, selected) {
   select.innerHTML = '<option value="">Subcategory</option>' +
     options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
   select.value = options.includes(selected) ? selected : '';
+  document.getElementById('wf-opentoe-row').classList.toggle('hidden', cat !== 'shoes');
 }
 
 const collapsedWardrobeCats = new Set();
@@ -2296,6 +2297,7 @@ function openWardrobeAddModal(wardrobeCat) {
   document.getElementById('wf-origin').value = '';
   document.getElementById('wf-acquired').value = '';
   document.getElementById('wf-memory').value = '';
+  document.getElementById('wf-opentoe').checked = false;
   document.getElementById('wf-cat').value = wardrobeCat || '';
   populateSubcatOptions(wardrobeCat || '');
   document.getElementById('wardrobe-photo-count').textContent = '';
@@ -2323,6 +2325,7 @@ function openWardrobeEditModal(id) {
   document.getElementById('wf-origin').value = item.origin || '';
   document.getElementById('wf-acquired').value = item.acquired || '';
   document.getElementById('wf-memory').value = item.memory || '';
+  document.getElementById('wf-opentoe').checked = Boolean(item.openToe);
   document.getElementById('wf-cat').value = item.wardrobeCategory || 'tops';
   populateSubcatOptions(item.wardrobeCategory || 'tops', item.subcategory);
   document.getElementById('wardrobe-photo-count').textContent = '';
@@ -2380,6 +2383,7 @@ async function analyzePhotos() {
     if (data.occasion) document.getElementById('wf-occasion').value = data.occasion;
     if (data.season)   document.getElementById('wf-season').value   = data.season;
     if (data.category) document.getElementById('wf-cat').value      = data.category;
+    if (typeof data.openToe === 'boolean') document.getElementById('wf-opentoe').checked = data.openToe;
     populateSubcatOptions(document.getElementById('wf-cat').value, data.subcategory);
   } catch (err) {
     console.error('Photo analysis failed:', err);
@@ -2404,6 +2408,7 @@ async function saveWardrobeItem() {
     season:          document.getElementById('wf-season').value,
     wardrobeCategory: document.getElementById('wf-cat').value,
     subcategory:     document.getElementById('wf-subcat').value,
+    openToe:         document.getElementById('wf-opentoe').checked,
     origin:          document.getElementById('wf-origin').value.trim(),
     acquired:        document.getElementById('wf-acquired').value.trim(),
     memory:          document.getElementById('wf-memory').value.trim()
