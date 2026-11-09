@@ -795,45 +795,44 @@ const STYLIST_RULES = `You are a personal stylist. Every candidate below already
 - Setting: think about what the place will do to the clothes, and choose the candidate whose fabrics survive it. Smoke and grease (Korean BBQ, hot pot, a grill, a bonfire, a fried-food spot): washable pieces only (cotton, denim, linen, easy synthetics), never cashmere, wool knits, silk, suede or anything dry-clean-only, and no white or pale delicates. Messy or saucy food: nothing precious near the hands and lap. Grass, sand, cobblestones or gravel: no thin heels or delicate soles. Sitting on the floor or low seats: nothing short or tight. Crowds, dancing or heat indoors: breathable, nothing heavy. This outranks taste.
 - Taste: outfits the user loved show their style; echo their spirit, don't repeat them. Outfits they marked "not my style" show what to steer away from: avoid that direction, not just those exact pieces.
 
-"chosenIndex" is the index of the winning candidate. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion. "scores" rates every candidate (not just the one you pick) on each of the four criteria above, 0 (fails it) to 1 (fits perfectly) — this is a record of your reasoning, not a formula; your "chosenIndex" is the holistic call (setting outranks taste, for instance), which an average of these scores won't always match.`;
+"chosenIndex" is the index of the winning candidate. "why" is one short sentence (under 20 words), warm and editorial, saying why this works for the occasion. "scores" must have exactly one entry per candidate listed above (same count, each "index" matching one of theirs, none repeated, none skipped), rating it on each of the four criteria, 0 (fails it) to 1 (fits perfectly) — this is a record of your reasoning, not a formula; your "chosenIndex" is the holistic call (setting outranks taste, for instance), which an average of these scores won't always match.`;
 
 // Principle 2 (off the hook): taste chooses the outfit, but now and then chance slips one
 // of your own pieces in. A roll of the dice, not a judgment call — decided in code below.
 const WILD_CARD_ODDS = 0.25;
 
-// The schema is built per-request because "scores" must have exactly one entry per candidate,
-// and the candidate count varies (1 to CANDIDATE_LIMIT) with what the closet and gates allow.
-function buildOutfitSchema(candidateCount) {
-  return {
-    type: 'object',
-    properties: {
-      chosenIndex: { type: 'integer' },
-      why: { type: 'string' },
-      // What the stylist read from an attached photo, in a few words ("70s disco night at a bar").
-      // Shown in place of the prompt and saved as the wear's prompt when no words were typed.
-      occasion: { type: 'string' },
-      scores: {
-        type: 'array',
-        minItems: candidateCount,
-        maxItems: candidateCount,
-        items: {
-          type: 'object',
-          properties: {
-            index: { type: 'integer' },
-            color: { type: 'number' },
-            formality: { type: 'number' },
-            setting: { type: 'number' },
-            taste: { type: 'number' }
-          },
-          required: ['index', 'color', 'formality', 'setting', 'taste'],
-          additionalProperties: false
-        }
+// Anthropic's schema-constrained output only allows minItems/maxItems of 0 or 1 for arrays
+// (not an arbitrary count), so "scores" can't be schema-locked to exactly one entry per
+// candidate — STYLIST_RULES asks for that instead, and the route code tolerates a missing
+// or extra entry (a candidate with no matching score just gets an empty scores object).
+const OUTFIT_SCHEMA = {
+  type: 'object',
+  properties: {
+    chosenIndex: { type: 'integer' },
+    why: { type: 'string' },
+    // What the stylist read from an attached photo, in a few words ("70s disco night at a bar").
+    // Shown in place of the prompt and saved as the wear's prompt when no words were typed.
+    occasion: { type: 'string' },
+    scores: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        properties: {
+          index: { type: 'integer' },
+          color: { type: 'number' },
+          formality: { type: 'number' },
+          setting: { type: 'number' },
+          taste: { type: 'number' }
+        },
+        required: ['index', 'color', 'formality', 'setting', 'taste'],
+        additionalProperties: false
       }
-    },
-    required: ['chosenIndex', 'why', 'occasion', 'scores'],
-    additionalProperties: false
-  };
-}
+    }
+  },
+  required: ['chosenIndex', 'why', 'occasion', 'scores'],
+  additionalProperties: false
+};
 
 // A photo attached to the outfit request (a party flier, an invitation, an outfit to echo).
 // Read for this one request and never saved, like the garment photos.
@@ -917,7 +916,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
         max_tokens: 8000,
         betas: ['server-side-fallback-2026-07-01'],
         fallbacks: 'default', // a declined request is retried on Anthropic's recommended model
-        output_config: { effort: 'low', format: { type: 'json_schema', schema: buildOutfitSchema(candidates.length) } },
+        output_config: { effort: 'low', format: { type: 'json_schema', schema: OUTFIT_SCHEMA } },
         system: [{ type: 'text', text: STYLIST_RULES }],
         messages: [{ role: 'user', content: userContent }]
       });
