@@ -279,10 +279,16 @@ function buildOutfitCandidates(data, stats, weather, exclude) {
   ];
   if (!bases.length) return { candidates: [], gates: { basesCount: 0 } };
 
-  const shoes = byCategory('shoes');
+  const allShoes = byCategory('shoes');
   const outerwear = byCategory('outerwear');
   const needsLayer = weather && typeof weather.tempF === 'number' && weather.tempF < LAYER_THRESHOLD_F;
   const weatherGateRelaxed = Boolean(needsLayer && !outerwear.length);
+
+  // Open shoes (sandals) are unsuitable below the same layer threshold — a separate gate
+  // from the outerwear one, since a closet can own a coat but no closed shoes, or vice versa.
+  const closedShoes = allShoes.filter(s => s.subcategory !== 'Sandals');
+  const shoeGateRelaxed = Boolean(needsLayer && allShoes.length && !closedShoes.length);
+  const shoes = needsLayer && closedShoes.length ? closedShoes : allShoes;
 
   const beforeWeather = bases.flatMap(base => shoes.length ? shoes.map(s => [...base, s]) : [base]);
   const combos = beforeWeather.flatMap(base => {
@@ -317,6 +323,8 @@ function buildOutfitCandidates(data, stats, weather, exclude) {
       totalValidCombos: afterExclusion.length,
       weatherGateApplied: Boolean(needsLayer && outerwear.length),
       weatherGateRelaxed,
+      shoeGateApplied: Boolean(needsLayer && closedShoes.length),
+      shoeGateRelaxed,
       exclusionGateApplied: Boolean(excludedMainIds.size && withoutExcluded.length),
       exclusionGateRelaxed,
       rotationScores: scored.map(c => Number(c.score.toFixed(1)))
