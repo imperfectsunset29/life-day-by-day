@@ -162,10 +162,10 @@ h1 {
   color: rgba(240, 232, 224, 0.85);
 }
 
-/* ============ Floating collapsible nav ============ */
+/* ============ Floating radial nav ============ */
 
-/* Dock: a fixed, full-width, click-through strip that centres the pill. The pill
-   itself is the only thing that catches taps. */
+/* Dock: a fixed, full-width, click-through strip that centres the core. Only the
+   core (and the petals, while fanned out) catch taps. */
 .floating-nav-dock {
   position: fixed;
   left: 0;
@@ -177,71 +177,62 @@ h1 {
   z-index: 60;
 }
 
-/* The pill. Liquid Glass — it morphs between a wide bar and a single circle by
-   animating its own padding while the items inside collapse to zero width. */
+/* The petals are positioned around the core's centre; app.js sets each petal's
+   --petal-x / --petal-y once, from NAV_FAN (radius and arc). */
 .floating-nav {
-  pointer-events: auto;
+  position: relative;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 6px;
-  border-radius: 100px;
+  justify-content: center;
+  --nav-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --nav-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Core: a Liquid Glass circle showing where you are. Open, it fills sage and its
+   glyph turns a quarter-and-a-half into an ×. */
+.floating-nav-core {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e8c896;
+  font-family: inherit;
+  cursor: pointer;
   background: rgba(255, 255, 255, 0.075);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 34px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(22px) saturate(1.3);
   -webkit-backdrop-filter: blur(22px) saturate(1.3);
-  transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1),
-              gap 0.32s cubic-bezier(0.32, 0.72, 0, 1),
-              background 0.25s ease;
+  transition: background 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease, color 0.28s ease;
 }
 
-.floating-nav-item {
-  position: relative;
-  flex: 0 0 auto;
-  width: 70px;
-  height: 54px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 0; /* drop the browser's default button padding so labels get the full slot */
-  background: none;
-  border: none;
-  border-radius: 100px;
-  color: rgba(240, 232, 224, 0.6);
-  font-family: inherit;
-  cursor: pointer;
-  overflow: hidden;
-  transition: width 0.32s cubic-bezier(0.32, 0.72, 0, 1),
-              height 0.32s cubic-bezier(0.32, 0.72, 0, 1),
-              opacity 0.22s ease,
-              color 0.2s ease,
-              background 0.2s ease;
-}
-
-.floating-nav-item:hover {
-  color: rgba(240, 232, 224, 0.9);
-}
-
-/* Current view: warm amber, seated in its own lighter glass capsule */
-.floating-nav-item.active {
-  color: #e8c896;
-  background: rgba(255, 255, 255, 0.10);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
-}
-
-.floating-nav-icon {
+.floating-nav-core-face,
+.floating-nav-core-close {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  transition: transform 0.28s var(--nav-spring), opacity 0.2s var(--nav-soft);
 }
 
+.floating-nav-core-close {
+  opacity: 0;
+  transform: rotate(0deg) scale(0.6);
+}
+
+.floating-nav-core svg,
 .floating-nav-icon svg {
-  width: 21px;
-  height: 21px;
+  width: 22px;
+  height: 22px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.6;
@@ -250,50 +241,98 @@ h1 {
   display: block;
 }
 
-.floating-nav-label {
-  font-size: 0.7rem;
-  font-weight: 500;
-  letter-spacing: 0.04em; /* tighter than other labels so 11px words fit the nav slots */
-  text-transform: uppercase;
-  line-height: 1;
-  white-space: nowrap;
+.floating-nav-core-close svg {
+  stroke-width: 1.8;
+}
+
+.floating-nav:not(.collapsed) .floating-nav-core {
+  color: #130518; /* plum-black on sage: ~10:1 */
+  background: #b5c99a;
+  border-color: rgba(181, 201, 154, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 0 1px rgba(181, 201, 154, 0.35), 0 8px 36px -6px rgba(181, 201, 154, 0.55);
+}
+
+.floating-nav:not(.collapsed) .floating-nav-core-face {
+  opacity: 0;
+  transform: rotate(135deg) scale(0.6);
+}
+
+.floating-nav:not(.collapsed) .floating-nav-core-close {
   opacity: 1;
-  max-height: 14px;
-  transition: opacity 0.18s ease, max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  transform: rotate(135deg) scale(1);
 }
 
-/* --- Collapsed: everything but the current item folds away, pill becomes a dot --- */
-.floating-nav.collapsed {
-  padding: 4px;
-  gap: 0;
-}
-
-.floating-nav.collapsed .floating-nav-item:not(.collapsed-face) {
-  width: 0;
+/* Petals: small glass circles that sit hidden behind the core, then spring out
+   along the arc, one after another (delays set in app.js). */
+.floating-nav-item {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(240, 232, 224, 0.62); /* icon-only: well above the 3:1 floor */
+  font-family: inherit;
+  cursor: pointer;
+  /* a plum-tinted glass, deeper than a card, so the icon reads over busy rows */
+  background: linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08)), rgba(28, 10, 34, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 8px 26px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(22px) saturate(1.3);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
   opacity: 0;
   pointer-events: none;
+  transform: translate(0, 0) scale(0.2);
+  transition: transform 0.46s var(--nav-spring),
+              opacity 0.28s var(--nav-soft),
+              color 0.2s ease,
+              border-color 0.2s ease;
 }
 
-.floating-nav.collapsed .floating-nav-item.collapsed-face {
-  width: 52px;
-  height: 52px;
-  background: rgba(255, 255, 255, 0.10);
-}
-
-/* Expanded: let labels use the full slot width; the rounded slot would otherwise clip the
-   ends of the longest one ("WARDROBE"). Clipping is only needed while collapsing. */
 .floating-nav:not(.collapsed) .floating-nav-item {
-  overflow: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(var(--petal-x, 0px), var(--petal-y, 0px)) scale(1);
 }
 
-.floating-nav.collapsed .floating-nav-label {
-  opacity: 0;
-  max-height: 0;
+.floating-nav:not(.collapsed) .floating-nav-item:hover {
+  color: rgba(240, 232, 224, 0.9);
+  border-color: rgba(200, 168, 122, 0.5);
 }
 
-.floating-nav.collapsed .floating-nav-icon svg {
-  width: 23px;
-  height: 23px;
+/* Current page: warm amber, a touch more glass */
+.floating-nav-item.active {
+  color: #e8c896;
+  background: linear-gradient(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12)), rgba(28, 10, 34, 0.62);
+  border-color: rgba(200, 168, 122, 0.45);
+}
+
+.floating-nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floating-nav-core:focus-visible,
+.floating-nav-item:focus-visible {
+  outline: 2px solid #c8a87a;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-nav-core,
+  .floating-nav-core-face,
+  .floating-nav-core-close,
+  .floating-nav-item {
+    transition-duration: 0.001ms !important;
+    transition-delay: 0s !important;
+  }
 }
 
 /* Categories */
@@ -1236,10 +1275,6 @@ body.admin-mode .progress-thumb { display: block; }
     gap: 6px;
   }
 
-
-  .floating-nav-item {
-    width: 68px; /* fits "WARDROBE" at the 11px floor; 5 items still clear a 390px screen */
-  }
 
   .task-actions {
     opacity: 1;

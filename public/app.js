@@ -1939,18 +1939,27 @@ function showDreams() {
   window.scrollTo(0, 0);
 }
 
-// ============ Floating collapsible nav ============
+// ============ Floating radial nav ============
 //
-// The nav is a glass pill that lives at the bottom of every screen. Expanded it
-// shows all five destinations; collapsed it folds down to a single circle
-// showing the icon of wherever you currently are. It collapses on its own once
-// you stop touching it, and as soon as you start scrolling, so it stays out of
-// the way of the content. Tapping the circle opens it back up.
+// A single glass circle at the bottom of every screen, showing the icon of
+// wherever you are. Tapping it turns its glyph into an × and fans the five
+// destinations out above it in an arc, springing out one after another. It folds
+// back on its own once you stop touching it, as soon as you scroll, on a tap
+// anywhere else, and shortly after a jump.
 
 const floatingNavDock = document.getElementById('floating-nav-dock');
 const floatingNav = document.getElementById('floating-nav');
-const NAV_IDLE_MS = 2600;      // how long an untouched open pill stays open
+const floatingNavCore = document.getElementById('floating-nav-core');
+const floatingNavFace = floatingNavCore.querySelector('.floating-nav-core-face');
+const navPetals = Array.from(floatingNav.querySelectorAll('.floating-nav-item'));
+const NAV_IDLE_MS = 2600;      // how long an untouched open fan stays open
 const NAV_SETTLE_MS = 450;     // pause after a jump before folding away
+// The arc: petals sit NAV_FAN.radius px from the core's centre, spread evenly from
+// `start` to `end` degrees (0 = right, -90 = straight up). Five 48px petals at 84px
+// leave ~20px between them; widen the radius or arc before adding a sixth.
+const NAV_FAN = { radius: 84, start: -186, end: 6 };
+const NAV_STAGGER_OPEN_MS = 45;
+const NAV_STAGGER_CLOSE_MS = 30;
 
 let navCollapseTimer = null;
 
@@ -1962,43 +1971,74 @@ const NAV_DESTINATIONS = {
   dreams: showDreams,
 };
 
+navPetals.forEach((petal, i) => {
+  const t = navPetals.length === 1 ? 0.5 : i / (navPetals.length - 1);
+  const angle = (NAV_FAN.start + (NAV_FAN.end - NAV_FAN.start) * t) * Math.PI / 180;
+  petal.style.setProperty('--petal-x', (Math.cos(angle) * NAV_FAN.radius).toFixed(1) + 'px');
+  petal.style.setProperty('--petal-y', (Math.sin(angle) * NAV_FAN.radius).toFixed(1) + 'px');
+});
+
+function setNavOpen(open) {
+  const n = navPetals.length;
+  navPetals.forEach((petal, i) => {
+    // Opening fans left to right; closing gathers them back right to left.
+    petal.style.transitionDelay = (open ? i * NAV_STAGGER_OPEN_MS : (n - 1 - i) * NAV_STAGGER_CLOSE_MS) + 'ms';
+    petal.tabIndex = open ? 0 : -1;
+  });
+  floatingNav.classList.toggle('collapsed', !open);
+  floatingNavCore.setAttribute('aria-expanded', open ? 'true' : 'false');
+  floatingNavCore.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+}
+
 function collapseNav() {
   clearTimeout(navCollapseTimer);
   navCollapseTimer = null;
-  floatingNav.classList.add('collapsed');
+  if (!floatingNav.classList.contains('collapsed')) setNavOpen(false);
 }
 
 // delay = ms of inactivity before it folds itself back up; null keeps it open.
 function expandNav(delay = NAV_IDLE_MS) {
   clearTimeout(navCollapseTimer);
-  floatingNav.classList.remove('collapsed');
+  if (floatingNav.classList.contains('collapsed')) setNavOpen(true);
   navCollapseTimer = delay === null ? null : setTimeout(collapseNav, delay);
 }
 
 // `key` is a NAV_DESTINATIONS key, or null for views that aren't in the nav
-// (Treats, Hard Things) — those show no highlight, and the collapsed circle
-// falls back to Home so there's always a way back.
+// (Treats, Hard Things) — those show no highlight, and the core falls back to
+// the Home icon.
 function setActiveNav(key) {
-  const items = floatingNav.querySelectorAll('.floating-nav-item');
-  items.forEach(item => {
+  navPetals.forEach(item => {
     const isActive = item.dataset.nav === key;
     item.classList.toggle('active', isActive);
-    item.classList.toggle('collapsed-face', key ? isActive : item.dataset.nav === 'home');
     item.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
+  const face = navPetals.find(item => item.dataset.nav === (key || 'home'));
+  const svg = face && face.querySelector('svg');
+  floatingNavFace.replaceChildren(svg ? svg.cloneNode(true) : '');
 }
 
-floatingNav.addEventListener('click', e => {
-  // While collapsed the pill is a single button: any tap just opens it.
-  if (floatingNav.classList.contains('collapsed')) {
-    expandNav();
-    return;
+floatingNavCore.addEventListener('click', () => {
+  if (floatingNav.classList.contains('collapsed')) expandNav();
+  else collapseNav();
+});
+
+navPetals.forEach(petal => {
+  petal.addEventListener('click', () => {
+    const go = NAV_DESTINATIONS[petal.dataset.nav];
+    if (go) go();
+    expandNav(NAV_SETTLE_MS);
+  });
+});
+
+// Keyboard: moving between petals keeps the fan open; Escape folds it.
+floatingNav.addEventListener('focusin', () => {
+  if (!floatingNav.classList.contains('collapsed')) expandNav();
+});
+floatingNav.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !floatingNav.classList.contains('collapsed')) {
+    collapseNav();
+    floatingNavCore.focus();
   }
-  const item = e.target.closest('.floating-nav-item');
-  if (!item) { expandNav(); return; }
-  const go = NAV_DESTINATIONS[item.dataset.nav];
-  if (go) go();
-  expandNav(NAV_SETTLE_MS);
 });
 
 // Scrolling means you're reading, not navigating — get out of the way.
