@@ -181,8 +181,8 @@ h1 {
    --petal-x / --petal-y once, from NAV_FAN (radius and arc). */
 .floating-nav {
   position: relative;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -196,8 +196,8 @@ h1 {
   position: relative;
   z-index: 2;
   pointer-events: auto;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   padding: 0;
   border-radius: 50%;
   display: flex;
@@ -231,8 +231,8 @@ h1 {
 
 .floating-nav-core svg,
 .floating-nav-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 25px;
+  height: 25px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.6;
@@ -269,9 +269,9 @@ h1 {
   left: 50%;
   top: 50%;
   z-index: 1;
-  width: 48px;
-  height: 48px;
-  margin: -24px 0 0 -24px;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
   padding: 0;
   border-radius: 50%;
   display: flex;
@@ -319,6 +319,48 @@ h1 {
   justify-content: center;
 }
 
+/* Label under each petal. Part of the button, so tapping the word works too.
+   Ivory 0.78 over the dimmed page: ~9:1. */
+.floating-nav-label {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: rgba(240, 232, 224, 0.78);
+  text-shadow: 0 1px 8px rgba(19, 5, 24, 0.9);
+}
+
+.floating-nav-item.active .floating-nav-label {
+  color: #e8c896;
+}
+
+/* Scrim: while the fan is open the page sinks back (plum shade + soft blur) so
+   the menu is the only thing in focus. A tap on it closes the menu without
+   reaching anything underneath. */
+.floating-nav-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 59; /* just under the dock */
+  background: rgba(19, 5, 24, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.floating-nav-scrim.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .floating-nav-core:focus-visible,
 .floating-nav-item:focus-visible {
   outline: 2px solid #c8a87a;
@@ -329,7 +371,8 @@ h1 {
   .floating-nav-core,
   .floating-nav-core-face,
   .floating-nav-core-close,
-  .floating-nav-item {
+  .floating-nav-item,
+  .floating-nav-scrim {
     transition-duration: 0.001ms !important;
     transition-delay: 0s !important;
   }

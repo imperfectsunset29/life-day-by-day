@@ -1951,13 +1951,15 @@ const floatingNavDock = document.getElementById('floating-nav-dock');
 const floatingNav = document.getElementById('floating-nav');
 const floatingNavCore = document.getElementById('floating-nav-core');
 const floatingNavFace = floatingNavCore.querySelector('.floating-nav-core-face');
+const floatingNavScrim = document.getElementById('floating-nav-scrim');
 const navPetals = Array.from(floatingNav.querySelectorAll('.floating-nav-item'));
 const NAV_IDLE_MS = 2600;      // how long an untouched open fan stays open
 const NAV_SETTLE_MS = 450;     // pause after a jump before folding away
 // The arc: petals sit NAV_FAN.radius px from the core's centre, spread evenly from
-// `start` to `end` degrees (0 = right, -90 = straight up). Five 48px petals at 84px
-// leave ~20px between them; widen the radius or arc before adding a sixth.
-const NAV_FAN = { radius: 84, start: -186, end: 6 };
+// `start` to `end` degrees (0 = right, -90 = straight up). Five 56px petals with
+// their labels need this much room: at 128px each label clears the petal below it
+// and the end labels stay inside a 390px screen. Widen before adding a sixth.
+const NAV_FAN = { radius: 128, start: -175, end: -5 };
 const NAV_STAGGER_OPEN_MS = 45;
 const NAV_STAGGER_CLOSE_MS = 30;
 
@@ -1986,6 +1988,7 @@ function setNavOpen(open) {
     petal.tabIndex = open ? 0 : -1;
   });
   floatingNav.classList.toggle('collapsed', !open);
+  floatingNavScrim.classList.toggle('open', open);
   floatingNavCore.setAttribute('aria-expanded', open ? 'true' : 'false');
   floatingNavCore.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
 }
