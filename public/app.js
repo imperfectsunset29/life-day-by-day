@@ -1953,7 +1953,7 @@ const floatingNavCore = document.getElementById('floating-nav-core');
 const floatingNavFace = floatingNavCore.querySelector('.floating-nav-core-face');
 const floatingNavScrim = document.getElementById('floating-nav-scrim');
 const navPetals = Array.from(floatingNav.querySelectorAll('.floating-nav-item'));
-const NAV_IDLE_MS = 2600;      // how long an untouched open fan stays open
+const NAV_IDLE_MS = 3600;      // how long an untouched open fan stays open
 const NAV_SETTLE_MS = 450;     // pause after a jump before folding away
 // The arc: petals sit NAV_FAN.radius px from the core's centre, spread evenly from
 // `start` to `end` degrees (0 = right, -90 = straight up). Five 56px petals with
