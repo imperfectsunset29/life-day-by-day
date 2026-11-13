@@ -643,6 +643,18 @@ const CLOSET_AUDIT_2026_11_13 = [
   { id: 717, name: "orange cotton shirt", set: { subcategory: "Blouses & Shirts" } },
 ];
 
+// Second pass, after the user answered the open questions from the same audit
+const CLOSET_AUDIT_2026_11_13_ANSWERS = [
+  { id: 742, name: "chartreuse green geometric", set: { text: "Chartreuse green geometric blouse", subcategory: "Blouses & Shirts" } },
+  { id: 733, name: "gray wool turtleneck", set: { text: "gray cashmere turtleneck sweater" } },
+  { id: 778, name: "white short sleeve coveralls", set: { subcategory: "Jumpsuits" } },
+];
+
+const CLOSET_AUDITS = [
+  { flag: 'closetAudit20261113', fixes: CLOSET_AUDIT_2026_11_13 },
+  { flag: 'closetAudit20261113b', fixes: CLOSET_AUDIT_2026_11_13_ANSWERS }
+];
+
 function readTasks(profile) {
   const file = getTasksFile(profile || 'vc');
   const defaults = profile === 'fg' ? defaultFgTasks : defaultTasks;
@@ -752,12 +764,13 @@ function readTasks(profile) {
     if (item.openToe === undefined) { item.openToe = inferOpenToe(item); changed = true; }
   }
 
-  // One-time closet audit (2026-11-13, VC only): fixes the user approved after an audit of
-  // categories and materials. Each fix names the garment's id and the start of its name, and
+  // One-time closet audits (VC only): fixes the user approved after an audit of categories
+  // and materials, each run once under its own flag. Each fix names the garment's id and the start of its name, and
   // is skipped if they no longer match (renamed or deleted since). Every change is logged as
   // garment_edited with from → to, so it can be undone from the activity log. Runs once.
-  if ((profile || 'vc') === 'vc' && !data.closetAudit20261113) {
-    for (const fix of CLOSET_AUDIT_2026_11_13) {
+  for (const audit of CLOSET_AUDITS) {
+    if ((profile || 'vc') !== 'vc' || data[audit.flag]) continue;
+    for (const fix of audit.fixes) {
       const item = data.wardrobe.find(i => i.id === fix.id);
       if (!item || !String(item.text || '').toLowerCase().startsWith(fix.name)) continue;
       const changes = Object.entries(fix.set)
@@ -765,9 +778,9 @@ function readTasks(profile) {
         .map(([field, to]) => ({ field, from: item[field] ?? '', to }));
       if (!changes.length) continue;
       for (const { field, to } of changes) item[field] = to;
-      logEvent('garment_edited', { taskId: item.id, text: item.text, changes, by: 'closet-audit-2026-11-13' }, profile);
+      logEvent('garment_edited', { taskId: item.id, text: item.text, changes, by: audit.flag }, profile);
     }
-    data.closetAudit20261113 = true;
+    data[audit.flag] = true;
     changed = true;
   }
 

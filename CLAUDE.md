@@ -145,7 +145,7 @@ wishlist:   { id, text, note, createdAt, name, image, resolvedAt } // longer-ter
                                                      // name/image saved from the link's page (image is a URL, never base64)
 acquired:   { id, text, note, name, image, createdAt, acquiredAt } // bought wishes; createdAt→acquiredAt = how long it was wanted
 shoppingSplit: true                                  // one-time migration flag (linked items moved from shoppingList to wishlist)
-closetAudit20261113: true                            // one-time flag: the approved closet audit fixes (CLOSET_AUDIT_2026_11_13) were applied, VC only
+closetAudit20261113, closetAudit20261113b: true     // one-time flags: the approved closet audit fixes (CLOSET_AUDITS) were applied, VC only
 nextId:     number                                   // shared counter for tasks, steps and wear entries
 ```
 
