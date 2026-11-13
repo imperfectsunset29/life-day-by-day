@@ -2482,17 +2482,26 @@ async function saveWardrobeItem() {
 // Resolves to { lat, lon } or null if geolocation is unavailable, denied, or times out.
 // Races an explicit timeout alongside getCurrentPosition's own `timeout` option — some
 // browsers don't reliably fire it while a permission prompt is stuck unresolved.
+// Where you are, for the outfit's weather. A phone that can't answer in time (permission off,
+// GPS slow) falls back to the last place it did answer, kept on this device; with neither,
+// the server uses home. Never "weather unknown", which would switch the weather gates off.
 function getUserLocation() {
+  let remembered = null;
+  try { remembered = JSON.parse(localStorage.getItem('lastLocation') || 'null'); } catch {}
   const geo = new Promise(resolve => {
     if (!navigator.geolocation) return resolve(null);
     navigator.geolocation.getCurrentPosition(
-      pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      pos => {
+        const here = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        try { localStorage.setItem('lastLocation', JSON.stringify(here)); } catch {}
+        resolve(here);
+      },
       () => resolve(null),
-      { timeout: 5000, maximumAge: 10 * 60 * 1000 }
+      { timeout: 5000, maximumAge: 30 * 60 * 1000 }
     );
   });
   const timeout = new Promise(resolve => setTimeout(() => resolve(null), 6000));
-  return Promise.race([geo, timeout]);
+  return Promise.race([geo, timeout]).then(here => here || remembered);
 }
 
 let outfitRequestInFlight = false;

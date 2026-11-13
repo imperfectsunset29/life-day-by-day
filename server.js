@@ -266,6 +266,7 @@ function sanitizeOutfit(items) {
 const LAYER_THRESHOLD_F = 55;   // below this, an outfit needs outerwear to pass the weather gate
 const ROTATION_CAP_DAYS = 60;   // days-since-worn is capped so one ancient item doesn't dominate the score
 const CANDIDATE_LIMIT = 8;      // how many candidates get sent to the stylist to choose among
+const DELICATE_IN_RAIN = /\b(silk|satin|suede|velvet)\b/i; // fabrics a wet day ruins
 
 function rotationScore(items, stats, recentMainIds) {
   const days = items.map(i => {
@@ -291,7 +292,10 @@ function buildOutfitCandidates(data, stats, weather, exclude) {
 
   const allShoes = byCategory('shoes');
   const outerwear = byCategory('outerwear');
-  const needsLayer = weather && typeof weather.tempF === 'number' && weather.tempF < LAYER_THRESHOLD_F;
+  // Rain counts like cold: it needs a layer and closed shoes. So does a cold low later today.
+  const wet = Boolean(weather && weather.wet);
+  const coldNow = weather && typeof weather.tempF === 'number' && weather.tempF < LAYER_THRESHOLD_F;
+  const needsLayer = Boolean(coldNow || wet);
   const weatherGateRelaxed = Boolean(needsLayer && !outerwear.length);
 
   // Open shoes (openToe: sandals, mules, slides...) are unsuitable below the same layer
@@ -301,7 +305,16 @@ function buildOutfitCandidates(data, stats, weather, exclude) {
   const shoeGateRelaxed = Boolean(needsLayer && allShoes.length && !closedShoes.length);
   const shoes = needsLayer && closedShoes.length ? closedShoes : allShoes;
 
-  const beforeWeather = bases.flatMap(base => shoes.length ? shoes.map(s => [...base, s]) : [base]);
+  // Rain gate: on a wet day, nothing the rain ruins (silk, satin, suede, velvet) — relaxed
+  // rather than emptying the pool if every option has one.
+  const rainRuins = i => DELICATE_IN_RAIN.test(`${i.material || ''} ${i.text || ''}`);
+  const dryBases = wet ? bases.filter(b => !b.some(rainRuins)) : bases;
+  const rainGateRelaxed = Boolean(wet && bases.length && !dryBases.length);
+  const weatherBases = dryBases.length ? dryBases : bases;
+  const dryShoes = wet ? shoes.filter(s => !rainRuins(s)) : shoes;
+  const shoesForDay = dryShoes.length ? dryShoes : shoes;
+
+  const beforeWeather = weatherBases.flatMap(base => shoesForDay.length ? shoesForDay.map(s => [...base, s]) : [base]);
   const combos = beforeWeather.flatMap(base => {
     if (!needsLayer || !outerwear.length) return [base]; // no layer required, or none owned — gate relaxes rather than emptying the pool
     return outerwear.map(o => [...base, o]);
@@ -336,6 +349,8 @@ function buildOutfitCandidates(data, stats, weather, exclude) {
       weatherGateRelaxed,
       shoeGateApplied: Boolean(needsLayer && closedShoes.length),
       shoeGateRelaxed,
+      rainGateApplied: Boolean(wet && dryBases.length),
+      rainGateRelaxed,
       exclusionGateApplied: Boolean(excludedMainIds.size && withoutExcluded.length),
       exclusionGateRelaxed,
       rotationScores: scored.map(c => Number(c.score.toFixed(1)))
@@ -357,18 +372,43 @@ const WEATHER_CODES = {
   95: 'thunderstorm', 96: 'thunderstorm with slight hail', 99: 'thunderstorm with heavy hail'
 };
 
-// Free, no-API-key weather lookup for the outfit suggester.
+// Where the outfit's weather comes from when the phone can't give a location (permission off,
+// GPS slow): home, San Francisco unless HOME_LAT / HOME_LON say otherwise. Better a forecast
+// for home than "Weather: unknown", which switches every weather gate off.
+const HOME_LAT = Number(process.env.HOME_LAT) || 37.7749;
+const HOME_LON = Number(process.env.HOME_LON) || -122.4194;
+
+// Codes that mean something is falling right now (drizzle, rain, showers, snow, storms)
+const WET_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99]);
+const RAIN_CHANCE_WET = 40; // % chance of rain today at which the day counts as wet
+
+// Free, no-API-key weather lookup for the outfit suggester: now, plus the rest of today
+// (low, high, chance of rain), so a dry morning before an afternoon storm still counts as wet.
 async function fetchWeather(lat, lon) {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&current=temperature_2m,weather_code` +
+      `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
+      `&temperature_unit=fahrenheit&timezone=auto&forecast_days=1`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
     const current = data.current;
     if (!current) return null;
+    const daily = data.daily || {};
+    const pick = key => (Array.isArray(daily[key]) && typeof daily[key][0] === 'number') ? Math.round(daily[key][0]) : null;
+    const rainChance = pick('precipitation_probability_max');
+    const fallingNow = WET_CODES.has(current.weather_code);
+    const wet = fallingNow || (rainChance != null && rainChance >= RAIN_CHANCE_WET);
+    let description = WEATHER_CODES[current.weather_code] || 'unknown conditions';
+    if (!fallingNow && wet) description += `, ${rainChance}% chance of rain`;
     return {
       tempF: Math.round(current.temperature_2m),
-      description: WEATHER_CODES[current.weather_code] || 'unknown conditions'
+      description,
+      lowF: pick('temperature_2m_min'),
+      highF: pick('temperature_2m_max'),
+      rainChance,
+      wet
     };
   } catch {
     return null;
@@ -882,7 +922,8 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   const exclude = Array.isArray(req.body.exclude) ? req.body.exclude.filter(Array.isArray).slice(-8) : [];
   if (!data.wardrobe || !data.wardrobe.length) return res.json({ items: [], wardrobeEmpty: true });
 
-  const weather = (typeof lat === 'number' && typeof lon === 'number') ? await fetchWeather(lat, lon) : null;
+  const hasPlace = typeof lat === 'number' && typeof lon === 'number';
+  const weather = await fetchWeather(hasPlace ? lat : HOME_LAT, hasPlace ? lon : HOME_LON);
   const stats = computeWardrobeStats(data);
   let { candidates, gates } = buildOutfitCandidates(data, stats, weather, exclude);
 
@@ -927,7 +968,11 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
         words ? `Occasion: "${words}"` : photo ? 'Occasion: see the attached photo.' : 'Occasion: an ordinary day, no details given. Dress for the weather and the user\'s taste.',
         refine ? `After seeing the last outfit, the user adds: "${refine}". Follow it.` : '',
         photo ? `The user attached a photo. Work out what it is. If it's a flier, invitation or event page, read it for the occasion: the event, theme, dress code, venue, date and time, and judge candidates for that event (if it's on another day or at night, the weather below is only a hint). If it's an outfit or a look, take its inspiration (silhouette, color story, mood, level of dressiness) and pick the candidate closest to its spirit. If it's something else, take its mood as the brief. "occasion" is what you read from the photo in under 8 words, lowercase, plain (e.g. "70s disco night at a bar", "relaxed linen look in cream"). "why" may refer to the photo.` : '"occasion" is an empty string.',
-        weather ? `Weather now: ${weather.tempF}°F, ${weather.description}.` : 'Weather: unknown.',
+        weather
+          ? `Weather now: ${weather.tempF}°F, ${weather.description}.` +
+            (weather.lowF != null ? ` Today: low ${weather.lowF}°F, high ${weather.highF}°F` + (weather.rainChance != null ? `, ${weather.rainChance}% chance of rain.` : '.') : '') +
+            (weather.wet ? ' It is a wet day: favor what keeps the user dry and comfortable.' : '')
+          : 'Weather: unknown.',
         loved.length ? `Outfits the user loved recently:\n${loved.join('\n')}` : '',
         passed.length ? `Outfits the user marked "not my style":\n${passed.join('\n')}` : ''
       ].filter(Boolean).join('\n\n');
@@ -977,9 +1022,13 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
       console.error('AI outfit suggestion unavailable, falling back to random pick:', friendlyAnthropicError(err));
     }
   }
-  // No AI configured, no candidate survived the gates, the AI call failed, or it picked
-  // nothing usable — random pick, rather than showing an empty "add clothes" result.
-  if (!items || items.length === 0) { items = randomOutfitPick(data.wardrobe); why = ''; }
+  // No AI configured, the AI call failed, or it picked nothing usable: a random pick from the
+  // candidates that passed the gates (so rain and cold still count), and only with no
+  // candidates at all a random pick from the whole closet, rather than an empty result.
+  if (!items || items.length === 0) {
+    items = candidates.length ? pickRandom(candidates) : randomOutfitPick(data.wardrobe);
+    why = '';
+  }
   const outfit = sanitizeOutfit(items);
 
   // Remember what was suggested (last 10) so the next request can steer away from it.
