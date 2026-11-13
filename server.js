@@ -293,8 +293,10 @@ function buildOutfitCandidates(data, stats, weather, exclude) {
   const allShoes = byCategory('shoes');
   const outerwear = byCategory('outerwear');
   // Rain counts like cold: it needs a layer and closed shoes. So does a cold low later today.
-  const wet = Boolean(weather && weather.wet);
-  const coldNow = weather && typeof weather.tempF === 'number' && weather.tempF < LAYER_THRESHOLD_F;
+  // Weather unknown (both sources failed): play safe, as if it may turn cold and wet, rather
+  // than switching every gate off. Each gate still relaxes rather than emptying the pool.
+  const wet = Boolean(!weather || weather.wet);
+  const coldNow = !weather || (typeof weather.tempF === 'number' && weather.tempF < LAYER_THRESHOLD_F);
   const needsLayer = Boolean(coldNow || wet);
   const weatherGateRelaxed = Boolean(needsLayer && !outerwear.length);
 
@@ -382,37 +384,95 @@ const HOME_LON = Number(process.env.HOME_LON) || -122.4194;
 const WET_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99]);
 const RAIN_CHANCE_WET = 40; // % chance of rain today at which the day counts as wet
 
-// Free, no-API-key weather lookup for the outfit suggester: now, plus the rest of today
-// (low, high, chance of rain), so a dry morning before an afternoon storm still counts as wet.
+// Weather for the outfit: now, plus the rest of today (low, high, chance of rain), so a dry
+// morning before an afternoon storm still counts as wet. Two free sources, tried in order:
+// Open-Meteo, then MET Norway (Railway's shared servers sometimes hit Open-Meteo's free limit).
+// Each answer is kept WEATHER_CACHE_MS per place, so re-spins don't ask again. Failures are
+// logged, never silent. Returns null only when both sources fail.
+const WEATHER_CACHE_MS = 20 * 60 * 1000;
+const WEATHER_TIMEOUT_MS = 5000;
+const WEATHER_UA = 'Oedipa/1.0 (+https://github.com/imperfectsunset29/life-day-by-day)'; // MET Norway asks every client to name itself
+const weatherCache = new Map(); // "lat,lon" rounded → { at, weather }
+
+function finishWeather({ tempF, description, lowF, highF, rainChance, fallingNow, source }) {
+  const wet = Boolean(fallingNow || (rainChance != null && rainChance >= RAIN_CHANCE_WET));
+  if (!fallingNow && wet) description += `, ${rainChance}% chance of rain`;
+  return { tempF, description, lowF, highF, rainChance, wet, source };
+}
+
+async function weatherFromOpenMeteo(lat, lon) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&current=temperature_2m,weather_code` +
+    `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
+    `&temperature_unit=fahrenheit&timezone=auto&forecast_days=1`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(WEATHER_TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`Open-Meteo answered ${res.status}`);
+  const data = await res.json();
+  const current = data.current;
+  if (!current || typeof current.temperature_2m !== 'number') throw new Error('Open-Meteo sent no current weather');
+  const daily = data.daily || {};
+  const pick = key => (Array.isArray(daily[key]) && typeof daily[key][0] === 'number') ? Math.round(daily[key][0]) : null;
+  return finishWeather({
+    tempF: Math.round(current.temperature_2m),
+    description: WEATHER_CODES[current.weather_code] || 'unknown conditions',
+    lowF: pick('temperature_2m_min'),
+    highF: pick('temperature_2m_max'),
+    rainChance: pick('precipitation_probability_max'),
+    fallingNow: WET_CODES.has(current.weather_code),
+    source: 'open-meteo'
+  });
+}
+
+// MET Norway's symbols ("lightrainshowers_day") → words ("light rain showers")
+function metSymbolWords(code) {
+  return String(code || '').replace(/_(day|night|polartwilight)$/, '')
+    .replace('clearsky', 'clear sky').replace('partlycloudy', 'partly cloudy').replace('andthunder', ' and thunder')
+    .replace(/^(light|heavy)(ssleet|s)?/, (m, w) => `${w} `).replace(/(rain|sleet|snow)showers/, '$1 showers').trim();
+}
+const MET_WET = /rain|sleet|snow|drizzle|thunder/;
+
+async function weatherFromMetNorway(lat, lon) {
+  const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`;
+  const res = await fetch(url, { headers: { 'User-Agent': WEATHER_UA }, signal: AbortSignal.timeout(WEATHER_TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`MET Norway answered ${res.status}`);
+  const data = await res.json();
+  const series = (data.properties && data.properties.timeseries) || [];
+  if (!series.length) throw new Error('MET Norway sent no forecast');
+  const toF = c => Math.round(c * 9 / 5 + 32);
+  const day = series.slice(0, 16); // the next ~16 hours: the rest of today
+  const temps = day.map(t => t.data.instant.details.air_temperature).filter(n => typeof n === 'number');
+  const symbolOf = t => ((t.data.next_1_hours || t.data.next_6_hours || {}).summary || {}).symbol_code || '';
+  const nowSymbol = symbolOf(series[0]);
+  const wetHours = day.filter(t => MET_WET.test(symbolOf(t))).length;
+  const fallingNow = MET_WET.test(nowSymbol);
+  // MET's free forecast has no probability, so any two rainy hours left today make it a wet day
+  const rainLater = !fallingNow && wetHours >= 2;
+  const weather = finishWeather({
+    tempF: toF(series[0].data.instant.details.air_temperature),
+    description: (metSymbolWords(nowSymbol) || 'unknown conditions') + (rainLater ? ', rain later today' : ''),
+    lowF: temps.length ? toF(Math.min(...temps)) : null,
+    highF: temps.length ? toF(Math.max(...temps)) : null,
+    rainChance: null,
+    fallingNow: fallingNow || rainLater,
+    source: 'met-norway'
+  });
+  return weather;
+}
+
 async function fetchWeather(lat, lon) {
-  try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      `&current=temperature_2m,weather_code` +
-      `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
-      `&temperature_unit=fahrenheit&timezone=auto&forecast_days=1`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const current = data.current;
-    if (!current) return null;
-    const daily = data.daily || {};
-    const pick = key => (Array.isArray(daily[key]) && typeof daily[key][0] === 'number') ? Math.round(daily[key][0]) : null;
-    const rainChance = pick('precipitation_probability_max');
-    const fallingNow = WET_CODES.has(current.weather_code);
-    const wet = fallingNow || (rainChance != null && rainChance >= RAIN_CHANCE_WET);
-    let description = WEATHER_CODES[current.weather_code] || 'unknown conditions';
-    if (!fallingNow && wet) description += `, ${rainChance}% chance of rain`;
-    return {
-      tempF: Math.round(current.temperature_2m),
-      description,
-      lowF: pick('temperature_2m_min'),
-      highF: pick('temperature_2m_max'),
-      rainChance,
-      wet
-    };
-  } catch {
-    return null;
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  const cached = weatherCache.get(key);
+  if (cached && Date.now() - cached.at < WEATHER_CACHE_MS) return cached.weather;
+  for (const source of [weatherFromOpenMeteo, weatherFromMetNorway]) {
+    try {
+      const weather = await source(lat, lon);
+      weatherCache.set(key, { at: Date.now(), weather });
+      return weather;
+    } catch (err) {
+      console.error(`Weather lookup failed (${source.name}): ${err.message}`);
+    }
   }
+  return null;
 }
 
 const fallbackPynchonQuotes = [
@@ -972,7 +1032,7 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
           ? `Weather now: ${weather.tempF}°F, ${weather.description}.` +
             (weather.lowF != null ? ` Today: low ${weather.lowF}°F, high ${weather.highF}°F` + (weather.rainChance != null ? `, ${weather.rainChance}% chance of rain.` : '.') : '') +
             (weather.wet ? ' It is a wet day: favor what keeps the user dry and comfortable.' : '')
-          : 'Weather: unknown.',
+          : 'Weather: unknown (the forecast could not be read). Play safe: choose what still works if it turns cold or wet.',
         loved.length ? `Outfits the user loved recently:\n${loved.join('\n')}` : '',
         passed.length ? `Outfits the user marked "not my style":\n${passed.join('\n')}` : ''
       ].filter(Boolean).join('\n\n');
