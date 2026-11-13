@@ -592,6 +592,57 @@ function getHabitDay() {
   return `${year}-${month}-${day}`;
 }
 
+// The approved fixes from the 2026-11-13 closet audit (applied once by readTasks, VC only).
+// "name" is the start of the garment's name, lowercase, as a guard against the wrong item.
+const CLOSET_AUDIT_2026_11_13 = [
+  { id: 777, name: "blue denim shirt dress", set: {"wardrobeCategory": "dresses", "subcategory": "Casual Dresses"} },
+  { id: 767, name: "taupe silk evening gown", set: {"wardrobeCategory": "dresses", "subcategory": "Formal & Evening"} },
+  { id: 762, name: "black sleeveless tank dress", set: {"wardrobeCategory": "dresses", "subcategory": "Casual Dresses"} },
+  { id: 1001, name: "slate blue cotton culottes", set: {"subcategory": "Trousers & Pants"} },
+  { id: 753, name: "cream linen shirt", set: {"material": "linen", "subcategory": "Blouses & Shirts"} },
+  { id: 721, name: "periwinkle cotton blouse", set: {"material": "cotton", "subcategory": "Blouses & Shirts"} },
+  { id: 735, name: "black puffer jacket", set: {"subcategory": "Jackets"} },
+  { id: 760, name: "prada orange knit", set: { subcategory: "Sweaters & Knits" } },
+  { id: 758, name: "burgundy ribbed knit", set: { subcategory: "Sweaters & Knits" } },
+  { id: 757, name: "lavender cable knit", set: { subcategory: "Sweaters & Knits" } },
+  { id: 756, name: "taupe striped cashmere", set: { subcategory: "Sweaters & Knits" } },
+  { id: 754, name: "purple long sleeve", set: { subcategory: "T-shirts" } },
+  { id: 752, name: "cream cashmere striped", set: { subcategory: "Sweaters & Knits" } },
+  { id: 751, name: "khaki short sleeve", set: { subcategory: "Blouses & Shirts" } },
+  { id: 750, name: "beige cable knit", set: { subcategory: "Sweaters & Knits" } },
+  { id: 749, name: "striped forever sweater", set: { subcategory: "Sweaters & Knits" } },
+  { id: 748, name: "taupe cashmere quarter-zip", set: { subcategory: "Sweaters & Knits" } },
+  { id: 747, name: "brown wool turtleneck", set: { subcategory: "Sweaters & Knits" } },
+  { id: 746, name: "black mesh ruffle", set: { subcategory: "T-shirts" } },
+  { id: 745, name: "black silk blouse", set: { subcategory: "Blouses & Shirts" } },
+  { id: 744, name: "black studded v-neck", set: { subcategory: "Cardigans" } },
+  { id: 743, name: "green alpaca knit", set: { subcategory: "Sweaters & Knits" } },
+  { id: 742, name: "chartreuse green geometric", set: { subcategory: "Sweaters & Knits" } },
+  { id: 741, name: "emerald green button-up", set: { subcategory: "Blouses & Shirts" } },
+  { id: 740, name: "navy eye pattern", set: { subcategory: "Cardigans" } },
+  { id: 739, name: "navy white polka", set: { subcategory: "Tanks & Camisoles" } },
+  { id: 738, name: "black and white", set: { subcategory: "Sweaters & Knits" } },
+  { id: 737, name: "navy bear graphic", set: { subcategory: "Sweaters & Knits" } },
+  { id: 736, name: "chocolate sleeveless turtleneck", set: { subcategory: "Sweaters & Knits" } },
+  { id: 734, name: "black sleeveless knit", set: { subcategory: "Sweaters & Knits" } },
+  { id: 733, name: "gray wool turtleneck", set: { subcategory: "Sweaters & Knits" } },
+  { id: 732, name: "white linen button-up", set: { subcategory: "Blouses & Shirts" } },
+  { id: 731, name: "white cotton button-up", set: { subcategory: "Blouses & Shirts" } },
+  { id: 730, name: "white quilted bow", set: { subcategory: "Blouses & Shirts" } },
+  { id: 729, name: "white polka dot", set: { subcategory: "Blouses & Shirts" } },
+  { id: 728, name: "cream linen blend", set: { subcategory: "Blouses & Shirts" } },
+  { id: 727, name: "white cotton dress", set: { subcategory: "Blouses & Shirts" } },
+  { id: 726, name: "white cotton button-up", set: { subcategory: "Blouses & Shirts" } },
+  { id: 725, name: "grey and white", set: { subcategory: "Blouses & Shirts" } },
+  { id: 724, name: "gray cashmere crop", set: { subcategory: "Sweaters & Knits" } },
+  { id: 723, name: "cobalt blue cotton", set: { subcategory: "Blouses & Shirts" } },
+  { id: 722, name: "light blue cotton", set: { subcategory: "Blouses & Shirts" } },
+  { id: 720, name: "periwinkle blue wrap", set: { subcategory: "Blouses & Shirts" } },
+  { id: 719, name: "blue and white", set: { subcategory: "Blouses & Shirts" } },
+  { id: 718, name: "red sheep pattern", set: { subcategory: "Sweaters & Knits" } },
+  { id: 717, name: "orange cotton shirt", set: { subcategory: "Blouses & Shirts" } },
+];
+
 function readTasks(profile) {
   const file = getTasksFile(profile || 'vc');
   const defaults = profile === 'fg' ? defaultFgTasks : defaultTasks;
@@ -699,6 +750,25 @@ function readTasks(profile) {
   // gate has something to read immediately, instead of treating old shoes as closed by default.
   for (const item of data.wardrobe) {
     if (item.openToe === undefined) { item.openToe = inferOpenToe(item); changed = true; }
+  }
+
+  // One-time closet audit (2026-11-13, VC only): fixes the user approved after an audit of
+  // categories and materials. Each fix names the garment's id and the start of its name, and
+  // is skipped if they no longer match (renamed or deleted since). Every change is logged as
+  // garment_edited with from → to, so it can be undone from the activity log. Runs once.
+  if ((profile || 'vc') === 'vc' && !data.closetAudit20261113) {
+    for (const fix of CLOSET_AUDIT_2026_11_13) {
+      const item = data.wardrobe.find(i => i.id === fix.id);
+      if (!item || !String(item.text || '').toLowerCase().startsWith(fix.name)) continue;
+      const changes = Object.entries(fix.set)
+        .filter(([field, to]) => item[field] !== to)
+        .map(([field, to]) => ({ field, from: item[field] ?? '', to }));
+      if (!changes.length) continue;
+      for (const { field, to } of changes) item[field] = to;
+      logEvent('garment_edited', { taskId: item.id, text: item.text, changes, by: 'closet-audit-2026-11-13' }, profile);
+    }
+    data.closetAudit20261113 = true;
+    changed = true;
   }
 
   // Clear done shopping list items at the end of each PT day
