@@ -265,7 +265,8 @@ function sanitizeOutfit(items) {
 // can only come from a bad judgment call below, never from the model forgetting a rule.
 const LAYER_THRESHOLD_F = 55;   // below this, an outfit needs outerwear to pass the weather gate
 const ROTATION_CAP_DAYS = 60;   // days-since-worn is capped so one ancient item doesn't dominate the score
-const CANDIDATE_LIMIT = 8;      // how many candidates get sent to the stylist to choose among
+const MAIN_LIMIT = 8;           // how many different main pieces (a dress or jumpsuit, or a top) each spin offers
+const VARIANTS_PER_MAIN = 3;    // pairings (bottom, shoes, layer) offered for each main piece
 const DELICATE_IN_RAIN = /\b(silk|satin|suede|velvet)\b/i; // fabrics a wet day ruins
 
 function rotationScore(items, stats, recentMainIds) {
@@ -282,7 +283,7 @@ function rotationScore(items, stats, recentMainIds) {
 // Returns { candidates, gates }. `candidates` is the item-array list the stylist judges.
 // `gates` records what each gate actually decided, so a real decision trace can be built
 // from it afterward — not just the final list, but why it looks the way it does.
-function buildOutfitCandidates(data, stats, weather, exclude) {
+function buildOutfitCandidates(data, stats, weather, exclude, mustInclude = null) {
   const byCategory = cat => data.wardrobe.filter(i => i.wardrobeCategory === cat);
   const bases = [
     ...ONE_PIECE_CATEGORIES.flatMap(byCategory).map(p => [p]),
@@ -337,10 +338,47 @@ function buildOutfitCandidates(data, stats, weather, exclude) {
       .filter(id => MAIN_CATEGORIES.includes((data.wardrobe.find(i => i.id === id) || {}).wardrobeCategory))
   );
 
-  const scored = afterExclusion
-    .map(items => ({ items, score: rotationScore(items, stats, recentMainIds) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, CANDIDATE_LIMIT);
+  // Chance's piece (the wild card): when one was rolled, keep only outfits built around it,
+  // unless none passed the gates, in which case the roll just doesn't land this spin.
+  const withWildCard = mustInclude ? afterExclusion.filter(c => c.some(i => i.id === mustInclude.id)) : [];
+  const wildCardLanded = withWildCard.length > 0;
+  const pool = wildCardLanded ? withWildCard : afterExclusion;
+
+  // Variety: group outfits by their main piece (the dress or jumpsuit, or the top) and offer
+  // MAIN_LIMIT different main pieces, each with up to VARIANTS_PER_MAIN pairings. Without
+  // this, the top few outfits were one dress with eight pairs of shoes. Equal scores (most
+  // pieces have never been logged as worn) are broken at random, never by list order, so
+  // every main piece has the same chance: dresses come up about as often as they fill the closet.
+  const groups = new Map();
+  for (const items of pool) {
+    const main = items.find(i => ONE_PIECE_CATEGORIES.includes(i.wardrobeCategory)) ||
+      items.find(i => i.wardrobeCategory === 'tops') || items[0];
+    const entry = { items, score: rotationScore(items, stats, recentMainIds), tiebreak: Math.random() };
+    if (!groups.has(main.id)) groups.set(main.id, []);
+    groups.get(main.id).push(entry);
+  }
+  const byScore = (a, b) => (b.score - a.score) || (a.tiebreak - b.tiebreak);
+  // Main pieces are ranked by their best outfit's score, with one random draw per main piece
+  // for ties: a top with 400 pairings mustn't get 400 chances to a dress's 20.
+  const ranked = [...groups.values()]
+    .map(list => ({ list: list.sort(byScore), draw: Math.random() }))
+    .sort((a, b) => (b.list[0].score - a.list[0].score) || (a.draw - b.draw))
+    .slice(0, MAIN_LIMIT)
+    .map(g => g.list);
+  // Within a main piece, the pairings differ: each new one changes the bottom or the shoes
+  const pairingKey = items => items.filter(i => ['bottoms', 'shoes'].includes(i.wardrobeCategory)).map(i => i.id).join('+');
+  const scored = ranked.flatMap(list => {
+    const picked = [];
+    const seen = new Set();
+    for (const entry of list) {
+      if (picked.length >= VARIANTS_PER_MAIN) break;
+      const key = pairingKey(entry.items);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      picked.push(entry);
+    }
+    return picked;
+  });
 
   return {
     candidates: scored.map(c => c.items),
@@ -355,6 +393,8 @@ function buildOutfitCandidates(data, stats, weather, exclude) {
       rainGateRelaxed,
       exclusionGateApplied: Boolean(excludedMainIds.size && withoutExcluded.length),
       exclusionGateRelaxed,
+      wildCardLanded,
+      mainPieces: ranked.length,
       rotationScores: scored.map(c => Number(c.score.toFixed(1)))
     }
   };
@@ -1068,25 +1108,15 @@ app.post('/api/wardrobe/suggest-outfit', async (req, res) => {
   const hasPlace = typeof lat === 'number' && typeof lon === 'number';
   const weather = await fetchWeather(hasPlace ? lat : HOME_LAT, hasPlace ? lon : HOME_LON);
   const stats = computeWardrobeStats(data);
-  let { candidates, gates } = buildOutfitCandidates(data, stats, weather, exclude);
-
   // Principle 2 (off the hook): now and then chance plays a piece into the outfit — a dice
-  // roll, not a judgment, so it's decided here in code. Narrow to candidates that include it;
-  // if none do (it doesn't suit today's weather gate, say), the roll just doesn't land today
-  // rather than forcing an unsuitable piece in.
+  // roll, not a judgment, so it's decided here in code. The candidates are then built around
+  // it; if no outfit with it passes the gates (it doesn't suit today's weather, say), the roll
+  // just doesn't land today rather than forcing an unsuitable piece in.
   const shownIds = new Set(exclude.flat());
   const wildPool = data.wardrobe.filter(i => !shownIds.has(i.id));
-  const wildCard = candidates.length && wildPool.length && Math.random() < WILD_CARD_ODDS ? pickRandom(wildPool) : null;
-  let wildCardLanded = false;
-  if (wildCard) {
-    const keepIdx = candidates.reduce((acc, c, i) => { if (c.some(it => it.id === wildCard.id)) acc.push(i); return acc; }, []);
-    if (keepIdx.length) {
-      // Narrow rotationScores in lockstep so the trace's scores stay aligned to the narrowed list.
-      candidates = keepIdx.map(i => candidates[i]);
-      gates = { ...gates, rotationScores: keepIdx.map(i => gates.rotationScores[i]) };
-      wildCardLanded = true;
-    }
-  }
+  const wildCard = wildPool.length && Math.random() < WILD_CARD_ODDS ? pickRandom(wildPool) : null;
+  const { candidates, gates } = buildOutfitCandidates(data, stats, weather, exclude, wildCard);
+  const wildCardLanded = Boolean(gates.wildCardLanded);
 
   // Try the AI stylist, but never let it be a hard failure — any problem (usage limits,
   // rate limits, a refusal, a network hiccup) just falls back to a random pick so the
