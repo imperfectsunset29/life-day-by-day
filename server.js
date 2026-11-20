@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
+const { computePublicUsage } = require('./usage');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1072,7 +1073,7 @@ function computeWardrobeStats(data) {
   };
 }
 
-app.get('/api/wardrobe/stats', (req, res) => {
+app.get('/api/wardrobe/stats', requireAdmin, (req, res) => {
   res.json(computeWardrobeStats(readTasks(profileFrom(req))));
 });
 
@@ -1282,10 +1283,27 @@ app.post('/api/wishlist/:id/resolve', requireAdmin, async (req, res) => {
   res.json({ name: w.name || '', image: w.image || '', resolvedAt: w.resolvedAt });
 });
 
-// Get all tasks
+// Get all tasks. Only an unlocked profile sees its data: names of tasks and projects are
+// private. A locked visitor gets the same shape with every list empty (and `locked: true`),
+// so the app still draws, just with nothing in it.
+function lockedView(data) {
+  const view = { locked: true };
+  for (const [key, value] of Object.entries(data)) {
+    if (Array.isArray(value)) view[key] = [];
+    else if (value === null || typeof value !== 'object') view[key] = value;
+  }
+  view.oracle = { text: '', source: '', preview: '' };
+  return view;
+}
+
+function isAdminRequest(req) {
+  const expectedPw = profileFrom(req) === 'fg' ? process.env.FG_ADMIN_PASSWORD : process.env.ADMIN_PASSWORD;
+  return !expectedPw || req.headers['x-admin-password'] === expectedPw;
+}
+
 app.get('/api/tasks', (req, res) => {
-  const profile = profileFrom(req);
-  res.json(readTasks(profile));
+  const data = readTasks(profileFrom(req));
+  res.json(isAdminRequest(req) ? data : lockedView(data));
 });
 
 // Add a task
@@ -1642,7 +1660,7 @@ app.post('/api/restore/:category/:id', requireAdmin, (req, res) => {
 });
 
 // Get a random uncompleted task (20% treat, 20% hard thing, 60% regular pool)
-app.get('/api/random', (req, res) => {
+app.get('/api/random', requireAdmin, (req, res) => {
   const profile = profileFrom(req);
   const data = readTasks(profile);
   const excludeId = req.query.exclude ? Number(req.query.exclude) : null;
@@ -1718,6 +1736,39 @@ app.get('/api/health', (req, res) => {
       wishlist: data.wishlist.length
     }
   });
+});
+
+// ---- Public usage, for the Oedipa case study on iamvalentina.us ----
+// Aggregates only (counts per day, totals) from VC's activity log, plus book titles from
+// the public-books.json allowlist. No task, habit or project names, ever: see usage.js.
+// Open to anyone, readable cross-origin only by the portfolio site. Cached for an hour.
+const PUBLIC_USAGE_ORIGINS = ['https://iamvalentina.us', 'https://www.iamvalentina.us', 'http://localhost:4321'];
+const PUBLIC_USAGE_TTL_MS = 60 * 60 * 1000;
+let publicUsageCache = null; // { at, body }
+
+function readPublicBooks() {
+  try {
+    const list = JSON.parse(fs.readFileSync(path.join(__dirname, 'public-books.json'), 'utf8'));
+    return Array.isArray(list) ? list.filter(b => b && b.project && b.title) : [];
+  } catch {
+    return []; // no list, no books: never fall back to project names
+  }
+}
+
+app.get('/api/public/usage', (req, res) => {
+  const origin = req.headers.origin;
+  if (PUBLIC_USAGE_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  const today = getTodayPT();
+  if (!publicUsageCache || publicUsageCache.body.asOf !== today || Date.now() - publicUsageCache.at > PUBLIC_USAGE_TTL_MS) {
+    const file = getEventsFile('vc');
+    const events = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
+    publicUsageCache = { at: Date.now(), body: computePublicUsage(events, today, readPublicBooks()) };
+  }
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.json(publicUsageCache.body);
 });
 
 app.get('/api/backup', requireAdmin, (req, res) => {
