@@ -117,6 +117,13 @@ tasks.json           → All persistent data (auto-created on first run)
 
 **Quote freshness — non-negotiable.** Finishing should feel rewarding, so every quote must feel new. Entropy, hidden systems and "They" are a palette to draw from occasionally, never a checklist. `generatePynchon()` in `server.js` builds each prompt from three parts. The project's name gives specificity. A random entry from `PYNCHON_ANGLES` sets the doorway. The recent quotes go in as a do-not-echo list: the last 12 Olympus reflections, or for one-offs an in-memory list of the last 12 celebration quotes per profile. Don't reintroduce a pre-generated queue: it can't know the project or what was just said. The frontend opens the celebration overlay immediately and fills the quote in when it arrives.
 
+## Public usage (iamvalentina.us)
+
+`GET /api/public/usage` is the one route open to anyone: aggregate counts from VC's activity log for the Oedipa case study's live chart. Shape: `{ since, asOf, days: [{ date, actions, opened, finished }], totals: { daysUsed, daysTotal, habits, oneOffs, projectsFinished, surprisesOffered, surprisesTaken, longestRun, currentRun }, books: [{ title, finishedOn }] }`. Computed by `computePublicUsage()` in `usage.js` (pure, so `scripts/check-usage-window.js` runs the same code on an export), cached an hour, CORS only for `iamvalentina.us`, `www.` and `localhost:4321`.
+- **No names, ever,** except book titles. A finished project becomes a book only when its name exactly matches a `project` in `public-books.json`, and the published title is that entry's `title`, never the project's own text. Finishing a new book means adding a line there.
+- **Definitions** (checked against the Oct 16 export: 126/163 days, 345 habits, 170 one-offs, 14 projects, 34/125 surprises, longest run 25): a day is the LA calendar date; used = opened or something done; actions = habit, one-off and step check-offs plus first-time project finishes; a project counts once, on the day it first hit 100%.
+- **Everything else is private.** `/api/tasks` returns an empty `locked: true` shape unless unlocked; `/api/random` and `/api/wardrobe/stats` need the password.
+
 ## Oracle
 
 Single block of text (quote, I Ching, etc.) at the top of the main view. Stored as `oracle: { text, source, preview }` in `tasks.json`. Collapsed view shows source + preview (up to 3 lines, CSS line-clamp). Clicking opens `#oracle-overlay` with full text as clickable sentence spans. Admin can select up to 2 sentences as preview (tap to select; tapping a 3rd resets). Key functions: `renderOracle()`, `openOracleOverlay()`, `buildSentenceSpans()`, `updateOracleActionBtn()`. API: `PUT /api/oracle`.

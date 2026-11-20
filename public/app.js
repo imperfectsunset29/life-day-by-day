@@ -200,6 +200,9 @@ const appHeader = document.getElementById('header');
 async function loadTasks() {
   const res = await fetch(`${API}/tasks`, { headers: authHeaders() });
   tasks = await res.json();
+  // The server only shares a profile's lists once it's unlocked. If a saved password no
+  // longer works, lock so the 🔒 invites a fresh one.
+  if (tasks.locked && isAdmin()) lock();
   render();
 }
 
@@ -1190,7 +1193,7 @@ async function surprise() {
   if (currentSurpriseTask) await logSurpriseOutcome('skipped');
   const excludeParam = currentSurpriseTask ? `?exclude=${currentSurpriseTask.id}` : '';
   const res = await fetch(`${API}/random${excludeParam}`, { headers: authHeaders() });
-  const task = await res.json();
+  const task = res.ok ? await res.json() : null; // locked: nothing to pick from
   const closeBtn = document.getElementById('close-overlay-btn');
 
   if (!task) {
